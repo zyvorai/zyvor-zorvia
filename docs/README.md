@@ -1,6 +1,6 @@
 # Zorvia documentation
 
-Start here: root [README.md](../README.md) (hero, gallery, quick start) · live site [zyvorai.github.io/zorvia](https://zyvorai.github.io/zorvia/).
+Start here: root [README.md](../README.md) (hero, gallery, quick start) · live site [zyvorai.github.io/zyvor-zorvia](https://zyvorai.github.io/zyvor-zorvia/).
 
 ## Guides (moved from the root README)
 

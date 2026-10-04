@@ -12,10 +12,10 @@ const config: Config = {
   },
 
   url: 'https://zyvorai.github.io',
-  baseUrl: '/zorvia/',
+  baseUrl: '/zyvor-zorvia/',
 
   organizationName: 'zyvorai',
-  projectName: 'zorvia',
+  projectName: 'zyvor-zorvia',
 
   onBrokenLinks: 'warn',
 
@@ -42,7 +42,7 @@ const config: Config = {
           path: '../docs',
           routeBasePath: 'docs',
           sidebarPath: './sidebars.ts',
-          editUrl: 'https://github.com/zyvorai/zorvia/tree/main/docs/',
+          editUrl: 'https://github.com/zyvorai/zyvor-zorvia/tree/main/docs/',
         },
         blog: false,
         theme: {
@@ -55,7 +55,8 @@ const config: Config = {
   themeConfig: {
     image: 'zorvia-share-card.png',
     colorMode: {
-      respectPrefersColorScheme: true,
+      defaultMode: 'dark',
+      respectPrefersColorScheme: false,
     },
     navbar: {
       title: 'Zorvia',
@@ -72,7 +73,7 @@ const config: Config = {
           label: 'Docs',
         },
         {
-          href: 'https://github.com/zyvorai/zorvia',
+          href: 'https://github.com/zyvorai/zyvor-zorvia',
           label: 'GitHub',
           position: 'right',
         },
@@ -94,9 +95,9 @@ const config: Config = {
         {
           title: 'Project',
           items: [
-            {label: 'GitHub', href: 'https://github.com/zyvorai/zorvia'},
-            {label: 'Changelog', href: 'https://github.com/zyvorai/zorvia/blob/main/CHANGELOG.md'},
-            {label: 'License (Apache-2.0)', href: 'https://github.com/zyvorai/zorvia/blob/main/LICENSE'},
+            {label: 'GitHub', href: 'https://github.com/zyvorai/zyvor-zorvia'},
+            {label: 'Changelog', href: 'https://github.com/zyvorai/zyvor-zorvia/blob/main/CHANGELOG.md'},
+            {label: 'License (Apache-2.0)', href: 'https://github.com/zyvorai/zyvor-zorvia/blob/main/LICENSE'},
           ],
         },
         {
