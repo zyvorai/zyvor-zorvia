@@ -1,13 +1,6 @@
 <div align="center">
 
-<img src="docs/social/zorvia-hero-dark.jpg" alt="Zorvia - Kubernetes VMs, run like a platform, not YAML." width="100%">
-
 # Zorvia
-
-### Kubernetes VMs, run like a platform — not a pile of YAML.
-
-KubeVirt gives you `VirtualMachine` objects. Zorvia gives you the control plane around them.<br>
-CLI, interactive TUI and a signed-in web console — one API, live cluster objects, not a parallel mock store.
 
 [![CI](https://img.shields.io/github/actions/workflow/status/zyvorai/zyvor-zorvia/ci.yml?branch=main&style=flat-square&labelColor=1d1d1f&label=CI)](https://github.com/zyvorai/zyvor-zorvia/actions)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-0071e3?style=flat-square&labelColor=1d1d1f)](LICENSE)
@@ -15,15 +8,49 @@ CLI, interactive TUI and a signed-in web console — one API, live cluster objec
 [![KubeVirt-native](https://img.shields.io/badge/KubeVirt-native-0071e3?style=flat-square&labelColor=1d1d1f)](https://kubevirt.io/)
 [![Rust 1.89+](https://img.shields.io/badge/rust-1.89%2B-0071e3?style=flat-square&labelColor=1d1d1f&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 
-[**Quick start**](#quick-start) · [**Console**](#console-gallery) · [**Docs**](docs/README.md) · [**Leaving OpenShift?**](docs/leave-openshift.md) · [**Book a demo**](https://zyvor.dev/schedule?utm_source=github&utm_medium=zorvia&utm_campaign=readme_hero) · [**30-day PoC**](https://zyvor.dev/poc?utm_source=github&utm_medium=zorvia&utm_campaign=readme_hero) · [**Star on GitHub**](https://github.com/zyvorai/zyvor-zorvia)
+[![Book a demo](https://img.shields.io/badge/Book_a_demo-0071e3?style=for-the-badge)](https://zyvor.dev/schedule?utm_source=github&utm_medium=zorvia&utm_campaign=readme_hero)
+[![30-day PoC](https://img.shields.io/badge/30--day_PoC-000000?style=for-the-badge)](https://zyvor.dev/poc?utm_source=github&utm_medium=zorvia&utm_campaign=readme_hero)
+[![Deploy](https://img.shields.io/badge/Deploy_with_one_Helm_chart-0a84ff?style=for-the-badge)](#quickstart)
+
+[**Quickstart**](#quickstart) · [**Console**](#see-it-live) · [**Docs**](docs/README.md) · [**Leaving OpenShift?**](docs/leave-openshift.md) · [**Star on GitHub**](https://github.com/zyvorai/zyvor-zorvia)
+
+<img src="docs/social/zorvia-hero-dark.jpg" alt="Zorvia - Kubernetes VMs, run like a platform, not YAML." width="100%">
+
+### Kubernetes VMs, run like a platform — not a pile of YAML.
+
+**KubeVirt gives you `VirtualMachine` objects. Zorvia gives you the control plane around them.** CLI, interactive TUI and a signed-in web console — one API, live cluster objects, not a parallel mock store.
+
+**43 OS templates** · **8 profiles, 5 blueprints** · **CLI · TUI · web, one API** · **Any KubeVirt cluster** · **Apache-2.0**
 
 </div>
 
 ---
 
-## Create. Operate. Reach. Govern. Prove.
+## What's new
+
+**v0.4.0, the production-platform release** ([changelog](CHANGELOG.md)):
+
+| Area | What shipped |
+|---|---|
+| Data protection you can prove | Encrypted off-cluster S3 backups with read-back verification, restore (including Block volumes), recovery drills, durable operations that survive restarts |
+| Identity and tenancy | Namespace allow-lists for users and API tokens, TOTP secrets sealed at rest (local key or Vault Transit), OIDC group-to-role mapping, certificate hot reload |
+| High availability (Beta) | PostgreSQL store (users, operations, audit, schedules, shared lockout) and a two-replica Helm profile (`values-ha.yaml`) |
+| Guests | Zyvor guest agent (GuestKit v1.2.5) with application-consistent snapshots, read-only guest views, a Guest agent tab |
+| Hardware (Experimental) | GPU/vGPU/SR-IOV passthrough, NUMA/hugepages/dedicated CPUs, permit/remove devices from the console |
+| Upgrade note | The CLI is restructured into nested subcommands (breaking): `zorvia create` is now `zorvia vm create` |
+
+## Why Zorvia
 
 **Create** from a template or blueprint instead of hand-writing CRDs. **Operate** day-2 — hotplug, live migrate, snapshot — without downtime. **Reach** the guest over an authenticated console, VNC or SSH. **Govern** with real RBAC and quotas. **Prove** it afterward with an exportable audit trail. Full docs: [zyvorai.github.io/zyvor-zorvia](https://zyvorai.github.io/zyvor-zorvia/).
+
+| When this happens… | Zorvia gives you… |
+|---|---|
+| Every new VM means hand-writing a `VirtualMachine` CRD | 43 named OS templates, 8 resource profiles and 5 multi-VM blueprints |
+| Day-2 changes mean downtime or a careful `virtctl` session | CPU/memory/disk/NIC hotplug, live migration and disk resize, with `zorvia change drift` and `zorvia change plan` to catch problems first |
+| Reaching the guest means handing out cluster credentials | Serial, VNC and in-browser SSH over authenticated, permission-checked WebSockets |
+| Access control lives only in the UI | Server-side roles, per-user [namespace allow-lists](docs/TENANCY.md), `ResourceQuota` and `NetworkPolicy` — not client-only checks |
+| The auditor asks who did what | A persistent audit DB and `GET /api/audit/export` (JSONL) for SIEM shippers |
+| You're paying for OpenShift just to run KubeVirt VMs | An Apache-2.0 control plane for any KubeVirt cluster, adopted read-only first |
 
 | Step | Surface | What it does |
 |------|---------|--------------|
@@ -33,7 +60,9 @@ CLI, interactive TUI and a signed-in web console — one API, live cluster objec
 | **4 · Guard** | RBAC · namespaces · quotas · NetworkPolicy | Server-side roles, per-user [namespace allow-lists](docs/TENANCY.md), `ResourceQuota`, `NetworkPolicy` — not client-only checks |
 | **5 · Audit** | Trail · JSONL export | Persistent audit DB + `GET /api/audit/export` for SIEM shippers |
 
-## What is in the box
+![Capabilities at a glance: Create, Day-2, Govern, Protect](docs/ux/readme-capabilities.jpg)
+
+### What is in the box
 
 <table>
 <tr>
@@ -72,51 +101,24 @@ Placement Advisor and Capacity Planning against real Node capacity, a Resource O
 </tr>
 </table>
 
-One Fabric API sits behind the CLI, the interactive TUI and the web console, and every call ends in real Kubernetes objects: `VirtualMachine`, `VirtualMachineSnapshot`, `NetworkPolicy`, `ResourceQuota`, PVCs and DataVolumes. If a page shows a number, it came from the cluster. Diagram: [docs/whats-inside.md](docs/whats-inside.md).
+---
 
-## Console gallery
+## Zorvia vs OpenShift Virtualization
 
-One continuous session on a real lab cluster (HTTPS NodePort **30152**) — dashboard → VM list → in-browser console → live metrics. Not mockups.
+![Zorvia vs OpenShift Virtualization: same KubeVirt VMs, pick your control plane](docs/ux/readme-vs.jpg)
 
-<div align="center">
+| | **Zorvia** | **OpenShift Virtualization** (Red Hat) |
+|---|---|---|
+| VM engine | KubeVirt | KubeVirt |
+| Where it runs | Any KubeVirt cluster | OpenShift only |
+| Licence | Apache-2.0, no subscription to run it | Red Hat subscription |
+| Front ends | CLI, interactive TUI and web console on one Fabric API | OpenShift web console and `virtctl`; no TUI |
+| Change gating | `zorvia change drift` and `zorvia change plan` built in | Not built in |
+| VMware migration | No importer of its own in production; pairs with Transiva → h2kvm → GuestKit (in-product h2kvm import is Experimental) | Integrated migration tooling |
+| Support | Production support and SLAs by contract, on top of the free code | Red Hat support contract |
+| **Choose OpenShift Virtualization when** | | You want one vendor support contract for the whole platform, multi-cluster management and integrated VMware migration |
 
-<img src="docs/screenshots/readme-demo.gif" alt="Zorvia demo" width="860">
-
-**Dashboard → VM list → open a VM's console → watch a real guest boot.** ~15–20s, no audio.
-
-</div>
-
-## Install
-
-One binary, one Helm chart — bring your own KubeVirt cluster. Requires Rust **1.89+**, a kubeconfig, and a cluster with **KubeVirt** (CDI optional for golden images / CDI clone).
-
-```bash
-git clone https://github.com/zyvorai/zyvor-zorvia.git && cd zorvia
-cargo install --path . --features web   # `web` is the default feature
-
-# cluster install
-helm upgrade --install zorvia charts/zorvia -n zorvia-system --create-namespace \
-  -f charts/zorvia/values-lab.yaml
-```
-
-Production values: `charts/zorvia/values-production.yaml`. Lab remote deploy: [docs/LAB.md](docs/LAB.md).
-
-## Quick start
-
-Profile → create → start → reach the guest. One real VM.
-
-```bash
-zorvia profile show database
-zorvia vm create prod-db --template ubuntu-22.04 --cpus 6 --memory 16Gi --disk-size 200Gi
-zorvia vm start prod-db
-zorvia guest wait-ready prod-db --timeout 120
-zorvia vm status prod-db --watch
-zorvia blueprint deploy lamp --prefix myapp --start     # or a whole multi-VM stack
-```
-
-The web console is served on HTTPS NodePort **30152** (self-signed): `open https://<HOST>:30152/app`. Ports, the health/login/audit `curl` examples and the lab password Secret are in [Install and quick start](docs/getting-started.md#quick-start).
-
-## How it stacks up
+### How it stacks up
 
 |  | Hand-rolled `kubectl`/`virtctl` | Generic K8s dashboards | OpenShift Virtualization | **Zorvia** |
 |---|---|---|---|---|
@@ -129,7 +131,7 @@ The web console is served on HTTPS NodePort **30152** (self-signed): `open https
 
 Zorvia isn't a general Kubernetes dashboard — it's opinionated about one thing: VMs on KubeVirt, done like a platform.
 
-## Leaving OpenShift?
+### Leaving OpenShift?
 
 <div align="center">
 
@@ -161,6 +163,74 @@ OpenShift Virtualization runs KubeVirt, so your VMs are already `VirtualMachine`
 </div>
 
 > **Running this for a business?** Commercial support gives you support and SLAs you can put in a contract. [Book a demo](https://zyvor.dev/schedule?utm_source=github&utm_medium=zorvia&utm_campaign=readme_edition) or start a [30-day PoC](https://zyvor.dev/poc?utm_source=github&utm_medium=zorvia&utm_campaign=readme_edition) on a real cluster, then follow the [adoption runbook](docs/adopt-existing-kubevirt-cluster.md).
+
+---
+
+<a id="console-gallery"></a>
+
+## See it live
+
+One continuous session on a real lab cluster (HTTPS NodePort **30152**) — dashboard → VM list → in-browser console → live metrics. Not mockups.
+
+<div align="center">
+
+<img src="docs/screenshots/readme-demo.gif" alt="Zorvia demo" width="860">
+
+**Dashboard → VM list → open a VM's console → watch a real guest boot.** ~15–20s, no audio.
+
+</div>
+
+| Dashboard | VM list | VM console |
+|---|---|---|
+| ![Dashboard](docs/screenshots/readme-dashboard.png) | ![VM list](docs/screenshots/readme-vms-list.png) | ![VM console](docs/screenshots/readme-vm-console.png) |
+| Cluster and VM overview from live objects | Every `VirtualMachine`, with power and status | In-browser console into a running guest |
+
+| VM metrics | Templates | Pods: exec |
+|---|---|---|
+| ![VM metrics](docs/screenshots/readme-vm-metrics.png) | ![Templates](docs/screenshots/readme-templates.png) | ![Pods exec](docs/screenshots/readme-pods-exec.png) |
+| Live metrics for one VM | Named OS templates to create from | An `exec -it` shell into a platform pod (admin-only, audited) |
+
+---
+
+## How it fits together
+
+![One Fabric API, three front ends, real objects every time](docs/ux/readme-how-it-works.jpg)
+
+One Fabric API sits behind the CLI, the interactive TUI and the web console, and every call ends in real Kubernetes objects: `VirtualMachine`, `VirtualMachineSnapshot`, `NetworkPolicy`, `ResourceQuota`, PVCs and DataVolumes. If a page shows a number, it came from the cluster. Diagram: [docs/whats-inside.md](docs/whats-inside.md).
+
+---
+
+## Install
+
+One binary, one Helm chart — bring your own KubeVirt cluster. Requires Rust **1.89+**, a kubeconfig, and a cluster with **KubeVirt** (CDI optional for golden images / CDI clone).
+
+```bash
+git clone https://github.com/zyvorai/zyvor-zorvia.git && cd zorvia
+cargo install --path . --features web   # `web` is the default feature
+
+# cluster install
+helm upgrade --install zorvia charts/zorvia -n zorvia-system --create-namespace \
+  -f charts/zorvia/values-lab.yaml
+```
+
+Production values: `charts/zorvia/values-production.yaml`. Lab remote deploy: [docs/LAB.md](docs/LAB.md).
+
+<a id="quick-start"></a>
+
+## Quickstart
+
+Install as above, then profile → create → start → reach the guest. One real VM.
+
+```bash
+zorvia profile show database
+zorvia vm create prod-db --template ubuntu-22.04 --cpus 6 --memory 16Gi --disk-size 200Gi
+zorvia vm start prod-db
+zorvia guest wait-ready prod-db --timeout 120
+zorvia vm status prod-db --watch
+zorvia blueprint deploy lamp --prefix myapp --start     # or a whole multi-VM stack
+```
+
+The web console is served on HTTPS NodePort **30152** (self-signed): `open https://<HOST>:30152/app`. Ports, the health/login/audit `curl` examples and the lab password Secret are in [Install and quick start](docs/getting-started.md#quick-start).
 
 ## Production support and services
 
@@ -203,26 +273,63 @@ Delivery is phased. Catalog, quote requests, contracts and coverage are implemen
 
 <a id="whats-inside"></a><a id="why-teams-pick-zorvia"></a><a id="platform-surface"></a><a id="day-2-commands"></a><a id="web-console--api"></a><a id="profiles--blueprints--templates"></a><a id="operator-toolkit"></a><a id="config--library"></a><a id="develop"></a><a id="roadmap"></a>
 
-**Roadmap:** a feature-maturity registry, not a marketing slide. Only **GA** and documented **Beta** paths are production promises: [docs/roadmap.md](docs/roadmap.md), or `GET /api/v1/features` on a running API.
-
 ## Project security
 
 No `unsafe` on the product path. CORS off unless configured. TLS verification enforced. Console, VNC and SSH sockets are permission-checked, origin-checked and audited; users can be confined to namespaces; sign-in is throttled, MFA re-enrolment needs proof, and sessions can be revoked (`POST /api/v1/auth/logout`). Lab mode is off by default. Profile/blueprint storage blocks path traversal. API errors are sanitized; auth inputs bounded. Report privately via [GitHub Security Advisories](https://github.com/zyvorai/zyvor-zorvia/security/advisories) or `info@zyvor.dev` — [SECURITY.md](SECURITY.md).
 
+---
+
+## Maturity
+
+**Roadmap:** a feature-maturity registry, not a marketing slide. Only **GA** and documented **Beta** paths are production promises: [docs/roadmap.md](docs/roadmap.md), or `GET /api/v1/features` on a running API. Full list: [docs/FEATURE_MATURITY.md](docs/FEATURE_MATURITY.md); validated versions and measured results: [docs/SUPPORT_MATRIX.md](docs/SUPPORT_MATRIX.md).
+
+| Level | Meaning | Examples |
+|---|---|---|
+| **GA** | Real backend, persistence, RBAC, tests, upgrade path | VM lifecycle, snapshots and restore, live migration, web console and auth, audit trail |
+| **Beta** | Operational with documented limitations | Helm chart, OIDC, PostgreSQL store and two replicas, off-cluster S3 backups, guest agent integration, pod ops, schedulers, Rook-Ceph and Atlas storage |
+| **Experimental** | Behind `ZORVIA_EXPERIMENTAL=1`; no production promise | GPU/SR-IOV/NUMA, VMware import via h2kvm Jobs, fleet multi-cluster, golden-image pipeline, cross-cluster DR |
+| **Model only** | Internal types / demos — not marketed as working | AI troubleshooting, DR replication pairs, incremental backup fields |
+
+---
+
+## Part of the Zyvor stack
+
+| Product | Role next to Zorvia |
+|---|---|
+| **Zorvia** | KubeVirt VM platform: CLI, TUI and web console over one API |
+| **[GuestKit](https://github.com/zyvorai/zyvor-guestkit)** | Offline VM assurance; Zorvia pins the GuestKit-based Zyvor guest agent (v1.2.5) for guest views and snapshot hooks |
+| **[h2kvm](https://github.com/zyvorai/zyvor-h2kvm)** | VMware → KubeVirt conversion; Zorvia can run h2kvm import Jobs (Experimental, needs `ZORVIA_H2KVM_IMAGE`) |
+| **[Atlas](https://github.com/zyvorai/zyvor-atlas)** | Storage control plane; optional integration gated on `ATLAS_URL` (Beta) |
+| **[Kryton](https://github.com/zyvorai/zyvor-kryton)** | Windows workload control plane; backs the Create VM Windows wizard when `KRYTON_URL` is set |
+
+→ [zyvor.dev](https://zyvor.dev)
+
+---
+
 ## Get involved
 
 - **Running this in production?** Production support and SLAs are available by contract; other Zyvor products are licensed separately. [Book a demo](https://zyvor.dev/schedule?utm_source=github&utm_medium=zorvia&utm_campaign=readme_footer) or start a [30-day PoC](https://zyvor.dev/poc?utm_source=github&utm_medium=zorvia&utm_campaign=readme_footer). Tell us your cluster size and what's on your [roadmap](docs/roadmap.md) list, and we'll tell you what's already possible today. Fallback: sales@zyvor.dev.
-- **Evaluating it?** Clone it and run the [quick start](#quick-start); every claim in this README maps to a route or command you can hit right now. Questions, bug reports and feature requests are welcome as [GitHub issues](https://github.com/zyvorai/zyvor-zorvia/issues); a [star on the repo](https://github.com/zyvorai/zyvor-zorvia) helps others find it.
+- **Evaluating it?** Clone it and run the [quickstart](#quickstart); every claim in this README maps to a route or command you can hit right now. Questions, bug reports and feature requests are welcome as [GitHub issues](https://github.com/zyvorai/zyvor-zorvia/issues); a [star on the repo](https://github.com/zyvorai/zyvor-zorvia) helps others find it.
 - **Contributing code?** PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-Commercial subscriptions and support: see [docs/SUBSCRIPTION-MODEL.md](docs/SUBSCRIPTION-MODEL.md).
+Zorvia is **free and open source** under the [Apache License, Version 2.0](LICENSE). You may use, modify, and run it for personal, lab, and commercial production use at no charge, subject to Apache-2.0 (preserve notices / NOTICE where required). See [NOTICE](NOTICE) — Apache-2.0 only (not dual-licensed with MIT).
 
-Open source under the [Apache License, Version 2.0](LICENSE). You may use, modify, and run it for personal, lab, and commercial production use at no charge, subject to Apache-2.0 (preserve notices / NOTICE where required). See [NOTICE](NOTICE) — Apache-2.0 only (not dual-licensed with MIT).
+**Zyvor Enterprise** adds what production teams ask for: supported releases, deployment and upgrade guidance, priority incident triage, a named technical contact and 24x7 critical intake. Plans and terms: [docs/SUBSCRIPTION-MODEL.md](docs/SUBSCRIPTION-MODEL.md) · [Pricing](https://zyvor.dev/pricing?utm_source=github&utm_medium=zorvia&utm_campaign=readme_license) · [sales@zyvor.dev](mailto:sales@zyvor.dev).
+
+Built on [KubeVirt](https://kubevirt.io/) and [kube-rs](https://github.com/kube-rs/kube).
+
+---
 
 <div align="center">
 
-Built on [KubeVirt](https://kubevirt.io/) and [kube-rs](https://github.com/kube-rs/kube). Part of the Zyvor platform — more at **[zyvor.dev](https://zyvor.dev/?utm_source=github&utm_medium=zorvia&utm_campaign=readme_footer)**.
+### Run your KubeVirt VMs like a platform
+
+[![Book a demo](https://img.shields.io/badge/Book_a_demo-0071e3?style=for-the-badge)](https://zyvor.dev/schedule?utm_source=github&utm_medium=zorvia&utm_campaign=readme_footer)
+[![30-day PoC](https://img.shields.io/badge/Start_a_30--day_PoC-000000?style=for-the-badge)](https://zyvor.dev/poc?utm_source=github&utm_medium=zorvia&utm_campaign=readme_footer)
+[![Pricing](https://img.shields.io/badge/Pricing-1d1d1f?style=for-the-badge)](https://zyvor.dev/pricing?utm_source=github&utm_medium=zorvia&utm_campaign=readme_footer)
+[![Contact sales](https://img.shields.io/badge/Contact_sales-2997ff?style=for-the-badge)](mailto:sales@zyvor.dev?subject=Zorvia)
+[![Star on GitHub](https://img.shields.io/github/stars/zyvorai/zyvor-zorvia?style=for-the-badge&logo=github&label=Star&color=2997ff)](https://github.com/zyvorai/zyvor-zorvia)
 
 </div>
