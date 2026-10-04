@@ -8,58 +8,47 @@
   Build: ./docs/social/build-hero-dark.sh  ->  zorvia-hero-dark.jpg (2400x1260)
 -->
 <style>
-  :root { --blue:#0071e3; --signal:#2997ff; --cyan:#64d2ff; --green:#30d158; --amber:#ff9f0a;
+  :root { --blue:#0071e3; --signal:#2997ff; --cyan:#64d2ff; --green:#30d158; --amber:#ff9f0a; --red:#ff453a; --violet:#bf5af2;
     --sans:'SF Pro Display','Helvetica Neue',Helvetica,Arial,sans-serif; --mono:'SF Mono',Menlo,Consolas,monospace; }
   * { box-sizing:border-box; }
   html,body { margin:0; padding:0; }
   body { width:1200px; height:630px; overflow:hidden; color:#f5f5f7; font-family:var(--sans); position:relative; background:#000; }
   .aurora { position:absolute; inset:0;
-    background:radial-gradient(720px 460px at 80% 16%, rgba(41,151,255,.40), transparent 62%),
-               radial-gradient(600px 420px at 104% 98%, rgba(100,210,255,.20), transparent 60%),
+    background:radial-gradient(720px 460px at 80% 16%, rgba(41,151,255,.34), transparent 62%),
+               radial-gradient(600px 420px at 104% 98%, rgba(100,210,255,.16), transparent 60%),
                radial-gradient(520px 380px at 6% 110%, rgba(0,113,227,.28), transparent 60%); }
-  .grid { position:absolute; inset:0; opacity:.09;
-    background-image:linear-gradient(rgba(120,180,255,.9) 1px,transparent 1px),linear-gradient(90deg,rgba(120,180,255,.9) 1px,transparent 1px);
-    background-size:44px 44px; -webkit-mask-image:radial-gradient(900px 520px at 72% 42%, #000 18%, transparent 75%); }
-  .left { position:absolute; left:60px; top:52px; width:560px; z-index:3; }
+  .copy { position:absolute; left:60px; top:52px; width:560px; z-index:3; }
   .brand { display:flex; align-items:center; gap:12px; font-family:var(--mono); font-size:14px; letter-spacing:.18em; text-transform:uppercase; color:#a1a1a6; }
   .brand b { color:#fff; }
   .word { margin:20px 0 0; font-size:112px; line-height:.95; font-weight:800; letter-spacing:-.05em; white-space:nowrap;
     background:linear-gradient(92deg,#fff 0%,#e3f0ff 38%,var(--signal) 74%,var(--cyan) 100%); -webkit-background-clip:text; background-clip:text; color:transparent; padding-bottom:6px; }
   .tag { margin:14px 0 0; font-size:31px; line-height:1.15; font-weight:700; letter-spacing:-.02em; }
   .tag em { font-style:normal; color:var(--signal); }
-  .lede { margin:12px 0 0; font-size:18px; line-height:1.45; color:#b8b8bf; width:520px; }
+  .lede { margin:12px 0 0; font-size:18px; line-height:1.45; color:#b8b8bf; width:520px; text-shadow:0 1px 12px #000; }
   .stats { margin-top:24px; display:flex; gap:32px; }
   .stat b { display:block; font-size:34px; font-weight:800; letter-spacing:-.03em; color:#fff; }
   .stat span { font-family:var(--mono); font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:#8e8e93; }
   .pill { position:absolute; left:60px; bottom:40px; display:flex; gap:10px; z-index:3; }
-  .pill span { font-family:var(--mono); font-size:13.5px; font-weight:700; padding:7px 13px; border-radius:18px; border:1.5px solid rgba(255,255,255,.2); color:#e5e5ea; background:rgba(255,255,255,.04); }
+  .pill span { font-family:var(--mono); font-size:13.5px; font-weight:700; padding:7px 13px; border-radius:18px; border:1.5px solid rgba(255,255,255,.2); color:#e5e5ea; background:rgba(0,0,0,.6); }
   .pill span.b { background:var(--blue); border-color:var(--blue); color:#fff; box-shadow:0 0 24px rgba(0,113,227,.55); }
-
-  .right { position:absolute; left:652px; top:96px; width:560px; z-index:2; }
-  .win { position:relative; width:560px; border-radius:16px; overflow:hidden; z-index:2;
-    background:linear-gradient(180deg, rgba(22,24,30,.94), rgba(10,11,14,.96));
-    box-shadow:0 50px 100px rgba(0,0,0,.75), 0 0 0 1px rgba(255,255,255,.14), 0 0 90px rgba(41,151,255,.22);
-    transform:perspective(1600px) rotateY(-14deg) rotateX(4deg); transform-origin:left center; }
-  .bar { height:34px; display:flex; align-items:center; gap:8px; padding:0 14px; background:rgba(255,255,255,.05); border-bottom:1px solid rgba(255,255,255,.07); }
-  .bar i { width:11px; height:11px; border-radius:50%; background:#ff5f57; } .bar i:nth-child(2){background:#febc2e} .bar i:nth-child(3){background:#28c840}
-  .bar em { margin-left:auto; margin-right:auto; font-style:normal; font-family:var(--mono); font-size:12px; color:#8e8e93; transform:translateX(-24px); }
-  .term { min-height:214px; padding:20px 22px 24px; font-family:var(--mono); font-size:15.5px; line-height:1.75; }
-  .l { white-space:pre; overflow:hidden; text-overflow:ellipsis; color:#f5f5f7; }
-  .l .p { color:var(--signal); font-weight:700; }
-  .l.out { color:#a1a1a6; }
-  .l.cm { color:#6e6e73; }
-  .l.ok { color:#d1f7dc; } .l.ok span { color:var(--green); font-weight:700; }
-  .l.warn { color:#ffe1b0; } .l.warn span { color:var(--amber); font-weight:700; }
-  .cur { display:inline-block; width:9px; height:18px; background:var(--signal); vertical-align:-3px; box-shadow:0 0 12px var(--signal); }
-  .chips { margin:34px 0 0 38px; width:480px; display:flex; flex-wrap:wrap; gap:10px; position:relative; z-index:3; }
-  .chips span { font-family:var(--mono); font-size:13px; font-weight:700; letter-spacing:.04em; padding:7px 12px; border-radius:14px;
-    color:#cfe6ff; background:rgba(10,20,35,.82); border:1px solid rgba(41,151,255,.45); box-shadow:0 0 18px rgba(41,151,255,.18); }
+  .art { position:absolute; left:520px; top:0; width:680px; height:630px; z-index:2; }
+  .art svg { display:block; }
+  #labels { position:absolute; inset:0; z-index:4; pointer-events:none; }
+  .lbl { position:absolute; font-family:var(--mono); font-size:12.5px; color:#a1a1a6; text-align:center; transform:translate(-50%,-50%); white-space:nowrap; }
+  .lbl b { display:block; font-size:12px; letter-spacing:.16em; text-transform:uppercase; color:#e5e5ea; }
+  .lbl span { display:block; margin-top:3px; }
+  .lbl.box { padding:7px 12px; border-radius:12px; background:rgba(8,10,14,.85); border:1px solid rgba(255,255,255,.14); }
+  .lbl.chip { padding:6px 11px; border-radius:13px; font-size:12.5px; font-weight:700; color:#cfe6ff; background:rgba(10,20,35,.85); border:1px solid rgba(41,151,255,.5); box-shadow:0 0 16px rgba(41,151,255,.2); }
+  .lbl.left { transform:translate(0,-50%); text-align:left; }
+  .lbl.right { transform:translate(-100%,-50%); text-align:right; }
+  .ok { color:var(--green) !important; } .warn { color:var(--amber) !important; } .bad { color:var(--red) !important; } .sig { color:var(--signal) !important; } .cy { color:var(--cyan) !important; } .vi { color:var(--violet) !important; }
 </style>
 </head>
 <body>
 <div class="aurora"></div>
-<div class="grid"></div>
-<div class="left">
+<div class="art"><svg id="art" width="680" height="630" viewBox="0 0 680 630" xmlns="http://www.w3.org/2000/svg"></svg></div>
+<div id="labels"></div>
+<div class="copy">
   <div class="brand"><svg viewBox="0 0 64 64" width="30" height="30" aria-hidden="true"><defs><linearGradient id="zb" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ff5a15"/><stop offset="1" stop-color="#cc420a"/></linearGradient></defs><rect width="64" height="64" rx="15" fill="url(#zb)"/><path d="M18.5,20.5 45.5,20.5 18.5,43.5 45.5,43.5" fill="none" stroke="#fff" stroke-width="8.3" stroke-linecap="round" stroke-linejoin="round"/></svg><b>Zyvor</b><span>&middot;</span><span>KubeVirt VM platform</span></div>
   <div class="word">Zorvia</div>
   <div class="tag">Kubernetes VMs, run like<br><em>a platform, not YAML.</em></div>
@@ -67,8 +56,106 @@
   <div class="stats"><div class="stat"><b>8</b><span>VM profiles</span></div><div class="stat"><b>5</b><span>VM blueprints</span></div><div class="stat"><b>3</b><span>UIs, one API</span></div></div>
 </div>
 <div class="pill"><span class="b">github.com/zyvorai/zyvor-zorvia</span><span>Apache-2.0</span></div>
-<div class="right"><div class="win"><div class="bar"><i></i><i></i><i></i><em>zorvia</em></div>
-<div class="term"><div class="l"><span class="p">$</span> zorvia vm create prod-db --template ubuntu-22.04</div><div class="l ok"><span>&#10003;</span> VM &#x27;prod-db&#x27; created successfully</div><div class="l"><span class="p">$</span> zorvia blueprint deploy lamp --prefix myapp --start</div><div class="l out">Creating VM: myapp-mysql-db</div><div class="l ok"><span>&#10003;</span> VM &#x27;myapp-mysql-db&#x27; started</div><div class="l ok"><span>&#10003;</span> Blueprint deployment complete!</div><div class="l"><span class="p">$</span> <i class="cur"></i></div></div></div>
-<div class="chips"><span>Rust</span><span>KubeVirt</span><span>kube-rs</span><span>Helm</span><span>OIDC SSO</span><span>ratatui TUI</span></div></div>
+<script>
+var Z = (function () {
+  var NS = 'http://www.w3.org/2000/svg', svg = document.getElementById('art'), labels = document.getElementById('labels');
+  var seed = 20261004;
+  function rnd() { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; }
+  function el(tag, a, parent) { var n = document.createElementNS(NS, tag); for (var k in a) n.setAttribute(k, a[k]); (parent || svg).appendChild(n); return n; }
+  function g(attrs) { return el('g', attrs || {}); }
+  function label(x, y, inner, cls, style) { var d = document.createElement('div'); d.className = 'lbl ' + (cls || ''); d.style.left = (520 + x) + 'px'; d.style.top = y + 'px'; if (style) d.setAttribute('style', d.getAttribute('style') + ';' + style); d.innerHTML = inner; labels.appendChild(d); return d; }
+  return { NS: NS, svg: svg, W: 680, H: 630, rnd: rnd, el: el, g: g, label: label,
+    reseed: function (s) { seed = s; },
+    c: { blue: '#0071e3', signal: '#2997ff', cyan: '#64d2ff', green: '#30d158', amber: '#ff9f0a', red: '#ff453a', violet: '#bf5af2', teal: '#40c8e0', indigo: '#5e5ce6', pink: '#ff375f', white: '#f5f5f7', grey: '#8e8e93' } };
+})();
+(function () {
+// Zorvia: three rays (CLI, TUI, web console) converge through one API aperture into a wireframe
+// VirtualMachine cube.
+var C = Z.c;
+var d = Z.el('defs', {});
+d.innerHTML = '<filter id="zvgl" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+  '<filter id="zvsf" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="16"/></filter>' +
+  '<linearGradient id="zvray" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#64d2ff" stop-opacity=".05"/><stop offset="1" stop-color="#64d2ff" stop-opacity=".85"/></linearGradient>' +
+  '<linearGradient id="zvbeam" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#2997ff"/></linearGradient>' +
+  '<linearGradient id="zvface" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2997ff" stop-opacity=".22"/><stop offset="1" stop-color="#0071e3" stop-opacity=".04"/></linearGradient>' +
+  '<radialGradient id="zvhalo"><stop offset="0" stop-color="#2997ff" stop-opacity=".4"/><stop offset="1" stop-color="#2997ff" stop-opacity="0"/></radialGradient>';
+
+var AX = 300, AY = 300, KX = 492, KY = 290, S = 74;
+
+// faint perspective floor lines under the cube
+for (var i = -6; i <= 6; i++) Z.el('line', { x1: KX + i * 16, y1: KY + 130, x2: KX + i * 54, y2: 600, stroke: 'rgba(100,170,255,.10)' });
+for (var j = 0; j < 6; j++) { var y = KY + 130 + j * j * 5 + j * 6; Z.el('line', { x1: KX - 110 - j * 40, y1: y, x2: KX + 110 + j * 40, y2: y, stroke: 'rgba(100,170,255,' + (.10 - j * .012).toFixed(3) + ')' }); }
+Z.el('circle', { cx: KX, cy: KY, r: 190, fill: 'url(#zvhalo)' });
+for (var k = 0; k < 40; k++) Z.el('circle', { cx: 80 + Z.rnd() * 120, cy: 40 + Z.rnd() * 380, r: .8 + Z.rnd() * 1.2, fill: C.cyan, opacity: (.08 + Z.rnd() * .25).toFixed(2) });
+
+// sources
+var src = [
+  { x: 150, y: 130, name: 'CLI', sub: 'zorvia vm create', col: C.cyan },
+  { x: 130, y: 300, name: 'TUI', sub: 'ratatui', col: C.signal },
+  { x: 150, y: 470, name: 'web console', sub: 'OIDC SSO', col: C.teal }
+];
+src.forEach(function (s, n) {
+  // bundle of fine rays
+  for (var f = -3; f <= 3; f++) {
+    var sy = s.y + f * 4;
+    Z.el('path', { d: 'M' + (s.x + 22) + ',' + sy + ' C' + (s.x + 90) + ',' + sy + ' ' + (AX - 80) + ',' + (AY + f * 2) + ' ' + (AX - 30) + ',' + (AY + f * 1.5), fill: 'none', stroke: 'url(#zvray)', 'stroke-width': f === 0 ? 2 : .7, opacity: f === 0 ? 1 : .55 });
+  }
+  var mp = Z.el('path', { d: 'M' + (s.x + 22) + ',' + s.y + ' C' + (s.x + 90) + ',' + s.y + ' ' + (AX - 80) + ',' + AY + ' ' + (AX - 30) + ',' + AY, fill: 'none', stroke: 'none' });
+  var L = mp.getTotalLength();
+  [0.35, 0.7].forEach(function (t) { var q = mp.getPointAtLength(L * t); Z.el('circle', { cx: q.x, cy: q.y, r: 2.6, fill: '#fff', filter: 'url(#zvgl)' }); });
+  Z.el('circle', { cx: s.x, cy: s.y, r: 22, fill: 'rgba(6,10,18,.92)', stroke: s.col, 'stroke-width': 1.6, filter: 'url(#zvgl)' });
+});
+// source glyphs
+var g0 = src[0];
+Z.el('polyline', { points: (g0.x - 9) + ',' + (g0.y - 6) + ' ' + (g0.x - 2) + ',' + g0.y + ' ' + (g0.x - 9) + ',' + (g0.y + 6), fill: 'none', stroke: C.cyan, 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
+Z.el('line', { x1: g0.x + 1, y1: g0.y + 7, x2: g0.x + 9, y2: g0.y + 7, stroke: C.cyan, 'stroke-width': 2, 'stroke-linecap': 'round' });
+var g1 = src[1];
+Z.el('rect', { x: g1.x - 10, y: g1.y - 8, width: 20, height: 16, rx: 2, fill: 'none', stroke: C.signal, 'stroke-width': 1.6 });
+Z.el('line', { x1: g1.x - 3, y1: g1.y - 8, x2: g1.x - 3, y2: g1.y + 8, stroke: C.signal, 'stroke-width': 1.4 });
+Z.el('line', { x1: g1.x - 3, y1: g1.y, x2: g1.x + 10, y2: g1.y, stroke: C.signal, 'stroke-width': 1.4 });
+var g2 = src[2];
+Z.el('circle', { cx: g2.x, cy: g2.y, r: 9, fill: 'none', stroke: C.teal, 'stroke-width': 1.6 });
+Z.el('ellipse', { cx: g2.x, cy: g2.y, rx: 4, ry: 9, fill: 'none', stroke: C.teal, 'stroke-width': 1.2 });
+Z.el('line', { x1: g2.x - 9, y1: g2.y, x2: g2.x + 9, y2: g2.y, stroke: C.teal, 'stroke-width': 1.2 });
+src.forEach(function (s, n) { Z.label(s.x, s.y + (n === 0 ? -42 : 42), '<b>' + s.name + '</b><span>' + s.sub + '</span>'); });
+
+// API aperture
+Z.el('circle', { cx: AX, cy: AY, r: 40, fill: C.signal, opacity: .25, filter: 'url(#zvsf)' });
+Z.el('ellipse', { cx: AX, cy: AY, rx: 14, ry: 40, fill: 'rgba(6,10,18,.9)', stroke: C.signal, 'stroke-width': 2, filter: 'url(#zvgl)' });
+Z.el('ellipse', { cx: AX, cy: AY, rx: 7, ry: 26, fill: 'none', stroke: 'rgba(100,210,255,.6)', 'stroke-width': 1 });
+Z.el('circle', { cx: AX, cy: AY, r: 4, fill: '#fff', filter: 'url(#zvgl)' });
+Z.label(AX, AY - 66, 'one API', 'chip');
+
+// cube projection
+var yaw = 35 * Math.PI / 180, pitch = -24 * Math.PI / 180;
+function prj(x, y, z, s) {
+  var x1 = x * Math.cos(yaw) - z * Math.sin(yaw), z1 = x * Math.sin(yaw) + z * Math.cos(yaw);
+  var y1 = y * Math.cos(pitch) - z1 * Math.sin(pitch);
+  return [KX + x1 * s, KY + y1 * s];
+}
+var V = [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]];
+var E = [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]];
+var F = [[0, 1, 2, 3], [4, 5, 6, 7], [0, 1, 5, 4], [3, 2, 6, 7], [0, 3, 7, 4], [1, 2, 6, 5]];
+function drawCube(s, stroke, sw, faces, op) {
+  var P = V.map(function (v) { return prj(v[0], v[1], v[2], s); });
+  if (faces) F.forEach(function (f) { Z.el('polygon', { points: f.map(function (i) { return P[i][0].toFixed(1) + ',' + P[i][1].toFixed(1); }).join(' '), fill: 'url(#zvface)', opacity: .7 }); });
+  var dd = E.map(function (e) { return 'M' + P[e[0]][0].toFixed(1) + ',' + P[e[0]][1].toFixed(1) + ' L' + P[e[1]][0].toFixed(1) + ',' + P[e[1]][1].toFixed(1); }).join(' ');
+  var at = { d: dd, fill: 'none', stroke: stroke, 'stroke-width': sw, opacity: op, 'stroke-linecap': 'round' };
+  if (sw > 1.5) at.filter = 'url(#zvgl)';
+  Z.el('path', at);
+  return P;
+}
+// beam API -> cube centre (behind cube)
+Z.el('path', { d: 'M' + (AX + 14) + ',' + (AY - 3) + ' L' + KX + ',' + (KY - 2) + ' L' + KX + ',' + (KY + 2) + ' L' + (AX + 14) + ',' + (AY + 3) + 'Z', fill: 'url(#zvbeam)', filter: 'url(#zvgl)' });
+drawCube(S * 1.32, 'rgba(100,170,255,.25)', 1, false, 1);
+var P = drawCube(S, C.cyan, 2, true, .95);
+P.forEach(function (p) { Z.el('circle', { cx: p[0], cy: p[1], r: 3.2, fill: '#fff', filter: 'url(#zvgl)' }); });
+// inner core: the guest
+Z.el('circle', { cx: KX, cy: KY, r: 26, fill: C.signal, opacity: .35, filter: 'url(#zvsf)' });
+drawCube(S * 0.3, '#fff', 1.6, false, .9);
+Z.label(KX, KY + S * 1.32 + 64, '<b>VirtualMachine</b><span>kubevirt.io &middot; live object</span>');
+Z.label(560, 52, 'KubeVirt &middot; kube-rs &middot; Helm', 'chip');
+})();
+</script>
 </body>
 </html>
