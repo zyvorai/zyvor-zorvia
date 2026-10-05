@@ -55,12 +55,19 @@ If `KRYTON_URL` is absent, Zorvia starts normally and the integration reports `e
 - `GET /api/v1/kryton/machines/:id/snapshots`
 - `POST /api/v1/kryton/machines/:id/snapshots/:sid/restore`
 - `DELETE /api/v1/kryton/machines/:id/snapshots/:sid`
+- `GET|POST /api/v1/kryton/golden` (list or start a Windows golden build)
+- `GET /api/v1/kryton/golden/:id`
+- `GET /api/v1/kryton/golden/:id/passport` (guestkit Cutover Passport)
+- `POST /api/v1/kryton/golden/:id/bootstrap` (import into a CDI DataSource)
+
+The golden endpoints back the console's **Golden Images** page; see
+[GOLDEN_IMAGES.md](GOLDEN_IMAGES.md#windows-golden-images-via-kryton).
 
 All `/api/v1/kryton/*` routes are protected by Zorvia's existing auth middleware.
 
 ## Deliberately not proxied yet
 
-Kryton's HTML console/VNC stream is not proxied yet. A correct implementation needs websocket-aware reverse proxying and explicit origin/auth handling. The Windows page exposes machine lifecycle, images, RDP coordinates, diagnostics and snapshots without leaking the Kryton token.
+Kryton's HTML console/VNC stream is not proxied yet, and neither is the dockur viewer URL (`consoleUrl`) on a golden build. A correct implementation needs websocket-aware reverse proxying and explicit origin/auth handling. The Windows page exposes machine lifecycle, images, RDP coordinates, diagnostics and snapshots without leaking the Kryton token.
 
 ## Production recommendations
 

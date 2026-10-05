@@ -1,4 +1,58 @@
-# Deploy Linux images (containerdisk + CDI golden)
+# Golden images
+
+Zorvia has three ways to make a golden image. All of them end as a CDI
+`DataSource` that new VMs clone. The **Golden Images** page in the console
+(`/app/golden-images`) shows all three.
+
+| Path | OS | Built by | Start it from |
+|------|----|----------|---------------|
+| **Import** an upstream cloud image | Linux | Zorvia (CDI import) | Create VM → "Download an OS image", or `zorvia guest image-bundle` |
+| **Capture** a VM you customized | Any | Zorvia (CDI clone of the VM disk) | VM details → create image |
+| **Build** an unattended, sysprepped image | Windows | [Kryton](KRYTON_INTEGRATION.md) (dockur install, Sysprep, qcow2 capture) | Golden Images → Build |
+
+## Windows golden images (via Kryton)
+
+Kryton installs Windows unattended in a dockur container, generalizes it with
+Sysprep, captures a qcow2, and can then import it into KubeVirt as a CDI
+`DataSource`. Zorvia drives this through its server-side Kryton client, so the
+browser never sees `KRYTON_TOKEN`.
+
+Requirements:
+
+- Kryton integration configured (`KRYTON_URL`, `KRYTON_TOKEN`, `KRYTON_PROJECT`).
+- The Kryton host has docker and `/dev/kvm`. Kryton reports this as
+  `capabilities.goldenImages`; when it is false (for example a libvirt-only
+  Kryton), the page explains why and hides the Build form.
+
+In the console: **Golden Images → Windows golden builds**, pick a Windows image,
+optionally a version label, and **Build**. The table polls while the build
+installs, runs Sysprep and captures. When a build is `ready`:
+
+- **Bootstrap** imports the qcow2 into a CDI `DataSource` in Kryton's image
+  namespace (`kryton-images` by default), so Kryton machines can clone it.
+- **Passport** shows the guestkit Cutover Passport (BitLocker, VirtIO drivers,
+  activation, blockers) when guestkit ran on the build host. A low score is
+  informational; it does not block Bootstrap.
+
+The same through the API:
+
+```bash
+curl -sk -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"imageId":"windows-11-enterprise","auto":true}' \
+  "https://HOST:30152/api/v1/kryton/golden?project=default"
+curl -sk -H "Authorization: Bearer $TOKEN" https://HOST:30152/api/v1/kryton/golden
+curl -sk -X POST -H "Authorization: Bearer $TOKEN" \
+  "https://HOST:30152/api/v1/kryton/golden/$BUILD_ID/bootstrap?project=default"
+```
+
+Starting a build or a bootstrap needs the `vm.create` permission, the same as
+capturing a VM. The dockur viewer URL on a build (`consoleUrl`) points at the
+Kryton host and is not proxied through Zorvia.
+
+Kryton rejects Linux image IDs here; use the import or capture paths below for
+Linux.
+
+## Deploy Linux images (containerdisk + CDI golden)
 
 Zorvia supports two ways to boot major Linux distros from upstream
 [`quay.io/containerdisks`](https://quay.io/repository/containerdisks):

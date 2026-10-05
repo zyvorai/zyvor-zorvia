@@ -356,6 +356,55 @@ impl Client {
         )
         .await
     }
+
+    fn golden_path(id: &str) -> String {
+        format!("/api/v1/golden/{}", urlencoding::encode(id))
+    }
+
+    pub async fn golden_builds(&self) -> Result<ListResponse<GoldenBuild>, Error> {
+        self.decode(self.request(Method::GET, "/api/v1/golden"))
+            .await
+    }
+
+    pub async fn golden_build(&self, id: &str) -> Result<GoldenBuild, Error> {
+        self.decode(self.request(Method::GET, &Self::golden_path(id)))
+            .await
+    }
+
+    pub async fn start_golden(
+        &self,
+        request: &GoldenStartRequest,
+        project: Option<&str>,
+    ) -> Result<GoldenBuild, Error> {
+        let project = self.project(project)?;
+        self.decode(
+            self.request(Method::POST, "/api/v1/golden")
+                .query(&[("project", project)])
+                .json(request),
+        )
+        .await
+    }
+
+    pub async fn bootstrap_golden(
+        &self,
+        id: &str,
+        project: Option<&str>,
+    ) -> Result<GoldenBuild, Error> {
+        let project = self.project(project)?;
+        self.decode(
+            self.request(
+                Method::POST,
+                &format!("{}/bootstrap", Self::golden_path(id)),
+            )
+            .query(&[("project", project)]),
+        )
+        .await
+    }
+
+    pub async fn golden_passport(&self, id: &str) -> Result<serde_json::Value, Error> {
+        self.decode(self.request(Method::GET, &format!("{}/passport", Self::golden_path(id))))
+            .await
+    }
 }
 
 #[cfg(test)]
@@ -398,5 +447,116 @@ mod tests {
             }
             other => panic!("unexpected error: {other:?}"),
         }
+    }
+
+    type Seen = std::sync::Arc<std::sync::Mutex<Vec<String>>>;
+
+    /// Serves a canned Kryton golden API on a random local port and records
+    /// each request as "METHOD path?query".
+    async fn golden_server() -> (Client, Seen) {
+        use axum::{extract::Request, http::StatusCode, response::IntoResponse, Json, Router};
+        let seen: Seen = Default::default();
+        let log = seen.clone();
+        let app = Router::new().fallback(move |req: Request| {
+            let log = log.clone();
+            async move {
+                let line = format!("{} {}", req.method(), req.uri());
+                log.lock().unwrap().push(line);
+                let build = serde_json::json!({"id":"gb 1","imageId":"windows-11-pro","state":"ready"});
+                match (req.method().as_str(), req.uri().path()) {
+                    ("GET", "/api/v1/golden") => Json(serde_json::json!({"items":[build]})).into_response(),
+                    ("POST", "/api/v1/golden") => (
+                        StatusCode::SERVICE_UNAVAILABLE,
+                        Json(serde_json::json!({"error":{"code":"unavailable","message":"golden image builder requires docker and /dev/kvm on the krytond host"}})),
+                    )
+                        .into_response(),
+                    ("POST", "/api/v1/golden/gb%201/bootstrap") => (
+                        StatusCode::CONFLICT,
+                        Json(serde_json::json!({"error":{"code":"conflict","message":"CDI bootstrap is already running for this build"}})),
+                    )
+                        .into_response(),
+                    ("GET", "/api/v1/golden/gb%201/passport") => Json(serde_json::json!({"score":90})).into_response(),
+                    ("GET", "/api/v1/golden/gb%201") => Json(build).into_response(),
+                    _ => StatusCode::NOT_FOUND.into_response(),
+                }
+            }
+        });
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        let client = Client::new(Config {
+            base_url: format!("http://{addr}"),
+            token: Some("t".into()),
+            default_project: Some("default".into()),
+            timeout: Duration::from_secs(5),
+            allow_invalid_tls: false,
+        })
+        .unwrap();
+        (client, seen)
+    }
+
+    #[tokio::test]
+    async fn golden_reads_encode_ids() {
+        let (client, seen) = golden_server().await;
+        assert_eq!(client.golden_builds().await.unwrap().items.len(), 1);
+        assert_eq!(
+            client.golden_build("gb 1").await.unwrap().image_id,
+            "windows-11-pro"
+        );
+        assert_eq!(client.golden_passport("gb 1").await.unwrap()["score"], 90);
+        assert_eq!(
+            *seen.lock().unwrap(),
+            vec![
+                "GET /api/v1/golden",
+                "GET /api/v1/golden/gb%201",
+                "GET /api/v1/golden/gb%201/passport"
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn golden_writes_send_project_and_keep_upstream_errors() {
+        let (client, seen) = golden_server().await;
+        let req = GoldenStartRequest {
+            image_id: "windows-11-pro".into(),
+            version: None,
+            auto: true,
+        };
+        match client.start_golden(&req, Some("finance")).await {
+            Err(Error::Upstream {
+                status, message, ..
+            }) => {
+                assert_eq!(status, 503);
+                assert!(message.contains("/dev/kvm"), "{message}");
+            }
+            other => panic!("unexpected: {other:?}"),
+        }
+        match client.bootstrap_golden("gb 1", None).await {
+            Err(Error::Upstream { status, .. }) => assert_eq!(status, 409),
+            other => panic!("unexpected: {other:?}"),
+        }
+        assert_eq!(
+            *seen.lock().unwrap(),
+            vec![
+                "POST /api/v1/golden?project=finance",
+                "POST /api/v1/golden/gb%201/bootstrap?project=default"
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn golden_writes_require_a_project() {
+        let client = Client::new(Config {
+            base_url: "http://127.0.0.1:9".into(),
+            token: None,
+            default_project: None,
+            timeout: Duration::from_secs(1),
+            allow_invalid_tls: false,
+        })
+        .unwrap();
+        assert!(matches!(
+            client.bootstrap_golden("x", None).await,
+            Err(Error::MissingProject)
+        ));
     }
 }

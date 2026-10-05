@@ -117,6 +117,7 @@ export const TOP_MEGA_GROUPS: { label: string; items: NavItem[] }[] = [
       { label: 'Volumes', path: '/app/volumes', icon: HardDrive, blurb: 'Persistent volume claims.' },
       { label: 'Storage', path: '/app/storage', icon: Database, blurb: 'Rook-Ceph pools and status.' },
       { label: 'Disk Images', path: '/app/disk-images', icon: Disc, blurb: 'Cloud images and ISOs.' },
+      { label: 'Golden Images', path: '/app/golden-images', icon: Layers, blurb: 'Windows builds via Kryton, Linux imports and captures.' },
       { label: 'Snapshots', path: '/app/snapshots', icon: Camera, blurb: 'Point-in-time VM snapshots.' },
       { label: 'Backups', path: '/app/backups', icon: Save, blurb: 'Backup jobs and restores.' },
       { label: 'Backup Scheduler', path: '/app/backup-scheduler', icon: Clock, blurb: 'Recurring backup policies.' },

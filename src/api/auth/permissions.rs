@@ -447,6 +447,21 @@ mod tests {
     }
 
     #[test]
+    fn kryton_golden_builds_need_vm_create() {
+        for p in ["/v1/kryton/golden", "/v1/kryton/golden/gb-1/bootstrap"] {
+            assert_eq!(
+                required_permission("POST", p),
+                Some(ApiPermission::VmCreate),
+                "{p}"
+            );
+        }
+        assert_eq!(
+            required_permission("POST", "/images/from-vm/web-1"),
+            Some(ApiPermission::VmCreate)
+        );
+    }
+
+    #[test]
     fn commercial_admin_routes_need_users_admin() {
         assert_eq!(
             required_permission("GET", "/v1/commercial/admin/orgs"),
