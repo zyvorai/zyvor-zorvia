@@ -212,8 +212,8 @@ cargo run -- blueprints
 # Launch TUI
 cargo run -- tui --interactive
 
-# Serve API + SPA (local)
-cargo run --features web -- api-serve --host 127.0.0.1 --port 5151
+# Serve API + SPA (local; needs a kube context, serves web/dist after `npm run build`)
+cargo run --bin zorvia -- api api-serve --host 127.0.0.1 --port 5151
 
 # Lab deploy
 ./scripts/deploy-remote.sh <host> sus --quick
