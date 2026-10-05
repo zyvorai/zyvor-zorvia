@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Golden Images page** (`/app/golden-images`): build Windows golden images through Kryton (dockur install, Sysprep,
+  qcow2 capture, CDI bootstrap, guestkit passport) next to Zorvia's own Linux imports and VM captures.
+- Kryton golden-build proxy: `GET|POST /api/v1/kryton/golden`, `GET /api/v1/kryton/golden/{id}`,
+  `GET /api/v1/kryton/golden/{id}/passport`, `POST /api/v1/kryton/golden/{id}/bootstrap`. Writes need `vm.create`,
+  like `POST /api/images/from-vm`.
+
 ## [0.4.0] - 2026-10-03
 
 The production-platform release: what ships here is the work behind [docs/SUPPORT_MATRIX.md](docs/SUPPORT_MATRIX.md) (measured

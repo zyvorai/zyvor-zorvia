@@ -1016,6 +1016,19 @@ pub mod web {
                 "/v1/kryton/machines/{id}/snapshots/{sid}",
                 delete(kryton_delete_snapshot),
             )
+            .route(
+                "/v1/kryton/golden",
+                get(kryton_list_golden).post(kryton_start_golden),
+            )
+            .route("/v1/kryton/golden/{id}", get(kryton_get_golden))
+            .route(
+                "/v1/kryton/golden/{id}/passport",
+                get(kryton_golden_passport),
+            )
+            .route(
+                "/v1/kryton/golden/{id}/bootstrap",
+                post(kryton_bootstrap_golden),
+            )
             // Atlas storage control plane (server-side token; Zorvia auth at edge)
             .route("/v1/atlas/status", get(atlas_status))
             .route(

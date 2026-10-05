@@ -29,6 +29,7 @@ const Console = lazy(() => import('./pages/Console'))
 const Snapshots = lazy(() => import('./pages/Snapshots'))
 const FavoriteVMs = lazy(() => import('./pages/FavoriteVMs'))
 const KrytonWindows = lazy(() => import('./pages/KrytonWindows'))
+const GoldenImages = lazy(() => import('./pages/GoldenImages'))
 const Migrations = lazy(() => import('./pages/Migrations'))
 const VMwareImports = lazy(() => import('./pages/VMwareImports'))
 const RookStorage = lazy(() => import('./pages/RookStorage'))
@@ -124,6 +125,7 @@ function ConsoleRoutes() {
             <Route path="service-map" element={<ServiceMap />} />
             <Route path="backups" element={<Backups />} />
             <Route path="disk-images" element={<DiskImages />} />
+            <Route path="golden-images" element={<GoldenImages />} />
             <Route path="backup-scheduler" element={<BackupScheduler />} />
             <Route path="placement" element={<PlacementAdvisor />} />
             <Route path="ha-policy" element={<HaPolicy />} />

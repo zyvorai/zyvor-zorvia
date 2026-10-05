@@ -188,6 +188,61 @@ pub struct Image {
     pub validation_score: f64,
     #[serde(default)]
     pub passport_build_id: String,
+    /// `linux` for cloud-image templates; empty for Windows images.
+    #[serde(default)]
+    pub os: String,
+}
+
+/// A Windows golden-image build on Kryton (dockur install, Sysprep, qcow2
+/// capture, then an optional CDI bootstrap into a DataSource).
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct GoldenBuild {
+    pub id: String,
+    #[serde(default)]
+    pub version: String,
+    pub image_id: String,
+    pub state: String,
+    #[serde(default)]
+    pub phase: String,
+    #[serde(default)]
+    pub progress_percent: i32,
+    #[serde(default)]
+    pub message: String,
+    #[serde(default)]
+    pub console_url: String,
+    #[serde(default)]
+    pub output_path: String,
+    #[serde(default)]
+    pub sha256: String,
+    #[serde(default)]
+    pub started_at: Option<String>,
+    #[serde(default)]
+    pub updated_at: Option<String>,
+    #[serde(default)]
+    pub error: String,
+    #[serde(default)]
+    pub bootstrap_state: String,
+    #[serde(default)]
+    pub bootstrap_message: String,
+    #[serde(default)]
+    pub data_source: String,
+    #[serde(default)]
+    pub certified: bool,
+    #[serde(default)]
+    pub validation_score: f64,
+    #[serde(default)]
+    pub passport_path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct GoldenStartRequest {
+    pub image_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    #[serde(default)]
+    pub auto: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -301,5 +356,36 @@ mod tests {
         assert_eq!(value["compute"]["memoryMiB"], 8192);
         assert_eq!(value["disk"]["sizeGiB"], 80);
         assert_eq!(value["ttlMinutes"], 60);
+    }
+
+    #[test]
+    fn golden_build_contract_matches_kryton_json() {
+        let raw = r#"{
+          "id":"gb-1","version":"2026.10","imageId":"windows-11-enterprise",
+          "state":"ready","phase":"capture","progressPercent":100,"message":"captured",
+          "outputPath":"/var/lib/kryton/golden/gb-1.qcow2","sha256":"abc",
+          "startedAt":"2026-10-05T01:00:00Z","bootstrapState":"succeeded",
+          "dataSource":"windows-11-enterprise","certified":true,"validationScore":92.5
+        }"#;
+        let build: GoldenBuild = serde_json::from_str(raw).unwrap();
+        assert_eq!(build.image_id, "windows-11-enterprise");
+        assert_eq!(build.progress_percent, 100);
+        assert_eq!(build.data_source, "windows-11-enterprise");
+        assert!(build.certified);
+        assert!(build.console_url.is_empty());
+    }
+
+    #[test]
+    fn golden_start_request_uses_kryton_camel_case() {
+        let value = serde_json::to_value(GoldenStartRequest {
+            image_id: "windows-11-pro".into(),
+            version: None,
+            auto: true,
+        })
+        .unwrap();
+        assert_eq!(
+            value,
+            serde_json::json!({"imageId":"windows-11-pro","auto":true})
+        );
     }
 }

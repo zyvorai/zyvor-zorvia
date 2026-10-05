@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::SharedState;
-use crate::kryton::models::{CreateMachineRequest, SnapshotRequest};
+use crate::kryton::models::{CreateMachineRequest, GoldenStartRequest, SnapshotRequest};
 use crate::kryton::{Client, Error as KrytonError};
 use axum::{
     extract::{Path, Query, State},
@@ -321,6 +321,75 @@ pub(super) async fn kryton_delete_snapshot(
     };
     match c.delete_snapshot(&id, &sid, query.project.as_deref()).await {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(e) => error_response(e),
+    }
+}
+
+pub(super) async fn kryton_list_golden(State(state): State<SharedState>) -> Response {
+    let c = match client(&state).await {
+        Ok(v) => v,
+        Err(r) => return *r,
+    };
+    match c.golden_builds().await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(e),
+    }
+}
+
+pub(super) async fn kryton_get_golden(
+    State(state): State<SharedState>,
+    Path(id): Path<String>,
+) -> Response {
+    let c = match client(&state).await {
+        Ok(v) => v,
+        Err(r) => return *r,
+    };
+    match c.golden_build(&id).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => error_response(e),
+    }
+}
+
+pub(super) async fn kryton_start_golden(
+    State(state): State<SharedState>,
+    Query(query): Query<ProjectQuery>,
+    Json(body): Json<GoldenStartRequest>,
+) -> Response {
+    let c = match client(&state).await {
+        Ok(v) => v,
+        Err(r) => return *r,
+    };
+    match c.start_golden(&body, query.project.as_deref()).await {
+        Ok(v) => (StatusCode::ACCEPTED, Json(v)).into_response(),
+        Err(e) => error_response(e),
+    }
+}
+
+pub(super) async fn kryton_bootstrap_golden(
+    State(state): State<SharedState>,
+    Path(id): Path<String>,
+    Query(query): Query<ProjectQuery>,
+) -> Response {
+    let c = match client(&state).await {
+        Ok(v) => v,
+        Err(r) => return *r,
+    };
+    match c.bootstrap_golden(&id, query.project.as_deref()).await {
+        Ok(v) => (StatusCode::ACCEPTED, Json(v)).into_response(),
+        Err(e) => error_response(e),
+    }
+}
+
+pub(super) async fn kryton_golden_passport(
+    State(state): State<SharedState>,
+    Path(id): Path<String>,
+) -> Response {
+    let c = match client(&state).await {
+        Ok(v) => v,
+        Err(r) => return *r,
+    };
+    match c.golden_passport(&id).await {
+        Ok(v) => Json(v).into_response(),
         Err(e) => error_response(e),
     }
 }

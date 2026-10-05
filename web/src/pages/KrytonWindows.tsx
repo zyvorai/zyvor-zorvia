@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { MonitorCog, MonitorPlay, Play, RefreshCw, Square, Trash2, Camera, Plus } from 'lucide-react'
+import { Link } from 'react-router'
+import { MonitorCog, MonitorPlay, Play, RefreshCw, Square, Trash2, Camera, Plus, Layers } from 'lucide-react'
 import { PageHeader, StatusBadge, EmptyState, DataTable } from '../components/ui'
 import ErrorBanner from '../components/ErrorBanner'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -122,9 +123,14 @@ export default function KrytonWindows() {
         description="Kryton-backed Windows virtualization inside Zorvia. KubeVirt, dockur and provider details stay behind the control-plane boundary."
         icon={MonitorCog}
         actions={(
-          <button className="zf-btn zf-btn-secondary" onClick={() => void refresh()} disabled={loading || busy !== null}>
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
-          </button>
+          <>
+            <Link className="zf-btn zf-btn-secondary" to="/app/golden-images">
+              <Layers className="w-3.5 h-3.5" /> Build golden image
+            </Link>
+            <button className="zf-btn zf-btn-secondary" onClick={() => void refresh()} disabled={loading || busy !== null}>
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
+            </button>
+          </>
         )}
       />
 
