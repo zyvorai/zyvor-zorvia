@@ -481,6 +481,14 @@ export default function AdvancedTab({ vm }: { vm: VM }) {
         </Section>
       )}
 
+      {!cpuTopology && !numaTopology && (
+        <Section title="CPU Pinning & NUMA">
+          <p className="text-sm text-[var(--zf-muted)]">
+            Host CPU and NUMA topology is not available from this Zorvia server yet, so pinning controls are hidden.
+          </p>
+        </Section>
+      )}
+
       {(cpuTopology || numaTopology) && (
         <Section title="CPU Pinning & NUMA">
           {cpuTopology && (
