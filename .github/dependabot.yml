@@ -12,6 +12,11 @@ updates:
       interval: weekly
     open-pull-requests-limit: 10
     labels: ["dependencies", "web"]
+    ignore:
+      # typescript-eslint's peer range stops below TypeScript 6.1, so a major
+      # bump makes `npm ci` fail with ERESOLVE. Revisit once it supports TS 7.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: npm
     directory: "/website"
     schedule:
