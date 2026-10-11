@@ -96,6 +96,58 @@ async function fetchInstance(): Promise<FabricInstanceInfo> {
   }
 }
 
+function PasswordHelp({ instance, open }: { instance: FabricInstanceInfo | null; open: boolean }) {
+  const [copied, setCopied] = useState(false)
+  const ns = instance?.kubernetes_namespace || 'zorvia-system'
+  const command = `kubectl -n ${ns} get secret zorvia-auth -o jsonpath='{.data.admin-password}' | base64 -d; echo`
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(command)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1800)
+    } catch {
+      // Clipboard can be blocked on plain HTTP; the command is still selectable.
+    }
+  }
+
+  return (
+    <details className="login-help" open={open} style={{ marginTop: 14, fontSize: 13, color: '#6e6e73' }}>
+      <summary style={{ cursor: 'pointer', fontWeight: 500 }}>Where do I find the password?</summary>
+      {instance?.kubernetes === false ? (
+        <p style={{ margin: '8px 0 0' }}>
+          The username is <span className="font-mono">admin</span>. The password is the value of{' '}
+          <span className="font-mono">ZORVIA_ADMIN_PASSWORD</span>. If it was not set on a fresh database, a generated one was
+          written to <span className="font-mono">bootstrap-admin-password</span> next to the auth database. Read it once, then
+          delete the file.
+        </p>
+      ) : (
+        <>
+          <p style={{ margin: '8px 0 6px' }}>
+            The username is <span className="font-mono">admin</span>. The password is generated at install time and stored in the{' '}
+            <span className="font-mono">zorvia-auth</span> secret. Run this on a host with cluster access:
+          </p>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+            <code
+              className="font-mono"
+              style={{ flex: 1, padding: '8px 10px', borderRadius: 8, background: '#f2f2f4', userSelect: 'all', overflowWrap: 'anywhere', fontSize: 12 }}
+            >
+              {command}
+            </code>
+            <button
+              type="button"
+              onClick={copy}
+              style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #d2d2d7', background: '#fff', cursor: 'pointer', fontSize: 12 }}
+            >
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+        </>
+      )}
+    </details>
+  )
+}
+
 export default function SignIn() {
   const { login, isAuthenticated, loading } = useAuth()
   const navigate = useNavigate()
@@ -291,40 +343,6 @@ export default function SignIn() {
       heroCta={storeCta}
       chapterNote={chapterNote}
       panelSubtitle={panelSubtitle}
-      panelHint={
-        step === 'identify' ? (
-          instance?.kubernetes ? (
-            <>
-              Signing into <span className="font-mono">{instance.product}</span> on Kubernetes
-              {instance.kubernetes_namespace ? (
-                <>
-                  {' '}
-                  (<span className="font-mono">ns/{instance.kubernetes_namespace}</span>)
-                </>
-              ) : null}
-              . The username is <span className="font-mono">admin</span>. To get the password, run:
-              <code
-                className="font-mono"
-                style={{ display: 'block', marginTop: 6, padding: '6px 8px', borderRadius: 6, userSelect: 'all', wordBreak: 'break-all' }}
-              >
-                kubectl -n {instance.kubernetes_namespace || 'zorvia-system'} get secret zorvia-auth -o jsonpath=&apos;{'{.data.admin-password}'}&apos; | base64 -d; echo
-              </code>
-              The password is set at install time (<span className="font-mono">scripts/create-auth-secret.sh</span>). The lab default{' '}
-              <span className="font-mono">Admin@321</span> only works when the server runs with{' '}
-              <span className="font-mono">ZORVIA_LAB_MODE=1</span>.
-            </>
-          ) : (
-            <>
-              Signing into <span className="font-mono">{instance?.product ?? 'Zorvia'}</span> on
-              this host. The username is <span className="font-mono">admin</span> and the password is the one set in{' '}
-              <span className="font-mono">ZORVIA_ADMIN_PASSWORD</span>. If that was not set on a fresh database, a generated password
-              was written to <span className="font-mono">bootstrap-admin-password</span> next to the auth database (read it once, then
-              delete it). The lab default <span className="font-mono">Admin@321</span> only works with{' '}
-              <span className="font-mono">ZORVIA_LAB_MODE=1</span>.
-            </>
-          )
-        ) : null
-      }
       footer={
         <p className="login-hint" style={{ marginTop: 0, marginBottom: '1.25rem' }}>
           © 2026 Zyvor ·{' '}
@@ -372,6 +390,7 @@ export default function SignIn() {
             <span>Continue</span>
             <ArrowRight className="h-4 w-4" />
           </LoginSubmit>
+          <PasswordHelp instance={instance} open />
         </form>
       ) : (
         <form
@@ -436,6 +455,7 @@ export default function SignIn() {
               </>
             )}
           </LoginSubmit>
+          <PasswordHelp instance={instance} open={false} />
         </form>
       )}
     </PremiumLoginShell>

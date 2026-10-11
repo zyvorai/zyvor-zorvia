@@ -88,14 +88,21 @@ fn backup_job_json(s: &SnapshotInfo) -> serde_json::Value {
 }
 
 fn backup_error(action: &str, e: impl std::fmt::Display) -> axum::response::Response {
-    let raw = sanitize_error(&e);
-    let lower = raw.to_ascii_lowercase();
-    let (code, kind) = if lower.contains("notfound") || lower.contains("not found") {
+    // Classify on the full cause chain (`{:#}`): an `anyhow` context wrapper such
+    // as "Failed to get snapshot 'x'" hides the Kubernetes NotFound underneath,
+    // and `sanitize_error` would otherwise mask it as a generic 500.
+    let full = format!("{e:#}").to_ascii_lowercase();
+    let (code, kind) = if full.contains("notfound") || full.contains("not found") {
         (404, "NOT_FOUND")
-    } else if lower.contains("already exists") || lower.contains("conflict") {
+    } else if full.contains("already exists") || full.contains("conflict") {
         (409, "CONFLICT")
     } else {
         (500, "BACKUP_FAILED")
+    };
+    let raw = if code == 404 {
+        "not found".to_string()
+    } else {
+        sanitize_error(&e)
     };
     let (st, j) = err_json(code, kind, &format!("Failed to {action}: {raw}"));
     (st, j).into_response()
@@ -335,5 +342,23 @@ pub async fn get_backup_job_handler(
     match manager.get_snapshot(&id).await {
         Ok(info) => Json(backup_job_json(&info)).into_response(),
         Err(e) => backup_error("find backup job", e),
+    }
+}
+
+#[cfg(test)]
+mod backup_error_tests {
+    use super::*;
+
+    #[test]
+    fn wrapped_kube_not_found_maps_to_404() {
+        let e = anyhow::anyhow!("ApiError: virtualmachinesnapshots \"j1\" not found: NotFound")
+            .context("Failed to get snapshot 'j1'");
+        assert_eq!(backup_error("find backup job", e).status(), 404);
+    }
+
+    #[test]
+    fn unknown_failure_stays_500() {
+        let e = anyhow::anyhow!("boom").context("Failed to get snapshot 'j1'");
+        assert_eq!(backup_error("find backup job", e).status(), 500);
     }
 }
