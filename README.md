@@ -28,7 +28,12 @@
 
 ## What's new
 
-**v0.4.0, the production-platform release** ([changelog](CHANGELOG.md)):
+**v0.5.0, the hardening release** ([changelog](CHANGELOG.md)): found by deploying a clean host and driving every page and the
+VM, snapshot, backup and revert flows end to end. Small VMs (512 MB) create, a VM can be reverted more than once, rejected
+snapshots and running-VM reverts say why instead of returning an opaque 500, the Create wizard no longer submits on Next, logins no
+longer stall the API, and the Golden Images page adds Windows golden builds through Kryton.
+
+**v0.4.0, the production-platform release:**
 
 | Area | What shipped |
 |---|---|
