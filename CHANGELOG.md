@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-11
+
+Found by deploying a clean host, then driving every console page and the VM, snapshot, backup and revert flows end to end. Most of
+this release is fixes to paths that returned an opaque 500 or silently did the wrong thing.
+
 ### Added
 
 - **Golden Images page** (`/app/golden-images`): build Windows golden images through Kryton (dockur install, Sysprep,
@@ -14,6 +19,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Kryton golden-build proxy: `GET|POST /api/v1/kryton/golden`, `GET /api/v1/kryton/golden/{id}`,
   `GET /api/v1/kryton/golden/{id}/passport`, `POST /api/v1/kryton/golden/{id}/bootstrap`. Writes need `vm.create`,
   like `POST /api/images/from-vm`.
+- Create VM wizard regression test (`web/e2e/create-vm-wizard.spec.ts`) and more crawl routes in the live e2e suite
+  (Fleet, VMware imports, DataBridge, Devices, legacy redirects, 404 page).
+
+### Fixed
+
+- **Create VM wizard created the VM on "Next".** Clicking Next from Resources submitted the form before the Review step was
+  shown; a later click on Create then sent a duplicate request (409). The Next and Create buttons now have distinct keys.
+- **VMs under 1 GiB could not be created** (the form's 512 MB preset returned HTTP 500): KubeVirt rejects memory hotplug
+  headroom (`maxGuest`) on guests below 1 GiB, so it is now only requested from 1 GiB up.
+- **A VM could be reverted to a snapshot only once.** The `VirtualMachineRestore` name was fixed (`<vm>-restore`), so every
+  later revert failed with "already exists". Names are now unique per attempt.
+- **Reverting a running VM returned a generic 500.** It is now `409 VM_RUNNING` ("stop it first and retry").
+- **Snapshot rejected by the cluster** (for example the KubeVirt `Snapshot` feature gate being off) returned a bare 500 and logged
+  nothing. It is now `422 SNAPSHOT_REJECTED` with the webhook's reason, and the cause is logged.
+- Revert, snapshot delete and backup restore classified only the outer error context, so real causes (not found, conflict) were
+  reported as 500s. They now classify and log the full cause chain.
+- `GET /api/backups/jobs/{id}` for an unknown id returned 500; it is now 404.
+- **Password checks no longer run on the async workers.** bcrypt (cost 12) ran inline in the login handler, so a burst of logins
+  stalled every other request. Login, re-auth and change-password now verify on the blocking pool.
+- **Sign-in:** the "where do I find the password?" help moved into the card and shows on both steps (it vanished once a username
+  was remembered), with a Copy button for the `zorvia-auth` command.
+- VM Advanced tab says so when host CPU/NUMA topology is unavailable instead of hiding the section.
+
+### Changed
+
+- TypeScript is pinned to 5.9 (`~5.9.3`) and Dependabot skips major TypeScript bumps: 7.0 broke `npm ci` against
+  `typescript-eslint` (peer range `<6.1.0`), which had kept the web CI jobs red.
+
+### Known limitations
+
+- Login still costs about 1.3 s on the default 500m CPU limit (bcrypt cost 12), and a burst of logins is slow because the
+  pod's CPU quota is shared. Raise the CPU limit for login-heavy installs.
+- `/api/system/cpu/topology` and `/api/system/numa/topology` are not implemented (501); the Advanced tab hides CPU pinning
+  and NUMA controls.
+- Off-cluster backup, restore and recovery drills were not re-validated in this pass (no S3 target on the test host), and
+  live migration needs a second schedulable node.
 
 ## [0.4.0] - 2026-10-03
 
