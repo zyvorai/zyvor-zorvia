@@ -1511,7 +1511,11 @@ export default function CreateVM() {
               </button>
             )}
             {wizardStep < WIZARD_STEPS.length - 1 ? (
+              // Distinct keys matter: without them React reuses this DOM node for the submit
+              // button below, flips it to type="submit" mid-click, and the browser then submits
+              // the form on "Next" -- creating the VM before the Review step is ever shown.
               <button
+                key="wizard-next"
                 type="button"
                 onClick={goNext}
                 className="flex-1 zf-btn zf-btn-primary"
@@ -1521,6 +1525,7 @@ export default function CreateVM() {
               </button>
             ) : (
               <button
+                key="wizard-create"
                 type="submit"
                 disabled={loading || !name || !image}
                 className="flex-1 zf-btn zf-btn-primary"
