@@ -462,7 +462,7 @@ async fn login_inner(auth: SharedAuth, req: LoginRequest) -> axum::response::Res
     }
 
     if let Ok(Some(user)) = auth.db.get_by_username(&req.username) {
-        match user.verify_password(&req.password) {
+        match verify_password_off_runtime(user.password_hash.clone(), req.password.clone()).await {
             Ok(true) => {
                 // Only someone who knows the password learns the account is
                 // disabled; a wrong password is a plain 401 either way.
@@ -521,7 +521,8 @@ async fn login_inner(auth: SharedAuth, req: LoginRequest) -> axum::response::Res
 
     // Unknown local user: spend the same bcrypt time a real check would, so
     // response timing does not reveal which usernames exist.
-    burn_password_check(&req.password);
+    let burn_password = req.password.clone();
+    let _ = tokio::task::spawn_blocking(move || burn_password_check(&burn_password)).await;
 
     let username = req.username.clone();
     let password = req.password.clone();
@@ -548,6 +549,20 @@ async fn login_inner(auth: SharedAuth, req: LoginRequest) -> axum::response::Res
     }
 
     err(StatusCode::UNAUTHORIZED, "Invalid credentials").into_response()
+}
+
+/// Verify a password against its bcrypt hash on the blocking pool.
+///
+/// bcrypt is deliberately slow (about a second of CPU at the default cost on a small
+/// pod). Running it inline in an async handler pins a tokio worker for that long, so a
+/// burst of logins starved every other request (a plain list took ~11 s behind ten
+/// concurrent logins).
+async fn verify_password_off_runtime(hash: String, password: String) -> anyhow::Result<bool> {
+    tokio::task::spawn_blocking(move || {
+        bcrypt::verify(password, &hash).map_err(anyhow::Error::from)
+    })
+    .await
+    .map_err(|e| anyhow::anyhow!("password check task failed: {e}"))?
 }
 
 /// bcrypt of a throwaway value, computed once, to equalise timing for unknown users.
@@ -919,7 +934,7 @@ pub async fn totp_disable_handler(
     let Ok(Some(user)) = auth.db.get_by_id(&claims.sub) else {
         return err(StatusCode::NOT_FOUND, "User not found").into_response();
     };
-    match user.verify_password(&body.password) {
+    match verify_password_off_runtime(user.password_hash.clone(), body.password.clone()).await {
         Ok(true) => {}
         Ok(false) => {
             return err(StatusCode::UNAUTHORIZED, "Invalid password").into_response();
@@ -1395,7 +1410,10 @@ pub async fn change_password_handler(
         )
         .into_response();
     };
-    if !user.verify_password(&body.old_password).unwrap_or(false) {
+    if !verify_password_off_runtime(user.password_hash.clone(), body.old_password.clone())
+        .await
+        .unwrap_or(false)
+    {
         return err(StatusCode::UNAUTHORIZED, "Invalid password").into_response();
     }
     if body.new_password.len() < 8 || body.new_password.len() > 72 {
@@ -1794,5 +1812,32 @@ pub async fn get_namespaces_handler(
             "Failed to read namespaces",
         )
         .into_response(),
+    }
+}
+
+#[cfg(test)]
+mod verify_off_runtime_tests {
+    use super::verify_password_off_runtime;
+
+    #[tokio::test]
+    async fn accepts_right_and_rejects_wrong_password() {
+        let hash = bcrypt::hash("correct horse", 4).unwrap();
+        assert!(
+            verify_password_off_runtime(hash.clone(), "correct horse".into())
+                .await
+                .unwrap()
+        );
+        assert!(!verify_password_off_runtime(hash, "wrong".into())
+            .await
+            .unwrap());
+    }
+
+    #[tokio::test]
+    async fn malformed_hash_is_an_error_not_a_panic() {
+        assert!(
+            verify_password_off_runtime("not-a-bcrypt-hash".into(), "x".into())
+                .await
+                .is_err()
+        );
     }
 }
