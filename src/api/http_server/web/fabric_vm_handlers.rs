@@ -1261,7 +1261,8 @@ pub async fn fabric_delete_snapshot(
     match result {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
         Err(e) => {
-            let raw = e.to_string();
+            let raw = format!("{e:#}");
+            log::warn!("delete of snapshot '{id}' for vm '{vm}' failed: {raw}");
             let (code, kind, msg) =
                 crate::kube::lifecycle::classify_restore_error("delete this snapshot", &raw);
             let (st, j) = err_json(code, kind, &msg);
@@ -1285,8 +1286,8 @@ pub async fn fabric_revert_snapshot(
         Ok(rm) => rm
             .restore_in_place(&vm, &id)
             .await
-            .map_err(|e| e.to_string()),
-        Err(e) => Err(e.to_string()),
+            .map_err(|e| format!("{e:#}")),
+        Err(e) => Err(format!("{e:#}")),
     };
     record_audit(
         &state,
@@ -1301,6 +1302,7 @@ pub async fn fabric_revert_snapshot(
     match result {
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
         Err(raw) => {
+            log::warn!("revert of vm '{vm}' to snapshot '{id}' failed: {raw}");
             let (code, kind, msg) =
                 crate::kube::lifecycle::classify_restore_error("revert to this snapshot", &raw);
             let (st, j) = err_json(code, kind, &msg);

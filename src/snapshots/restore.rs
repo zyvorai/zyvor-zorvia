@@ -14,6 +14,21 @@ use kube::{
 };
 use std::collections::BTreeMap;
 
+/// Name for a new `VirtualMachineRestore`.
+///
+/// Must be unique per attempt: a finished restore object stays in the cluster,
+/// so a fixed `<vm>-restore` name made every second revert of the same VM fail
+/// with AlreadyExists. The target is truncated so the whole name stays within
+/// the 63-character DNS label limit.
+fn restore_object_name(target_vm: &str, at: DateTime<Utc>) -> String {
+    const MAX_TARGET: usize = 63 - "-restore-".len() - 14;
+    let mut t: String = target_vm.chars().take(MAX_TARGET).collect();
+    while t.ends_with('-') || t.ends_with('.') {
+        t.pop();
+    }
+    format!("{t}-restore-{}", at.format("%Y%m%d%H%M%S"))
+}
+
 /// Restore Manager for VM restore operations
 pub struct RestoreManager {
     client: Client,
@@ -51,7 +66,7 @@ impl RestoreManager {
         let restores: Api<VirtualMachineRestore> =
             Api::namespaced(self.client.clone(), &self.namespace);
 
-        let restore_name = format!("{}-restore", target_vm_name);
+        let restore_name = restore_object_name(target_vm_name, Utc::now());
 
         // Build labels
         let mut labels = BTreeMap::new();
@@ -334,5 +349,26 @@ mod tests {
             assert_eq!(manager.estimate_restore_time(100), "~10 minutes");
             assert_eq!(manager.estimate_restore_time(700), "~1 hours 10 minutes");
         }
+    }
+}
+
+#[cfg(test)]
+mod restore_name_tests {
+    use super::restore_object_name;
+    use chrono::{TimeZone, Utc};
+
+    #[test]
+    fn unique_per_second_and_suffixed() {
+        let a = Utc.with_ymd_and_hms(2026, 10, 11, 3, 8, 41).unwrap();
+        let b = Utc.with_ymd_and_hms(2026, 10, 11, 3, 8, 42).unwrap();
+        assert_eq!(restore_object_name("web-1", a), "web-1-restore-20261011030841");
+        assert_ne!(restore_object_name("web-1", a), restore_object_name("web-1", b));
+    }
+
+    #[test]
+    fn long_names_fit_in_a_dns_label() {
+        let at = Utc.with_ymd_and_hms(2026, 10, 11, 3, 8, 41).unwrap();
+        let long = "a".repeat(63);
+        assert!(restore_object_name(&long, at).len() <= 63);
     }
 }
