@@ -361,8 +361,14 @@ mod restore_name_tests {
     fn unique_per_second_and_suffixed() {
         let a = Utc.with_ymd_and_hms(2026, 10, 11, 3, 8, 41).unwrap();
         let b = Utc.with_ymd_and_hms(2026, 10, 11, 3, 8, 42).unwrap();
-        assert_eq!(restore_object_name("web-1", a), "web-1-restore-20261011030841");
-        assert_ne!(restore_object_name("web-1", a), restore_object_name("web-1", b));
+        assert_eq!(
+            restore_object_name("web-1", a),
+            "web-1-restore-20261011030841"
+        );
+        assert_ne!(
+            restore_object_name("web-1", a),
+            restore_object_name("web-1", b)
+        );
     }
 
     #[test]
