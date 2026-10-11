@@ -308,6 +308,37 @@ pub async fn fabric_get_convert_job(Path(id): Path<String>) -> impl IntoResponse
     }
 }
 
+/// Extract the human-readable reason from a Kubernetes admission-webhook denial,
+/// e.g. `... denied the request: snapshot feature gate not enabled: Invalid (Status {...`.
+///
+/// Webhook reasons are written for the API caller and are safe and actionable to
+/// show, unlike arbitrary internal errors that `sanitize_error` masks.
+fn admission_denial_reason(chain: &str) -> Option<String> {
+    const MARKER: &str = "denied the request: ";
+    let rest = &chain[chain.find(MARKER)? + MARKER.len()..];
+    let end = rest
+        .find(": Invalid (Status")
+        .or_else(|| rest.find(" (Status"))
+        .unwrap_or(rest.len())
+        .min(300);
+    let reason = rest[..end].trim();
+    if reason.is_empty() {
+        None
+    } else {
+        Some(reason.to_string())
+    }
+}
+
+/// Default memory-hotplug ceiling (`maxGuest`) for a new VM, in MiB.
+///
+/// KubeVirt's admission webhook rejects `maxGuest` on guests under 1 GiB
+/// ("Memory hotplug is only available for VMs with at least 1Gi of guest
+/// memory"), so small VMs are created without hotplug headroom instead of
+/// failing to create at all.
+fn default_max_guest_mib(memory_mib: u64) -> Option<u64> {
+    (memory_mib >= 1024).then(|| memory_mib.saturating_mul(2))
+}
+
 pub async fn fabric_create_vm(
     State(state): State<SharedState>,
     headers: HeaderMap,
@@ -337,14 +368,18 @@ pub async fn fabric_create_vm(
         .cpu_max_sockets
         .unwrap_or_else(|| cpus.saturating_mul(4))
         .max(1);
-    let max_guest_mib = req.memory_max_guest_mb.unwrap_or(req.memory.max(256) * 2);
+    let max_guest_mib = req
+        .memory_max_guest_mb
+        .or_else(|| default_max_guest_mib(req.memory.max(256)));
 
     let mut builder = VMConfigBuilder::new(&req.name)
         .namespace(&namespace)
         .cpu(cpus, 1, 1)
         .cpu_max_sockets(max_sockets)
-        .memory(&mem)
-        .max_guest_memory(memory_to_kube(max_guest_mib));
+        .memory(&mem);
+    if let Some(max_guest_mib) = max_guest_mib {
+        builder = builder.max_guest_memory(memory_to_kube(max_guest_mib));
+    }
 
     if let Some(model) = &req.cpu_model {
         builder = builder.cpu_model(model);
@@ -1187,7 +1222,16 @@ pub async fn fabric_create_snapshot(
         )
             .into_response(),
         Err(e) => {
-            let (st, j) = err_json(500, "SNAPSHOT_FAILED", &sanitize_error(&e));
+            let chain = format!("{e:#}");
+            log::warn!("snapshot create for vm '{vm}' failed: {chain}");
+            let (st, j) = match admission_denial_reason(&chain) {
+                Some(reason) => err_json(
+                    422,
+                    "SNAPSHOT_REJECTED",
+                    &format!("Cluster rejected the snapshot: {reason}"),
+                ),
+                None => err_json(500, "SNAPSHOT_FAILED", &sanitize_error(&e)),
+            };
             (st, j).into_response()
         }
     }
@@ -1596,5 +1640,42 @@ mod wait_budget_tests {
         assert_eq!(bounded_wait(120), 25);
         assert_eq!(bounded_wait(10), 10);
         const { assert!(MAX_IN_REQUEST_WAIT_SECS < 30) };
+    }
+}
+
+#[cfg(test)]
+mod default_max_guest_tests {
+    use super::default_max_guest_mib;
+
+    #[test]
+    fn small_guests_get_no_hotplug_headroom() {
+        assert_eq!(default_max_guest_mib(256), None);
+        assert_eq!(default_max_guest_mib(512), None);
+        assert_eq!(default_max_guest_mib(1023), None);
+    }
+
+    #[test]
+    fn one_gib_and_up_doubles() {
+        assert_eq!(default_max_guest_mib(1024), Some(2048));
+        assert_eq!(default_max_guest_mib(4096), Some(8192));
+    }
+}
+
+#[cfg(test)]
+mod admission_denial_tests {
+    use super::admission_denial_reason;
+
+    #[test]
+    fn extracts_webhook_reason() {
+        let chain = "Failed to create VirtualMachineSnapshot: ApiError: admission webhook \"x\" denied the request: snapshot feature gate not enabled: Invalid (Status { code: 422 })";
+        assert_eq!(
+            admission_denial_reason(chain).as_deref(),
+            Some("snapshot feature gate not enabled")
+        );
+    }
+
+    #[test]
+    fn ignores_non_webhook_errors() {
+        assert_eq!(admission_denial_reason("connection refused"), None);
     }
 }
