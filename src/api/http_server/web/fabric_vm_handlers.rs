@@ -321,7 +321,7 @@ fn admission_denial_reason(chain: &str) -> Option<String> {
         .or_else(|| rest.find(" (Status"))
         .unwrap_or(rest.len())
         .min(300);
-    let reason = rest[..end].trim();
+    let reason = rest[..end].trim().trim_end_matches(':').trim();
     if reason.is_empty() {
         None
     } else {
@@ -1668,6 +1668,15 @@ mod admission_denial_tests {
     #[test]
     fn extracts_webhook_reason() {
         let chain = "Failed to create VirtualMachineSnapshot: ApiError: admission webhook \"x\" denied the request: snapshot feature gate not enabled: Invalid (Status { code: 422 })";
+        assert_eq!(
+            admission_denial_reason(chain).as_deref(),
+            Some("snapshot feature gate not enabled")
+        );
+    }
+
+    #[test]
+    fn strips_trailing_colon() {
+        let chain = "denied the request: snapshot feature gate not enabled: ";
         assert_eq!(
             admission_denial_reason(chain).as_deref(),
             Some("snapshot feature gate not enabled")

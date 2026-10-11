@@ -42,7 +42,20 @@ const CONSOLE_PATHS = [
   '/app/cost-estimator',
   '/app/quotas',
   '/app/pods',
+  '/app/fleet',
+  '/app/vmware-imports',
+  '/app/databridge',
+  '/app/devices',
 ]
+
+// Legacy top-level paths must redirect into /app, and unknown paths must 404 cleanly.
+const REDIRECTS: Record<string, RegExp> = {
+  '/vms': /\/app\/vms$/,
+  '/create': /\/app\/create$/,
+  '/favorites': /\/app\/favorites$/,
+  '/snapshots': /\/app\/snapshots$/,
+  '/login': /\/sign-in$/,
+}
 
 const MARKETING_PATHS = ['/', '/product', '/platform', '/security', '/sign-in']
 
@@ -102,6 +115,15 @@ test.describe('lab console crawl', () => {
       }
     }
     expect(failures, failures.join('\n')).toEqual([])
+  })
+
+  test('legacy paths redirect and unknown path 404s', async ({ page }) => {
+    for (const [from, to] of Object.entries(REDIRECTS)) {
+      await page.goto(from, { waitUntil: 'domcontentloaded' })
+      await expect(page, `${from} should redirect`).toHaveURL(to, { timeout: 15_000 })
+    }
+    await page.goto('/definitely-not-a-page', { waitUntil: 'domcontentloaded' })
+    await expect(page.locator('body')).toContainText(/not found|404/i)
   })
 
   test('core functionality spot-checks', async ({ page, request }) => {
