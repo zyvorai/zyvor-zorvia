@@ -283,6 +283,13 @@ pub fn classify_restore_error(action: &str, raw: &str) -> (u16, &'static str, St
             ),
         );
     }
+    if lower.contains("currently running") || lower.contains("stop the vm") {
+        return (
+            409,
+            "VM_RUNNING",
+            format!("Cannot {action}: the VM is running. Stop it first and retry"),
+        );
+    }
     if lower.contains("conflict") || lower.contains("already exists") {
         return (
             409,
@@ -296,6 +303,16 @@ pub fn classify_restore_error(action: &str, raw: &str) -> (u16, &'static str, St
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn running_vm_restore_is_a_409_with_guidance() {
+        let (code, kind, msg) = classify_restore_error(
+            "revert to this snapshot",
+            "Cannot restore in-place: VM 'x' is currently running. Stop the VM first.",
+        );
+        assert_eq!((code, kind), (409, "VM_RUNNING"));
+        assert!(msg.contains("Stop it first"));
+    }
 
     #[test]
     fn rejects_empty_and_invalid_names() {

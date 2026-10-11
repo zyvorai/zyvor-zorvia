@@ -300,7 +300,8 @@ pub async fn restore_backup_handler(
     match result {
         Ok(info) => (StatusCode::CREATED, Json(restore_job_json(&info))).into_response(),
         Err(e) => {
-            let raw = e.to_string();
+            let raw = format!("{e:#}");
+            log::warn!("restore of backup '{}' failed: {raw}", body.backup_id);
             let (code, kind, msg) =
                 crate::kube::lifecycle::classify_restore_error("restore this backup", &raw);
             let (st, j) = err_json(code, kind, &msg);
