@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install yamllint
-        run: pip install --user "yamllint==1.37.1"
+        run: pip install --user --require-hashes -r .github/requirements/yamllint.txt
       - name: Lint
         run: |
           yamllint -d "{extends: relaxed, rules: {line-length: {max: 160}, truthy: disable, comments: disable, document-start: disable}}" \

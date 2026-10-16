@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- `rustls` 0.23.45 -> 0.23.46: fixes RUSTSEC-2026-0346/0347/0348/0349 (TLS secrets in `Debug` output, data sent to the
+  outer server after ECH rejection, pre-auth Brotli allocation, downgrade to classical key exchange).
+- `guestkit` pinned to the revision with `ratatui` 0.30: drops `lru` 0.12 (IterMut soundness advisory; Dependabot #9)
+  from the `rescue-agent` build.
+- Docs site (`website/`): `tinypool` 2.1.2 (prototype pollution to RCE, critical) and `postcss-selector-parser` 7.1.6
+  (selector DoS) via npm overrides; the site still builds cleanly.
+- CI: `yamllint` is installed from a hash-pinned requirements file (`--require-hashes`).
+
 ## [0.7.0] - 2026-10-16
 
 ### Added
