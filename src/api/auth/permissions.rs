@@ -127,6 +127,13 @@ pub fn required_permission(method: &str, path: &str) -> Option<ApiPermission> {
         return None;
     }
 
+    // MCP endpoint: any authenticated caller may reach it. Each tool call is replayed through the
+    // REST router with the caller's own credential, so the permission for the actual action
+    // (vm.power, vm.delete, ...) is enforced there, not here.
+    if path == "/mcp" {
+        return None;
+    }
+
     // Audit JSONL export is admin-only even on GET
     if path == "/audit/export"
         || path.ends_with("/audit/export")
@@ -704,6 +711,34 @@ mod tests {
         assert_eq!(
             required_permission("POST", "/vms/web-01/start"),
             Some(ApiPermission::VmPower)
+        );
+    }
+    #[test]
+    fn mcp_endpoint_is_open_to_any_authenticated_caller() {
+        // The tool's real permission is enforced when the call is replayed through the REST
+        // router, so the endpoint itself must not default to cluster.admin for POST.
+        assert_eq!(required_permission("POST", "/mcp"), None);
+        assert_eq!(required_permission("GET", "/mcp"), None);
+        // ...and the actions behind the tools keep their own tier.
+        assert_eq!(
+            required_permission("POST", "/vms/a/start"),
+            Some(ApiPermission::VmPower)
+        );
+        assert_eq!(
+            required_permission("DELETE", "/vms/a"),
+            Some(ApiPermission::VmDelete)
+        );
+        assert_eq!(
+            required_permission("POST", "/vms"),
+            Some(ApiPermission::VmCreate)
+        );
+        assert_eq!(
+            required_permission("POST", "/vms/a/snapshots/s1/revert"),
+            Some(ApiPermission::VmCreate)
+        );
+        assert_eq!(
+            required_permission("POST", "/vms/a/snapshots"),
+            Some(ApiPermission::VmCreate)
         );
     }
 }

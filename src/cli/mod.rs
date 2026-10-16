@@ -139,6 +139,25 @@ pub enum Commands {
     #[command(subcommand)]
     Api(ApiCommands),
 
+    /// MCP server for AI assistants: a stdio bridge to a Zorvia API (see docs/MCP.md)
+    Mcp {
+        /// Base URL of the Zorvia API, e.g. https://zorvia.example.com:30152
+        #[arg(long, env = "ZORVIA_URL")]
+        url: String,
+
+        /// API token or key sent as `x-api-key` (prefer the environment variable)
+        #[arg(long, env = "ZORVIA_TOKEN", hide_env_values = true)]
+        token: String,
+
+        /// Accept an untrusted TLS certificate (lab clusters with a self-signed cert)
+        #[arg(long)]
+        insecure: bool,
+
+        /// PEM file with the CA certificate that signed the server's certificate
+        #[arg(long)]
+        ca_cert: Option<String>,
+    },
+
     /// Zorvia's own CLI configuration file
     #[command(subcommand)]
     Config(ConfigCommands),

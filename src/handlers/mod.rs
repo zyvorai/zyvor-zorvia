@@ -11,6 +11,7 @@ pub mod gitops;
 pub mod guest;
 pub mod images;
 pub mod infra;
+pub mod mcp;
 pub mod multitenancy;
 pub mod observability;
 pub mod profiles;

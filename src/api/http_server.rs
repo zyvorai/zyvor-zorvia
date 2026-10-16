@@ -126,6 +126,10 @@ pub mod web {
     mod service_map_handlers;
     use service_map_handlers::*;
 
+    #[path = "mcp_handlers.rs"]
+    mod mcp_handlers;
+    use mcp_handlers::{mcp_get, mcp_post, McpInner};
+
     #[path = "audit_handlers.rs"]
     mod audit_handlers;
     use audit_handlers::*;
@@ -652,7 +656,7 @@ pub mod web {
             )
             .route_layer(middleware::from_fn(require_admin_middleware));
 
-        let api = Router::new()
+        let api_core: Router = Router::new()
             // Auth (Zorvia)
             .route("/v1/auth/login", post(auth_login))
             .route("/v1/auth/me", get(auth_me))
@@ -1539,6 +1543,20 @@ pub mod web {
             ))
             .with_state(state.clone());
 
+        // MCP tool calls are replayed through `/api/*` behind the same auth middleware, minus the
+        // MCP route itself (so they cannot recurse). The credential is the caller's own.
+        let mcp_inner = McpInner(Router::new().nest("/api", api_core.clone()).layer(
+            middleware::from_fn_with_state(state.clone(), auth_middleware),
+        ));
+        let mcp_routes: Router = Router::new()
+            .route("/mcp", post(mcp_post).get(mcp_get))
+            .layer(axum::Extension(mcp_inner))
+            .layer(TimeoutLayer::with_status_code(
+                StatusCode::REQUEST_TIMEOUT,
+                std::time::Duration::from_secs(30),
+            ));
+        let api = api_core.merge(mcp_routes);
+
         Router::new()
             .route(
                 "/dashboard",
@@ -1549,7 +1567,7 @@ pub mod web {
             .route("/ws/ssh/{name}", get(ws_ssh))
             .route("/ws/pods/{ns}/{name}/logs", get(ws_pod_logs))
             .route("/ws/pods/{ns}/{name}/exec", get(ws_pod_exec))
-            .nest("/api", api)
+            .nest_service("/api", api)
             .fallback_service(spa)
             .layer(middleware::from_fn(security_headers_middleware))
             .layer(middleware::from_fn_with_state(

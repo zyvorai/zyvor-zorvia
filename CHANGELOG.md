@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **MCP (Model Context Protocol) server.** AI assistants can list, create, power-cycle and snapshot VMs through
+  `POST /api/mcp` or the `zorvia mcp` stdio bridge. Every tool call is replayed through the REST API with the
+  caller's own token, so RBAC, namespace limits, audit and webhooks apply unchanged. Off by default
+  (`ZORVIA_MCP_ENABLED=1` / `mcp.enabled`); destructive tools require `confirm: true`; tools can be withheld with
+  `ZORVIA_MCP_DISABLE_TOOLS`. See [docs/MCP.md](docs/MCP.md).
+
 ## [0.6.0] - 2026-10-16
 
 ### Added

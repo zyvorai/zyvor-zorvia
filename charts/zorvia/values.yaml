@@ -133,6 +133,13 @@ podLabels: {}
 # Optional pod-level securityContext override (fsGroup / seccomp).
 podSecurityContext: {}
 
+# Model Context Protocol endpoint (POST /api/mcp) for AI assistants; see docs/MCP.md.
+# Off by default. Calls run with the caller's own token, so RBAC and audit apply unchanged.
+mcp:
+  enabled: false
+  # Tools to withhold even when MCP is on, e.g. [delete_vm, delete_snapshot, revert_snapshot].
+  disableTools: []
+
 # API process behaviour
 api:
   port: 5151
