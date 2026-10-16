@@ -102,6 +102,20 @@ Safeguards beyond RBAC:
 Tool calls appear in the audit trail like any REST call, under the token's identity. Filter by the token name to
 review everything an agent did.
 
+## Verify a deployment
+
+`scripts/mcp-smoke.sh` checks a running server end to end: authentication (401s), the protocol, a read-only token that
+cannot mutate (403s for every mutating tool, even with `confirm`), the `confirm` gate, rejection of malformed names,
+token revocation, and optionally a real create / snapshot / delete cycle with an audit-trail check and the stdio bridge.
+
+```bash
+ZORVIA_URL=https://HOST:30152 ZORVIA_ADMIN_USER=admin ZORVIA_ADMIN_PASSWORD=... \
+  ZORVIA_INSECURE=1 SMOKE_LIFECYCLE=1 ZORVIA_BIN=$(which zorvia) ./scripts/mcp-smoke.sh
+```
+
+It mints two throwaway tokens (viewer, user) and revokes them on exit; `SMOKE_LIFECYCLE=1` also creates and deletes a
+VM named `mcp-smoke-*`. Needs `curl` and `jq`. Exit status is non-zero if any check fails.
+
 ## Protocol notes
 
 Implements MCP `2025-06-18` (also negotiates `2025-03-26` and `2024-11-05`): `initialize`, `ping`, `tools/list`,
