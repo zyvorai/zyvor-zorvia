@@ -704,7 +704,7 @@ fn test_cloud_init_in_kubevirt_conversion() {
         .memory("4Gi")
         .add_blank_disk("rootdisk", "20Gi", 1)
         .add_pod_network("default")
-        .cloud_init("#cloud-config\npackages:\n  - nginx\n  - vim\n")
+        .cloud_init("#cloud-config\npackages:\n  - envoy\n  - vim\n")
         .build();
 
     validate_vm_config(&config).unwrap();
@@ -716,7 +716,7 @@ fn test_cloud_init_in_kubevirt_conversion() {
 
     let ci = cloudinit_vol.unwrap().cloud_init_no_cloud.as_ref().unwrap();
     let user_data = ci.user_data.as_ref().unwrap();
-    assert!(user_data.contains("nginx"));
+    assert!(user_data.contains("envoy"));
     assert!(user_data.contains("vim"));
 }
 

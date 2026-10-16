@@ -18,7 +18,7 @@
 //!     .memory("8Gi")
 //!     .add_blank_disk("rootdisk", "40Gi", 1)
 //!     .add_pod_network("eth0")
-//!     .label("app", "nginx")
+//!     .label("app", "envoy")
 //!     .build();
 //!
 //! // Convert to KubeVirt manifest

@@ -18,22 +18,21 @@ service:
 tls:
   inPod: false
 
+# Exposed through Envoy Gateway (Gateway API). Requires the Gateway API CRDs, Envoy Gateway
+# and cert-manager with Gateway API support enabled; see README.
 ingress:
+  enabled: false
+
+httpRoute:
   enabled: true
-  className: nginx
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-  hosts:
-    - host: zorvia.example.com
-      paths:
-        - path: /
-          pathType: Prefix
-  tls:
-    - secretName: zorvia-tls
-      hosts:
-        - zorvia.example.com
+  hostnames:
+    - zorvia.example.com
+  gateway:
+    create: true
+    className: eg
+    tlsSecretName: zorvia-tls
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
 
 resources:
   requests:

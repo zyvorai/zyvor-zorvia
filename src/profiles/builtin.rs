@@ -170,7 +170,7 @@ pub fn builtin_profiles() -> HashMap<String, Profile> {
             disk_size: "40Gi".to_string(),
             use_cases: vec![
                 "Web applications".to_string(),
-                "Nginx".to_string(),
+                "Envoy".to_string(),
                 "Apache".to_string(),
                 "Static sites".to_string(),
                 "Reverse proxy".to_string(),
