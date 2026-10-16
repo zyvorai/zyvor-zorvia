@@ -28,6 +28,9 @@
 
 ## What's new
 
+**v0.7.0, the MCP release**: AI assistants (Claude Desktop/Code and other MCP clients) can list, create, power-cycle and snapshot VMs
+through an opt-in `/api/mcp` endpoint or the `zorvia mcp` bridge, acting with their own scoped token ([docs/MCP.md](docs/MCP.md)).
+
 **v0.6.0, the easy-deploy release**: Envoy Gateway replaces nginx, `remote-deploy.sh --bootstrap --image` takes a bare host to a running console
 with no on-host build, and the published image now ships the web console ([changelog](CHANGELOG.md)).
 
