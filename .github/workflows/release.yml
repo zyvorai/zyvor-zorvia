@@ -8,7 +8,8 @@ env:
   CARGO_TERM_COLOR: always
   RUST_MIN_STACK: 8388608
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  # Published as ghcr.io/zyvorai/zorvia (matches the chart, docs and deploy scripts), not the repo slug.
+  IMAGE_NAME: zyvorai/zorvia
 
 permissions:
   contents: read

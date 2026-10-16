@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Envoy Gateway replaces nginx.** The chart ships `HTTPRoute` and `Gateway` templates (`httpRoute.*` values); production
+  values use Envoy Gateway with an HTTP-to-HTTPS redirect. Examples, blueprints, profiles and docs no longer use nginx.
+- `deploy/remote-deploy.sh --image[=REF]`: deploy the prebuilt GHCR image without compiling on the host.
+- `deploy/remote-deploy.sh --bootstrap`: install k3s (no flannel), Cilium, KubeVirt, CDI, Envoy Gateway and the `eg`
+  GatewayClass on a fresh host. Refuses to replace a host that is a k3s agent unless `BOOTSTRAP_FORCE=1`.
+
+### Fixed
+
+- **Released image had no web console.** The release `Dockerfile` built only the Rust binary; it now builds `web/` and sets
+  `ZORVIA_WEB_DIR`, and includes `openssh-client` like the lab image.
+- **Image name mismatch.** Releases were pushed as `ghcr.io/zyvorai/zyvor-zorvia` while the chart, docs and scripts use
+  `ghcr.io/zyvorai/zorvia`; the release workflow now publishes the latter.
+- `remote-deploy.sh` reported "Deployment complete" when the cluster was unreachable or unhealthy; it now fails with a
+  clear error, waits for KubeVirt, and keeps SSH alive during long builds.
+
 ## [0.5.0] - 2026-10-11
 
 Found by deploying a clean host, then driving every console page and the VM, snapshot, backup and revert flows end to end. Most of

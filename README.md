@@ -220,6 +220,23 @@ helm upgrade --install zorvia charts/zorvia -n zorvia-system --create-namespace 
 
 Production values: `charts/zorvia/values-production.yaml`. Lab remote deploy: [docs/LAB.md](docs/LAB.md).
 
+### One command to a running console
+
+From a checkout, with SSH access (and passwordless `sudo`) to a fresh Linux host:
+
+```bash
+# brand-new host: installs k3s + Cilium + KubeVirt + CDI + Envoy Gateway, then runs Zorvia
+./deploy/remote-deploy.sh <host> <user> --bootstrap --image
+
+# host that already has a KubeVirt cluster: just (re)deploy the published image, ~1 minute
+./deploy/remote-deploy.sh <host> <user> --image          # ghcr.io/zyvorai/zorvia:latest
+./deploy/remote-deploy.sh <host> <user> --image=ghcr.io/zyvorai/zorvia:0.6.0   # pin a release
+```
+
+Nothing is compiled on the host. The script prints the console URL (`https://<host>:30152`) and the generated
+admin password once, and exits non-zero unless `/api/v1/health` returns 200. Images are public on GHCR
+(`ghcr.io/zyvorai/zorvia`), so no registry login is needed.
+
 <a id="quick-start"></a>
 
 ## Quickstart
