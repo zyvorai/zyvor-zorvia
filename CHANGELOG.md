@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-10-16
+
+Release workflow now runs on self-hosted runners (macOS release binaries are no longer built); includes the security fixes below.
+
 ### Security
 
 - `rustls` 0.23.45 -> 0.23.46: fixes RUSTSEC-2026-0346/0347/0348/0349 (TLS secrets in `Debug` output, data sent to the
