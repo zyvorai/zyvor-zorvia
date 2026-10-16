@@ -34,7 +34,21 @@ Gateway API (`HTTPRoute` + `Gateway`):
 ```bash
 helm install eg oci://docker.io/envoyproxy/gateway-helm \
   -n envoy-gateway-system --create-namespace   # also installs the Gateway API CRDs
+
+# The chart's Gateway uses class `eg`; the helm chart does not create it:
+kubectl apply -f - <<'EOF'
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: eg
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+EOF
 ```
+
+Without the `eg` GatewayClass the Gateway never becomes Accepted. For lab hosts,
+`deploy/remote-deploy.sh <host> <user> --bootstrap` installs k3s (no flannel), Cilium, KubeVirt, CDI,
+Envoy Gateway and this GatewayClass before deploying.
 
 The chart creates a `Gateway` (class `eg`) with an HTTP listener that redirects to HTTPS and an
 HTTPS listener using the `zorvia-tls` Secret (cert-manager `gateway-shim` via the

@@ -1,5 +1,13 @@
 # Multi-stage build for minimal production image
-#
+
+# Web console: built from web/ so the released image serves the UI (ZORVIA_WEB_DIR below).
+FROM node:22-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392 AS web
+WORKDIR /web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci --legacy-peer-deps
+COPY web/ ./
+RUN npm run build
+
 # Cargo.lock is lockfile format v4 (has been since 0.3.0), which needs
 # Cargo 1.78+ to even parse -- `cargo build --locked` fails immediately
 # on anything older, independent of the crate's own rust-version MSRV.
@@ -32,10 +40,12 @@ RUN cargo build --release --locked && strip target/release/zorvia
 FROM debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
+    ca-certificates openssh-client \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /build/target/release/zorvia /usr/local/bin/zorvia
+COPY --from=web /web/dist /usr/share/zorvia/web
+ENV ZORVIA_WEB_DIR=/usr/share/zorvia/web
 
 RUN useradd -u 10001 -m zorvia
 USER zorvia
