@@ -21,6 +21,9 @@ Zorvia install notes
 {{- if and .Values.service (eq .Values.service.type "NodePort") .Values.service.nodePort }}
 
 3. Console: https://<node>:{{ .Values.service.nodePort }}
+{{- else if .Values.httpRoute.enabled }}
+
+3. Console: https://{{ first .Values.httpRoute.hostnames }}
 {{- else if .Values.ingress.enabled }}
 
 3. Console: https://{{ (index .Values.ingress.hosts 0).host }}

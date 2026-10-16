@@ -155,19 +155,29 @@ mod tests {
 
     #[test]
     fn test_edge_application() {
-        let app = EdgeApplication::new("web-app", Runtime::Container, "1.0.0", "nginx:latest");
+        let app = EdgeApplication::new(
+            "web-app",
+            Runtime::Container,
+            "1.0.0",
+            "envoyproxy/envoy:v1.32-latest",
+        );
 
         assert_eq!(app.name, "web-app");
         assert_eq!(app.runtime, Runtime::Container);
         assert_eq!(app.version, "1.0.0");
-        assert_eq!(app.image, "nginx:latest");
+        assert_eq!(app.image, "envoyproxy/envoy:v1.32-latest");
         assert!(!app.auto_scale);
     }
 
     #[test]
     fn test_app_enable_auto_scale() {
-        let app = EdgeApplication::new("web", Runtime::Container, "1.0.0", "nginx:latest")
-            .enable_auto_scale(2, 5);
+        let app = EdgeApplication::new(
+            "web",
+            Runtime::Container,
+            "1.0.0",
+            "envoyproxy/envoy:v1.32-latest",
+        )
+        .enable_auto_scale(2, 5);
 
         assert!(app.auto_scale);
         assert_eq!(app.min_replicas, 2);
@@ -176,7 +186,12 @@ mod tests {
 
     #[test]
     fn test_app_set_replicas() {
-        let mut app = EdgeApplication::new("web", Runtime::Container, "1.0.0", "nginx:latest");
+        let mut app = EdgeApplication::new(
+            "web",
+            Runtime::Container,
+            "1.0.0",
+            "envoyproxy/envoy:v1.32-latest",
+        );
 
         app.set_replicas(3);
         assert_eq!(app.replicas_desired, 3);
@@ -184,7 +199,12 @@ mod tests {
 
     #[test]
     fn test_app_is_healthy() {
-        let mut app = EdgeApplication::new("web", Runtime::Container, "1.0.0", "nginx:latest");
+        let mut app = EdgeApplication::new(
+            "web",
+            Runtime::Container,
+            "1.0.0",
+            "envoyproxy/envoy:v1.32-latest",
+        );
         app.set_replicas(2);
         app.replicas_running = 2;
 
@@ -193,7 +213,12 @@ mod tests {
 
     #[test]
     fn test_app_is_degraded() {
-        let mut app = EdgeApplication::new("web", Runtime::Container, "1.0.0", "nginx:latest");
+        let mut app = EdgeApplication::new(
+            "web",
+            Runtime::Container,
+            "1.0.0",
+            "envoyproxy/envoy:v1.32-latest",
+        );
         app.set_replicas(3);
         app.replicas_running = 1;
 
@@ -203,7 +228,12 @@ mod tests {
 
     #[test]
     fn test_app_is_down() {
-        let mut app = EdgeApplication::new("web", Runtime::Container, "1.0.0", "nginx:latest");
+        let mut app = EdgeApplication::new(
+            "web",
+            Runtime::Container,
+            "1.0.0",
+            "envoyproxy/envoy:v1.32-latest",
+        );
         app.replicas_running = 0;
 
         assert!(app.is_down());
@@ -213,7 +243,12 @@ mod tests {
     fn test_application_manager() {
         let mut manager = ApplicationManager::new();
 
-        let app = EdgeApplication::new("web", Runtime::Container, "1.0.0", "nginx:latest");
+        let app = EdgeApplication::new(
+            "web",
+            Runtime::Container,
+            "1.0.0",
+            "envoyproxy/envoy:v1.32-latest",
+        );
         let id = manager.add_application(app);
 
         assert_eq!(manager.application_count(), 1);

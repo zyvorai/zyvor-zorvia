@@ -26,7 +26,7 @@ Pre-configured resource profiles that eliminate guesswork when creating VMs. Eac
 | **minimal** | 1 | 512Mi | 5Gi | DNS, jump hosts, monitoring agents |
 | **dev** | 1 | 2Gi | 10Gi | Development, testing, learning |
 | **test** | 2 | 4Gi | 20Gi | CI/CD pipelines, integration testing |
-| **web** | 4 | 8Gi | 40Gi | Nginx, Apache, static sites |
+| **web** | 4 | 8Gi | 40Gi | Envoy, Apache, static sites |
 | **prod** | 4 | 8Gi | 40Gi | Production workloads, web apps |
 | **database** | 6 | 16Gi | 200Gi | PostgreSQL, MySQL, MongoDB |
 | **microservice** | 2 | 4Gi | 20Gi | Container runtime, K8s nodes |
@@ -90,7 +90,7 @@ VMs: 3 (control + 2 workers)
 
 #### 🏢 3-Tier Web Application
 ```
-PostgreSQL + Application Server + Nginx Load Balancer
+PostgreSQL + Application Server + Envoy Load Balancer
 Perfect for: Enterprise applications
 VMs: 3 (database + app + frontend)
 ```
@@ -267,7 +267,7 @@ $ zorvia advisor recommend database
 ### Supported Workload Types
 
 - `database` - PostgreSQL, MySQL, MongoDB, Redis
-- `web` - Nginx, Apache, static sites
+- `web` - Envoy, Apache, static sites
 - `cache` - Redis, Memcached
 - `ci` - Jenkins, GitLab CI
 - `ml` - Machine learning workloads

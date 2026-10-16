@@ -23,15 +23,31 @@ helm upgrade --install zorvia ./charts/zorvia \
   --set auth.existingSecret=zorvia-auth \
   --set image.repository=ghcr.io/zyvorai/zorvia \
   --set image.tag=0.3.3 \
-  --set ingress.hosts[0].host=zorvia.example.com
+  --set 'httpRoute.hostnames[0]=zorvia.example.com'
 ```
+
+### Envoy Gateway prerequisite
+
+Production values expose Zorvia through [Envoy Gateway](https://gateway.envoyproxy.io/) using the
+Gateway API (`HTTPRoute` + `Gateway`):
+
+```bash
+helm install eg oci://docker.io/envoyproxy/gateway-helm \
+  -n envoy-gateway-system --create-namespace   # also installs the Gateway API CRDs
+```
+
+The chart creates a `Gateway` (class `eg`) with an HTTP listener that redirects to HTTPS and an
+HTTPS listener using the `zorvia-tls` Secret (cert-manager `gateway-shim` via the
+`cert-manager.io/cluster-issuer` annotation). To attach to an existing Gateway instead, set
+`httpRoute.gateway.create=false` and `httpRoute.parentRefs`. When `networkPolicy.enabled=true`, set
+`networkPolicy.ingressFrom` to allow the `envoy-gateway-system` namespace.
 
 ## Features
 
 | Value | Lab | Production |
 |-------|-----|------------|
 | replicas | 1 | 2 |
-| TLS | in-pod self-signed | Ingress + cert-manager |
+| TLS | in-pod self-signed | Envoy Gateway + cert-manager |
 | Service | NodePort 30152 | ClusterIP |
 | PDB / NetworkPolicy / anti-affinity | off | on |
 | Leader election (Lease) | on | on |

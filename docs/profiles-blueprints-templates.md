@@ -14,7 +14,7 @@ authoring.
 | minimal | 1 | 512Mi | 5Gi | Agents, jump hosts |
 | dev | 1 | 2Gi | 10Gi | Learning |
 | test | 2 | 4Gi | 20Gi | CI |
-| web | 4 | 8Gi | 40Gi | Nginx, static |
+| web | 4 | 8Gi | 40Gi | Envoy, static |
 | prod | 4 | 8Gi | 40Gi | Production apps |
 | database | 6 | 16Gi | 200Gi | Databases |
 | microservice | 2 | 4Gi | 20Gi | Node roles |
@@ -32,7 +32,7 @@ zorvia vm create api --template fedora-44 --cpus 4 --memory 8Gi --disk-size 40Gi
 |-----------|-----|--------|
 | lamp | 2 | MySQL + Apache |
 | k8s-cluster | 3 | Control plane + workers |
-| 3tier | 3 | DB + app + Nginx |
+| 3tier | 3 | DB + app + Envoy |
 | cicd | 3 | GitLab + Jenkins + registry |
 | dev-stack | 3 | DB + Redis + workspace |
 
