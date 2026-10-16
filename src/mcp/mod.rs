@@ -886,6 +886,113 @@ mod tests {
         assert!(run(json!([]), &d).await.unwrap()["error"]["code"] == INVALID_REQUEST);
     }
 
+    /// Every tool must point at a route that really exists in the router. If a REST route is
+    /// renamed, this fails instead of the tool silently returning 404 in production.
+    #[test]
+    fn every_tool_path_is_a_registered_route() {
+        let router_src = include_str!("../api/http_server.rs");
+        for t in TOOLS {
+            let needle = format!("\"{}\"", t.path);
+            assert!(
+                router_src.contains(&needle),
+                "tool {} -> {} {} is not registered in http_server.rs",
+                t.name,
+                t.method,
+                t.path
+            );
+            assert!(
+                !t.path.starts_with("/mcp"),
+                "{} must not target MCP itself",
+                t.name
+            );
+        }
+    }
+
+    /// The permission each tool needs is decided by the REST layer. Pin it so a change to
+    /// `required_permission` that loosens a tool is noticed (and docs/MCP.md stays true).
+    #[test]
+    fn tool_permissions_match_the_documented_table() {
+        use crate::api::auth::permissions::required_permission;
+        use crate::api::auth::ApiPermission::*;
+        let expected = [
+            ("list_vms", None),
+            ("get_vm", None),
+            ("list_snapshots", None),
+            ("cluster_health", None),
+            ("start_vm", Some(VmPower)),
+            ("stop_vm", Some(VmPower)),
+            ("restart_vm", Some(VmPower)),
+            ("create_vm", Some(VmCreate)),
+            ("create_snapshot", Some(VmCreate)),
+            ("revert_snapshot", Some(VmCreate)),
+            ("delete_vm", Some(VmDelete)),
+            ("delete_snapshot", Some(VmDelete)),
+        ];
+        assert_eq!(
+            expected.len(),
+            TOOLS.len(),
+            "a tool was added without a documented permission"
+        );
+        for (name, want) in expected {
+            let t = TOOLS.iter().find(|t| t.name == name).unwrap();
+            let path = t.path.replace("{name}", "vm1").replace("{id}", "s1");
+            assert_eq!(required_permission(t.method, &path), want, "{name}");
+        }
+    }
+
+    #[test]
+    fn read_only_tools_need_no_write_permission_for_any_viewer() {
+        use crate::api::auth::permissions::{permissions_for_role, required_permission};
+        use crate::api::auth::Role;
+        let viewer = permissions_for_role(&Role::Viewer);
+        for t in TOOLS.iter().filter(|t| t.read_only) {
+            let path = t.path.replace("{name}", "vm1");
+            match required_permission(t.method, &path) {
+                None => {}
+                Some(p) => assert!(
+                    viewer.contains(&p),
+                    "viewer cannot use read-only tool {}",
+                    t.name
+                ),
+            }
+        }
+        // ...and a viewer must hold none of the permissions that mutating tools require.
+        for t in TOOLS.iter().filter(|t| !t.read_only) {
+            let path = t.path.replace("{name}", "vm1").replace("{id}", "s1");
+            let p = required_permission(t.method, &path).expect("mutating tool needs a permission");
+            assert!(!viewer.contains(&p), "viewer would be allowed {}", t.name);
+        }
+    }
+
+    #[test]
+    fn schemas_declare_every_required_argument_as_a_property() {
+        for t in TOOLS {
+            let s = (t.schema)();
+            let props = s["properties"].as_object().unwrap();
+            for r in s["required"].as_array().into_iter().flatten() {
+                assert!(
+                    props.contains_key(r.as_str().unwrap()),
+                    "{}: required {r} not a property",
+                    t.name
+                );
+            }
+            // every body key must be something the schema advertises
+            for k in t.body_keys {
+                let arg = if t.name == "create_snapshot" && *k == "name" {
+                    "snapshot_name"
+                } else {
+                    k
+                };
+                assert!(
+                    props.contains_key(arg),
+                    "{}: body key {k} not in schema",
+                    t.name
+                );
+            }
+            assert_eq!(s["additionalProperties"], false, "{}", t.name);
+        }
+    }
+
     #[test]
     fn long_results_are_truncated() {
         let v = tool_text("x".repeat(MAX_RESULT_CHARS + 50), false);
