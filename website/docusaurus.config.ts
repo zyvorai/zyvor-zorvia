@@ -72,6 +72,7 @@ const config: Config = {
           position: 'right',
           label: 'Docs',
         },
+        {to: '/support', label: 'Support', position: 'right'},
         {
           href: 'https://github.com/zyvorai/zyvor-zorvia',
           label: 'GitHub',
@@ -95,6 +96,7 @@ const config: Config = {
         {
           title: 'Project',
           items: [
+            {label: 'Support', to: '/support'},
             {label: 'GitHub', href: 'https://github.com/zyvorai/zyvor-zorvia'},
             {label: 'Changelog', href: 'https://github.com/zyvorai/zyvor-zorvia/blob/main/CHANGELOG.md'},
             {label: 'License (Apache-2.0)', href: 'https://github.com/zyvorai/zyvor-zorvia/blob/main/LICENSE'},

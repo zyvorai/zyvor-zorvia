@@ -340,6 +340,10 @@ No `unsafe` on the product path. CORS off unless configured. TLS verification en
 - **Evaluating it?** Clone it and run the [quickstart](#quickstart); every claim in this README maps to a route or command you can hit right now. Questions, bug reports and feature requests are welcome as [GitHub issues](https://github.com/zyvorai/zyvor-zorvia/issues); a [star on the repo](https://github.com/zyvorai/zyvor-zorvia) helps others find it.
 - **Contributing code?** PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Support
+
+Free under Apache-2.0. If it helps you, you can donate any amount you like: <https://rzp.io/rzp/utwdYh3>. A donation is voluntary and supports development and maintenance. It is not a purchase: it buys no support, SLA, features, priority or license, and it is not tax-deductible (Zyvor AI Labs Private Limited is a company, not a charity). Zyvor Enterprise (supported releases, SLAs, a named contact and enterprise features) is separate: sales@zyvor.dev.
+
 ## License
 
 Zorvia is **free and open source** under the [Apache License, Version 2.0](LICENSE). You may use, modify, and run it for personal, lab, and commercial production use at no charge, subject to Apache-2.0 (preserve notices / NOTICE where required). See [NOTICE](NOTICE) — Apache-2.0 only (not dual-licensed with MIT).
