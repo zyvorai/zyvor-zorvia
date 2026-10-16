@@ -41,6 +41,8 @@ pub mod keys;
 pub mod kryton;
 pub mod kube;
 #[cfg(feature = "web")]
+pub mod mcp;
+#[cfg(feature = "web")]
 pub mod migration_import;
 pub mod network;
 #[cfg(feature = "web")]
@@ -1419,6 +1421,13 @@ pub async fn run(mut cli: Cli) -> Result<()> {
                 }
             }
         },
+
+        Commands::Mcp {
+            url,
+            token,
+            insecure,
+            ca_cert,
+        } => handlers::mcp::run_stdio_bridge(url, token, insecure, ca_cert).await?,
 
         Commands::Api(cmd) => match cmd {
             ApiCommands::ApiServe {

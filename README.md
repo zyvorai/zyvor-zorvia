@@ -93,8 +93,8 @@ Serial, VNC and in-browser SSH with a real pty, all over authenticated WebSocket
 <tr>
 <td valign="top" width="33%">
 <b>Govern who can</b><br>
-Admin, user and viewer accounts; server-side <code>ResourceQuota</code> and <code>NetworkPolicy</code> CRUD; opt-in OIDC SSO (Beta).<br>
-<a href="docs/OIDC.md">OIDC SSO</a>
+Admin, user and viewer accounts; server-side <code>ResourceQuota</code> and <code>NetworkPolicy</code> CRUD; opt-in OIDC SSO (Beta); opt-in MCP endpoint so AI assistants act with their own scoped token.<br>
+<a href="docs/OIDC.md">OIDC SSO</a> · <a href="docs/MCP.md">MCP</a>
 </td>
 <td valign="top" width="33%">
 <b>Prove it, protect it</b><br>

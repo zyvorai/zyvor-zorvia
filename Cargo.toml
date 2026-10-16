@@ -71,6 +71,8 @@ axum = { version = "0.8", optional = true, features = ["ws"] }
 axum-server = { version = "0.8", features = ["tls-rustls-no-provider"], optional = true }
 rustls = { version = "0.23", default-features = false, features = ["ring", "logging", "std", "tls12"], optional = true }
 tower-http = { version = "0.7", features = ["cors", "timeout", "fs"], optional = true }
+# `oneshot` replays MCP tool calls through the REST router in-process (already in the tree via axum).
+tower = { version = "0.5", default-features = false, features = ["util"], optional = true }
 jsonwebtoken = { version = "11.1", optional = true, default-features = false, features = ["use_pem", "rust_crypto"] }
 bcrypt = { version = "0.19", optional = true }
 rusqlite = { version = "0.40", features = ["bundled"], optional = true }
@@ -108,7 +110,7 @@ guestkit = { git = "https://github.com/zyvorai/guestkit", rev = "d22d282f7477f55
 [features]
 default = ["web"]
 web = [
-  "axum", "axum-server", "rustls", "tower-http",
+  "axum", "axum-server", "rustls", "tower-http", "dep:tower",
   "dep:jsonwebtoken", "dep:bcrypt", "dep:rusqlite", "dep:uuid",
   "dep:totp-rs", "dep:base64", "dep:sha2", "dep:subtle", "dep:urlencoding",
   "dep:futures-util", "dep:tokio-tungstenite", "dep:native-tls", "dep:openssl",

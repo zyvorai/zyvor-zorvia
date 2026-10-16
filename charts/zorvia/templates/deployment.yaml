@@ -171,6 +171,14 @@ spec:
             - name: ZORVIA_AUDIT_JSONL
               value: {{ .Values.api.auditJsonlPath | quote }}
             {{- end }}
+            {{- if .Values.mcp.enabled }}
+            - name: ZORVIA_MCP_ENABLED
+              value: "1"
+            {{- with .Values.mcp.disableTools }}
+            - name: ZORVIA_MCP_DISABLE_TOOLS
+              value: {{ join "," . | quote }}
+            {{- end }}
+            {{- end }}
             {{- if .Values.api.leaderElection }}
             - name: ZORVIA_LEADER_ELECTION
               value: "1"
