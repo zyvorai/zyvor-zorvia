@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-10-17
+
+Fixed: the container image shipped a no-op stub binary (the Dockerfile dependency-cache step was never rebuilt with the real sources), so it exited immediately. Release builds no longer produce linux-arm64 binaries (the self-hosted runners have no arm64 cross toolchain). The 0.7.1 and 0.7.2 images are unusable; use 0.7.3.
+
 ## [0.7.2] - 2026-10-17
 
 Two snapshot-retention tests now skip when the cluster has no snapshot API (they failed on self-hosted runners that have a plain k3s). v0.7.1 was tagged but never published.

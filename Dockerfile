@@ -34,7 +34,9 @@ RUN mkdir src && echo "fn main() {}" > src/main.rs && echo "" > src/lib.rs \
 
 # Build actual source
 COPY src/ src/
-RUN cargo build --release --locked && strip target/release/zorvia
+# The dummy sources above were compiled moments ago; COPY keeps the checkout's
+# older mtimes, so without this cargo reuses the stub and ships a no-op binary.
+RUN touch src/main.rs src/lib.rs && cargo build --release --locked && strip target/release/zorvia
 
 # Runtime image
 FROM debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587
