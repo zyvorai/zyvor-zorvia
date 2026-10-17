@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-10-17
+
+Two snapshot-retention tests now skip when the cluster has no snapshot API (they failed on self-hosted runners that have a plain k3s). v0.7.1 was tagged but never published.
+
 ## [0.7.1] - 2026-10-16
 
 Release workflow now runs on self-hosted runners (macOS release binaries are no longer built); includes the security fixes below.
