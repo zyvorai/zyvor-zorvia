@@ -6,7 +6,7 @@ replicaCount: 1
 
 image:
   repository: ghcr.io/zyvorai/zorvia
-  tag: "0.7.3"
+  tag: "0.7.4"
   # Prefer digest pinning in real prod:
   # digest: sha256:...
   pullPolicy: IfNotPresent
