@@ -1,6 +1,6 @@
 {
   "name": "zorvia-web",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "type": "module",
   "scripts": {
     "dev": "vite",

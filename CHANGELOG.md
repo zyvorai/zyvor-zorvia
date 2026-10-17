@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.4] - 2026-10-17
+
+Docs and CI housekeeping; no functional changes.
+
+### Documentation
+
+- Leaving Nutanix (Transiva export, h2kvm convert, land) documented with an honest status, using the Ubuntu 24.04 run (7 of 7, 747 s).
+
 ### Security
 
 - Documented ignore for RUSTSEC-2023-0071 (`rsa`, no upstream fix; only reachable through jsonwebtoken, no RSA private-key operations).
