@@ -9,7 +9,8 @@ vulnerability = "deny"
 unmaintained = "warn"
 yanked = "warn"
 notice = "warn"
-ignore = []
+# RUSTSEC-2023-0071: no fix upstream; rsa is only reachable via jsonwebtoken and no RSA private-key operations are performed.
+ignore = ["RUSTSEC-2023-0071"]
 
 [licenses]
 unlicensed = "deny"

@@ -1,0 +1,6 @@
+[advisories]
+# RUSTSEC-2023-0071 (Marvin timing attack in `rsa`): no patched release exists.
+# `rsa` is only pulled in by jsonwebtoken's optional RSA support; Zorvia signs
+# and verifies JWTs with HMAC and performs no RSA private-key operations.
+# Revisit when `rsa` publishes a fix.
+ignore = ["RUSTSEC-2023-0071"]
