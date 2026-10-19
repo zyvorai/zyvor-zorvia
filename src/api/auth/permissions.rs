@@ -254,6 +254,10 @@ pub fn required_permission(method: &str, path: &str) -> Option<ApiPermission> {
     {
         return Some(ApiPermission::ClusterAdmin);
     }
+    // AI diagnosis feeds launcher logs to a model, so it is gated like them.
+    if path.starts_with("/vms/") && path.contains("/ai/") {
+        return Some(ApiPermission::VmPower);
+    }
     if path.starts_with("/vms/") && path.ends_with("/logs") {
         return Some(ApiPermission::VmPower);
     }
@@ -370,6 +374,11 @@ mod tests {
             assert_eq!(required_permission("GET", p), Some(ClusterAdmin), "{p}");
         }
         assert_eq!(required_permission("GET", "/vms/a/logs"), Some(VmPower));
+        // AI diagnosis ships launcher logs to a model: same tier as the logs.
+        assert_eq!(
+            required_permission("POST", "/vms/a/ai/diagnose"),
+            Some(VmPower)
+        );
         assert_eq!(
             required_permission("GET", "/vms/a/guest/inventory/users"),
             Some(VmPower)

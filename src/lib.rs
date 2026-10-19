@@ -30,6 +30,8 @@
 //! ```
 
 #[cfg(feature = "web")]
+pub mod ai;
+#[cfg(feature = "web")]
 pub mod atlas;
 pub mod cli;
 #[cfg(feature = "web")]
