@@ -187,6 +187,10 @@ pub mod web {
     mod analytics_handlers;
     use analytics_handlers::*;
 
+    #[path = "ai_handlers.rs"]
+    mod ai_handlers;
+    use ai_handlers::*;
+
     #[path = "resource_optimizer_handlers.rs"]
     mod resource_optimizer_handlers;
     use resource_optimizer_handlers::*;
@@ -785,6 +789,7 @@ pub mod web {
             .route("/vms/{name}/guest/agent", get(guest_agent_info))
             .route("/vms/{name}/guest/inventory/{kind}", get(guest_inventory))
             .route("/vms/{name}/logs", get(fabric_vm_logs))
+            .route("/vms/{name}/ai/diagnose", post(ai_diagnose_vm_handler))
             .route("/datavolumes/{name}/wait", post(fabric_wait_data_volume))
             .route("/readyz", get(fabric_readyz))
             .route("/metrics", get(fabric_prom_metrics))
