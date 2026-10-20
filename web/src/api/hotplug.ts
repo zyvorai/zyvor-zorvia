@@ -33,30 +33,30 @@ export interface HotplugApplyResult {
 }
 
 export async function hotplugCpu(vmName: string, req: HotplugCpuRequest): Promise<HotplugApplyResult> {
-  return apiPost<HotplugApplyResult>(`${API_BASE_URL}/vms/${vmName}/hotplug/cpu`, req)
+  return apiPost<HotplugApplyResult>(`${API_BASE_URL}/vms/${encodeURIComponent(vmName)}/hotplug/cpu`, req)
 }
 
 export async function hotplugMemory(vmName: string, req: HotplugMemoryRequest): Promise<HotplugApplyResult> {
-  return apiPost<HotplugApplyResult>(`${API_BASE_URL}/vms/${vmName}/hotplug/memory`, req)
+  return apiPost<HotplugApplyResult>(`${API_BASE_URL}/vms/${encodeURIComponent(vmName)}/hotplug/memory`, req)
 }
 
 export async function hotplugDisk(vmName: string, req: HotplugDiskRequest): Promise<unknown> {
-  return apiPost<unknown>(`${API_BASE_URL}/vms/${vmName}/hotplug/disk`, req)
+  return apiPost<unknown>(`${API_BASE_URL}/vms/${encodeURIComponent(vmName)}/hotplug/disk`, req)
 }
 
 export async function hotremoveDisk(vmName: string, deviceId: string): Promise<void> {
-  const res = await apiFetch(`${API_BASE_URL}/vms/${vmName}/hotplug/disk/${deviceId}`, {
+  const res = await apiFetch(`${API_BASE_URL}/vms/${encodeURIComponent(vmName)}/hotplug/disk/${encodeURIComponent(deviceId)}`, {
     method: 'DELETE',
   })
   if (!res.ok) throw new Error('Failed to hot-remove disk')
 }
 
 export async function hotplugNic(vmName: string, req: HotplugNicRequest): Promise<unknown> {
-  return apiPost<unknown>(`${API_BASE_URL}/vms/${vmName}/hotplug/nic`, req)
+  return apiPost<unknown>(`${API_BASE_URL}/vms/${encodeURIComponent(vmName)}/hotplug/nic`, req)
 }
 
 export async function hotremoveNic(vmName: string, deviceId: string): Promise<void> {
-  const res = await apiFetch(`${API_BASE_URL}/vms/${vmName}/hotplug/nic/${deviceId}`, {
+  const res = await apiFetch(`${API_BASE_URL}/vms/${encodeURIComponent(vmName)}/hotplug/nic/${encodeURIComponent(deviceId)}`, {
     method: 'DELETE',
   })
   if (!res.ok) throw new Error('Failed to hot-remove NIC')

@@ -27,13 +27,13 @@ export async function createUser(username: string, password: string, role: UserR
 }
 
 export async function deleteUser(id: string): Promise<void> {
-  return apiDelete(`${API_BASE}/users/${id}`)
+  return apiDelete(`${API_BASE}/users/${encodeURIComponent(id)}`)
 }
 
 export async function updateUserRole(id: string, role: UserRole): Promise<void> {
-  return apiPutVoid(`${API_BASE}/users/${id}/role`, { role })
+  return apiPutVoid(`${API_BASE}/users/${encodeURIComponent(id)}/role`, { role })
 }
 
 export async function setUserEnabled(id: string, enabled: boolean): Promise<void> {
-  return apiPutVoid(`${API_BASE}/users/${id}/enabled`, { enabled })
+  return apiPutVoid(`${API_BASE}/users/${encodeURIComponent(id)}/enabled`, { enabled })
 }

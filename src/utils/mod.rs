@@ -29,7 +29,7 @@ pub fn generate_id(prefix: &str, name: &str) -> String {
         "{}-{}-{:x}-{:04x}",
         prefix,
         truncated_name,
-        Utc::now().timestamp() as u32,
+        Utc::now().timestamp_micros() as u32,
         rand::random::<u16>()
     )
 }
@@ -81,5 +81,17 @@ pub fn percent_to_u8(pct: f64) -> u8 {
         100
     } else {
         pct.round() as u8
+    }
+}
+
+#[cfg(test)]
+mod generate_id_tests {
+    use super::generate_id;
+    use std::collections::HashSet;
+
+    #[test]
+    fn ids_generated_in_a_burst_are_unique() {
+        let ids: HashSet<String> = (0..2000).map(|_| generate_id("vm", "web")).collect();
+        assert_eq!(ids.len(), 2000);
     }
 }
