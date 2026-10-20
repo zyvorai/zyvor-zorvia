@@ -111,7 +111,11 @@ async fn vm_events(client: kube::Client, namespace: &str, name: &str) -> Vec<ser
         .collect()
 }
 
-async fn launcher_logs(client: kube::Client, namespace: &str, name: &str) -> Vec<serde_json::Value> {
+async fn launcher_logs(
+    client: kube::Client,
+    namespace: &str,
+    name: &str,
+) -> Vec<serde_json::Value> {
     use k8s_openapi::api::core::v1::Pod;
     use kube::api::{Api, ListParams, LogParams};
 
