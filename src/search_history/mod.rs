@@ -41,7 +41,7 @@ impl SearchHistory {
     }
 
     pub fn recent(&self, limit: usize) -> Vec<&SearchEntry> {
-        self.entries.iter().take(limit).collect()
+        self.entries.iter().rev().take(limit).collect()
     }
 
     pub fn search(&self, pattern: &str) -> Vec<&SearchEntry> {
@@ -71,5 +71,20 @@ impl SearchHistory {
 impl Default for SearchHistory {
     fn default() -> Self {
         Self::new(100)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn recent_returns_newest_first() {
+        let mut h = SearchHistory::new(10);
+        for q in ["a", "b", "c"] {
+            h.add(q.to_string(), 0, 0);
+        }
+        let r: Vec<_> = h.recent(2).iter().map(|e| e.query.as_str()).collect();
+        assert_eq!(r, vec!["c", "b"]);
     }
 }
