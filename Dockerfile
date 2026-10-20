@@ -11,7 +11,7 @@ RUN npm run build
 # Cargo.lock is lockfile format v4 (has been since 0.3.0), which needs
 # Cargo 1.78+ to even parse -- `cargo build --locked` fails immediately
 # on anything older, independent of the crate's own rust-version MSRV.
-FROM rust:1.99-slim-bookworm@sha256:2c3a22f0a5533ea2dd5a16627bc841228151faa2d4de2644ac9987e4a2f1f2fa AS builder
+FROM rust:1.99-slim-bookworm@sha256:a24e292b4af7bdee351a31d3a6379972a5652f0ea22a1b6d6883324ac4f5097c AS builder
 
 # openssl-sys needs pkg-config + the OpenSSL dev headers to find the system
 # OpenSSL, and rusqlite's "bundled" feature compiles SQLite's C amalgamation
