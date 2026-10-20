@@ -39,11 +39,11 @@ export async function listOperations(kind?: string, limit = 50): Promise<Operati
 }
 
 export async function getOperation(id: string): Promise<Operation> {
-  return apiGet<Operation>(`${API_BASE}/operations/${id}`)
+  return apiGet<Operation>(`${API_BASE}/operations/${encodeURIComponent(id)}`)
 }
 
 export async function cancelOperation(id: string): Promise<{ id: string; state: OperationState }> {
-  return apiPost<{ id: string; state: OperationState }>(`${API_BASE}/operations/${id}/cancel`)
+  return apiPost<{ id: string; state: OperationState }>(`${API_BASE}/operations/${encodeURIComponent(id)}/cancel`)
 }
 
 export const isTerminal = (s: OperationState) =>

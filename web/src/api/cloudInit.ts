@@ -13,5 +13,5 @@ export interface CloudInitConfig {
 }
 
 export async function configureCloudInit(vmName: string, config: CloudInitConfig): Promise<void> {
-  return apiPostVoid(`${API_BASE_URL}/vms/${vmName}/cloud-init`, config)
+  return apiPostVoid(`${API_BASE_URL}/vms/${encodeURIComponent(vmName)}/cloud-init`, config)
 }

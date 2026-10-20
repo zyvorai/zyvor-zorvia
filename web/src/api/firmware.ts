@@ -26,27 +26,27 @@ export interface FirmwareCapabilities {
 
 // Get firmware status for a VM
 export async function getFirmwareStatus(vmName: string): Promise<FirmwareStatus> {
-  return apiGet<FirmwareStatus>(`${API_BASE_URL}/vms/${vmName}/firmware/status`)
+  return apiGet<FirmwareStatus>(`${API_BASE_URL}/vms/${encodeURIComponent(vmName)}/firmware/status`)
 }
 
 // Enable UEFI firmware for a VM
 export async function enableUefi(vmName: string, request: EnableUefiRequest): Promise<void> {
-  return apiPostVoid(`${API_BASE_URL}/vms/${vmName}/firmware/uefi`, request)
+  return apiPostVoid(`${API_BASE_URL}/vms/${encodeURIComponent(vmName)}/firmware/uefi`, request)
 }
 
 // Enable Secure Boot for a VM
 export async function enableSecureBoot(vmName: string): Promise<void> {
-  return apiPostVoid(`${API_BASE_URL}/vms/${vmName}/firmware/secureboot`)
+  return apiPostVoid(`${API_BASE_URL}/vms/${encodeURIComponent(vmName)}/firmware/secureboot`)
 }
 
 // Disable Secure Boot for a VM
 export async function disableSecureBoot(vmName: string): Promise<void> {
-  return apiDelete(`${API_BASE_URL}/vms/${vmName}/firmware/secureboot`)
+  return apiDelete(`${API_BASE_URL}/vms/${encodeURIComponent(vmName)}/firmware/secureboot`)
 }
 
 // Reset NVRAM to defaults
 export async function resetNvram(vmName: string): Promise<void> {
-  return apiPostVoid(`${API_BASE_URL}/vms/${vmName}/firmware/reset`)
+  return apiPostVoid(`${API_BASE_URL}/vms/${encodeURIComponent(vmName)}/firmware/reset`)
 }
 
 // Get system firmware capabilities
