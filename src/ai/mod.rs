@@ -133,7 +133,8 @@ pub fn prepare_evidence(mut evidence: Value) -> Value {
     json!({ "truncated": true, "evidence": &rendered[..cut] })
 }
 
-pub const TROUBLESHOOT_SYSTEM: &str = "You are a KubeVirt virtual-machine troubleshooting assistant \
+pub const TROUBLESHOOT_SYSTEM: &str =
+    "You are a KubeVirt virtual-machine troubleshooting assistant \
 inside a VM management console. You are given redacted evidence (VM status, guest-agent insight, \
 Kubernetes events, recent launcher pod logs) as JSON. Answer using only that evidence. Reply in \
 Markdown with three sections: **Diagnosis** (most likely cause, with confidence high/medium/low), \
@@ -254,7 +255,9 @@ mod tests {
         let s = ev.to_string();
         assert!(!s.contains("hunter2"), "{s}");
 
-        let big = prepare_evidence(json!({ "logs": "x".repeat(MAX_EVIDENCE_BYTES * 2) }));
+        // Use log-like text: a single long [A-Za-z0-9+/] run is itself redacted
+        // as a blob and would shrink below the cap before truncation.
+        let big = prepare_evidence(json!({ "logs": "log line ok ".repeat(MAX_EVIDENCE_BYTES) }));
         assert_eq!(big["truncated"], true);
         assert!(big.to_string().len() < MAX_EVIDENCE_BYTES + 256);
     }
