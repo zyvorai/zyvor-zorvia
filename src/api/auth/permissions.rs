@@ -326,6 +326,7 @@ pub fn required_permission(method: &str, path: &str) -> Option<ApiPermission> {
         || path.starts_with("/warm-pools")
         || path.starts_with("/network-policies")
         || path.starts_with("/backups/policies")
+        || path.starts_with("/snapshot-schedules")
         || path.starts_with("/v1/quotas")
         || path.starts_with("/system/compliance")
         || path.starts_with("/v1/enterprise/")
@@ -394,6 +395,14 @@ mod tests {
             required_permission("GET", "/vms/a/guest/agent"),
             Some(VmPower)
         );
+        for (m, p) in [
+            ("POST", "/snapshot-schedules"),
+            ("DELETE", "/snapshot-schedules/nightly"),
+            ("POST", "/snapshot-schedules/nightly/enable"),
+            ("POST", "/snapshot-schedules/nightly/disable"),
+        ] {
+            assert_eq!(required_permission(m, p), Some(ClusterAdmin), "{m} {p}");
+        }
         assert_eq!(required_permission("DELETE", "/backups/b1"), Some(VmDelete));
         assert_eq!(
             required_permission("DELETE", "/vms/a/snapshots/s1"),

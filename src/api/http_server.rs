@@ -158,6 +158,9 @@ pub mod web {
     #[path = "backup_scheduler_handlers.rs"]
     mod backup_scheduler_handlers;
     use backup_scheduler_handlers::*;
+    #[path = "snapshot_scheduler_handlers.rs"]
+    mod snapshot_scheduler_handlers;
+    use snapshot_scheduler_handlers::*;
 
     #[path = "storage_handlers.rs"]
     mod storage_handlers;
@@ -898,6 +901,26 @@ pub mod web {
                 "/backups/policies/{name}/disable",
                 post(disable_backup_policy_handler),
             )
+            .route(
+                "/snapshot-schedules",
+                get(list_snapshot_schedules_handler).post(create_snapshot_schedule_handler),
+            )
+            .route(
+                "/snapshot-schedules/{name}",
+                delete(delete_snapshot_schedule_handler),
+            )
+            .route(
+                "/snapshot-schedules/{name}/enable",
+                post(enable_snapshot_schedule_handler),
+            )
+            .route(
+                "/snapshot-schedules/{name}/disable",
+                post(disable_snapshot_schedule_handler),
+            )
+            .route(
+                "/vms/{name}/snapshot-schedules",
+                get(list_vm_snapshot_schedules_handler),
+            )
             .route("/storage/volumes", get(list_storage_volumes_handler))
             .route(
                 "/network-policies",
@@ -1607,6 +1630,7 @@ pub mod web {
         spawn_leader_election();
         spawn_operations_reconciler(state.clone());
         spawn_backup_scheduler_loop(state.clone());
+        spawn_snapshot_scheduler_loop(state.clone());
         spawn_power_schedule_loop(state.clone());
         spawn_alert_evaluation_loop(state.clone());
         spawn_warm_pool_loop(state.clone());

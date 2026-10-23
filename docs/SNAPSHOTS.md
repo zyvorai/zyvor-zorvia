@@ -469,11 +469,29 @@ test result: ok. 16 passed; 0 failed
 
 Retention policies are modeled in `src/snapshots/retention.rs` and applied when snapshot configs include a `RetentionPolicy` (max count / age). Operators can also delete snapshots explicitly via CLI and the web console.
 
+## Scheduled snapshots
+
+Recurring snapshots with their own retention. Schedules are persisted to `$XDG_DATA_HOME/zorvia/snapshot_schedules.json` and run by a 60-second loop (leader-gated, like the backup scheduler).
+
+| Method | Path | |
+|---|---|---|
+| GET / POST | `/snapshot-schedules` | list / create |
+| DELETE | `/snapshot-schedules/{name}` | delete |
+| POST | `/snapshot-schedules/{name}/enable` or `/disable` | toggle |
+| GET | `/vms/{name}/snapshot-schedules` | schedules that apply to one VM |
+
+Writes need `cluster.admin`. Create body: `name` (lowercase letters, digits, `-`; max 40), `schedule_type` (`hourly`, `daily`, `weekly`, `monthly`) with `hour` / `minute` / `weekday` / `day_of_month`, optional `vm_names` (all VMs when omitted), and optional `max_snapshots`, `max_age_days`, `keep_last_n` (default 10 / 30 / 5).
+
+- Each snapshot is named `<vm>-sched-<schedule>-<YYYYMMDDHHMM>` and labelled `zorvia.io/scheduled-by=<schedule>`. The name is fixed per due slot, so a restart never creates a duplicate.
+- Retention only deletes snapshots that same schedule created, never manual ones, and never the newest `keep_last_n`.
+- A failure on one VM is recorded in the schedule's `last_error`; other VMs still run, and the next slot tries again.
+- Label selectors are not supported (same as backup schedules).
+
 ## Future Enhancements
 
 Still open for future releases:
 
-- [ ] Scheduled snapshots (cron-like)
+- [x] Scheduled snapshots (see [Scheduled snapshots](#scheduled-snapshots))
 - [ ] Snapshot chains visualization
 - [ ] Incremental snapshot support
 - [ ] Snapshot encryption
