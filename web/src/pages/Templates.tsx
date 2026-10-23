@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useState, useEffect, useCallback } from 'react'
-import { Layers, Rocket, Loader2 } from 'lucide-react'
+import { Layers, Rocket, Loader2, Search } from 'lucide-react'
 import { listTemplatesByFamily, getTemplate, deployTemplate, TemplateDetail } from '../api/templates'
 import ErrorBanner from '../components/ErrorBanner'
 import { PageHeader, EmptyState } from '../components/ui'
+import { filterTemplates, countTemplates } from '../utils/templateFilter'
 import { formatUserError } from '../utils/apiError'
 import { toastFailure } from '../utils/toastError'
 import { hintsForError } from '../utils/daemonHints'
@@ -22,6 +23,8 @@ export default function Templates() {
   const [vmName, setVmName] = useState('')
   const [deploying, setDeploying] = useState(false)
   const [deployError, setDeployError] = useState('')
+  const [query, setQuery] = useState('')
+  const [familyTag, setFamilyTag] = useState<string | null>(null)
 
   const fetchFamilies = useCallback(async () => {
     setLoading(true)
@@ -68,7 +71,10 @@ export default function Templates() {
     }
   }
 
-  const familyNames = Object.keys(families).sort()
+  const allFamilyNames = Object.keys(families).sort()
+  const visible = filterTemplates(families, query, familyTag)
+  const familyNames = Object.keys(visible).sort()
+  const matchCount = countTemplates(visible)
 
   return (
     <div className="space-y-6">
@@ -83,13 +89,35 @@ export default function Templates() {
         <ErrorBanner title="Could not load templates" headline={loadError} hints={hintsForError(loadError)} onRetry={fetchFamilies} />
       )}
 
+      {!loading && !loadError && allFamilyNames.length > 0 && (
+        <div className="space-y-3">
+          <div className="relative max-w-md">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--zf-muted)]" aria-hidden="true" />
+            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)}
+              aria-label="Search templates" placeholder="Search templates (e.g. ubuntu, windows server)"
+              className="input-field text-sm w-full pl-9" />
+          </div>
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter by family">
+            <button type="button" aria-pressed={familyTag === null} onClick={() => setFamilyTag(null)}
+              className={`zf-chip ${familyTag === null ? 'zf-chip-active' : ''}`}>All</button>
+            {allFamilyNames.map(f => (
+              <button key={f} type="button" aria-pressed={familyTag === f} onClick={() => setFamilyTag(familyTag === f ? null : f)}
+                className={`zf-chip ${familyTag === f ? 'zf-chip-active' : ''}`}>{f}</button>
+            ))}
+            <span className="text-xs text-[var(--zf-muted)] ml-auto" aria-live="polite">{matchCount} template{matchCount === 1 ? '' : 's'}</span>
+          </div>
+        </div>
+      )}
+
       {loading && !loadError ? (
         <div className="flex items-center justify-center h-64 text-[var(--zf-muted)]">
           <div className="animate-spin w-6 h-6 border-2 border-[var(--zf-ink)] border-t-transparent rounded-full mr-3" />
           Loading templates…
         </div>
-      ) : !loadError && familyNames.length === 0 ? (
+      ) : !loadError && allFamilyNames.length === 0 ? (
         <EmptyState icon={<Layers className="w-8 h-8" />} title="No templates found" description="No OS templates are registered." />
+      ) : !loadError && familyNames.length === 0 ? (
+        <EmptyState icon={<Search className="w-8 h-8" />} title="No matching templates" description="Try a different search or clear the family filter." />
       ) : !loadError ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-4">
