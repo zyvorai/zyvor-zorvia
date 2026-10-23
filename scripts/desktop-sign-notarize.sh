@@ -31,7 +31,7 @@ codesign --verify --deep --strict --verbose=2 "$APP"
 
 # 2. dmg
 STAGE="$(mktemp -d)"; cp -R "$APP" "$STAGE/"; ln -s /Applications "$STAGE/Applications"
-rm -f "$DMG"; hdiutil create -volname "$VOL" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null
+rm -f "$DMG"; diskutil image create from --format UDZO --volumeName "$VOL" "$STAGE" "$DMG" >/dev/null
 codesign --force --timestamp -s "$ID" "$DMG"
 
 # 3. notarize + staple
