@@ -94,6 +94,7 @@ _ssh() {
     if [ -n "$PASS" ]; then
         SSHPASS="$PASS" sshpass -e ssh "${SSH_OPTS[@]}" "${USER}@${HOST}" "$@"
     else
+        # shellcheck disable=SC2029  # intentional: arguments expand on the client
         ssh "${SSH_OPTS[@]}" "${USER}@${HOST}" "$@"
     fi
 }
