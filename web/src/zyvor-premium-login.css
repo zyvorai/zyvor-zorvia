@@ -160,14 +160,22 @@
 }
 
 .login-zyvor-link {
-  color: var(--tone-orange, #ff5a15);
+  color: #c2410c; /* darker orange: #ff5a15 is 3.1:1 on white (axe color-contrast) */
   font-weight: 600;
   text-decoration: none;
 }
 
 .login-zyvor-link:hover {
-  color: #ff7340;
+  color: #9a3412;
   text-decoration: underline;
+}
+
+:root[data-theme='dark'] .login-zyvor-link {
+  color: var(--tone-orange, #ff5a15);
+}
+
+:root[data-theme='dark'] .login-zyvor-link:hover {
+  color: #ff7340;
 }
 
 /* Brand first — small-caps eyebrow, Vision Pro chapter-divider style */
@@ -651,7 +659,7 @@ a.login-cta-secondary:active {
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: hsl(240 4% 55%);
+  color: hsl(240 4% 38%); /* >=4.5:1 on the light panel (axe color-contrast) */
   margin: 0;
 }
 

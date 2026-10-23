@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useState, useEffect } from 'react'
-import { Camera, Plus, Trash2, RotateCcw, AlertTriangle } from 'lucide-react'
+import { Camera, Plus, Trash2, RotateCcw, AlertTriangle, List, GitBranch } from 'lucide-react'
 import {
   listSnapshots,
   createSnapshotWithRetry,
@@ -18,6 +18,7 @@ import { formatUserError } from '../utils/apiError'
 import { toastFailure } from '../utils/toastError'
 import RelativeTime from '../components/RelativeTime'
 import { PageHeader, DataTable, type DataTableColumn } from '../components/ui'
+import { buildSnapshotChain, type SnapshotNode } from '../utils/snapshotChain'
 
 export default function Snapshots() {
   const { confirmState, confirm, cancel } = useConfirm()
@@ -27,6 +28,7 @@ export default function Snapshots() {
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [view, setView] = useState<'table' | 'chain'>('table')
 
   const loadSnapshots = async () => {
     if (!vmName) return
@@ -125,8 +127,9 @@ export default function Snapshots() {
       <div className="zf-panel p-6 mb-8">
         <div className="flex items-center gap-4">
           <div className="flex-1">
-            <label className="block text-sm font-medium mb-2">VM Name</label>
+            <label htmlFor="snapshot-vm-name" className="block text-sm font-medium mb-2">VM Name</label>
             <input
+              id="snapshot-vm-name"
               type="text"
               value={vmName}
               onChange={(e) => setVmName(e.target.value)}
@@ -155,6 +158,41 @@ export default function Snapshots() {
       )}
 
       {vmName && (
+        <div className="flex justify-end mb-3" role="group" aria-label="Snapshot view">
+          <button
+            type="button"
+            className={`zf-btn zf-btn-sm ${view === 'table' ? 'zf-btn-primary' : 'zf-btn-ghost'}`}
+            aria-pressed={view === 'table'}
+            onClick={() => setView('table')}
+          >
+            <List className="w-4 h-4" /> Table
+          </button>
+          <button
+            type="button"
+            className={`zf-btn zf-btn-sm ml-2 ${view === 'chain' ? 'zf-btn-primary' : 'zf-btn-ghost'}`}
+            aria-pressed={view === 'chain'}
+            onClick={() => setView('chain')}
+          >
+            <GitBranch className="w-4 h-4" /> Chain
+          </button>
+        </div>
+      )}
+
+      {vmName && view === 'chain' && (
+        <div className="zf-panel p-6">
+          {snapshots.length === 0 ? (
+            <div className="text-center text-[var(--zf-muted)]">No snapshots found for this VM.</div>
+          ) : (
+            <SnapshotChainView
+              nodes={buildSnapshotChain(snapshots)}
+              onRevert={(id) => void handleRevert(id)}
+              onDelete={(id) => void handleDelete(id)}
+            />
+          )}
+        </div>
+      )}
+
+      {vmName && view === 'table' && (
         <div className="zf-panel overflow-hidden">
           <DataTable
             columns={snapshotColumns}
@@ -265,5 +303,51 @@ function CreateSnapshotDialog({
         </div>
       </form>
     </div>
+  )
+}
+
+function SnapshotChainView({
+  nodes,
+  onRevert,
+  onDelete,
+}: {
+  nodes: SnapshotNode[]
+  onRevert: (id: string) => void
+  onDelete: (id: string) => void
+}) {
+  return (
+    <ol className="space-y-3" aria-label="Snapshot chain">
+      {nodes.map((node) => (
+        <li key={node.snapshot.id}>
+          <div
+            className="flex items-center gap-3 rounded-lg border border-[var(--zf-hairline)] bg-[var(--zf-surface)] px-4 py-3"
+            style={{ marginLeft: `${node.depth * 1.5}rem` }}
+          >
+            <Camera className="w-4 h-4 text-[var(--zf-link)] shrink-0" aria-hidden="true" />
+            <div className="min-w-0 flex-1">
+              <div className="font-medium truncate">
+                {node.snapshot.name}
+                <span className="ml-2 text-xs text-[var(--zf-muted)]">{node.snapshot.snapshot_type}</span>
+              </div>
+              <div className="text-xs text-[var(--zf-muted)]">
+                <RelativeTime date={node.snapshot.created} />
+                {node.snapshot.description ? ` · ${node.snapshot.description}` : ''}
+              </div>
+            </div>
+            <button type="button" onClick={() => onRevert(node.snapshot.id)} className="p-2 hover:bg-[var(--zf-hover-tint)] rounded transition" aria-label={`Revert to ${node.snapshot.name}`}>
+              <RotateCcw className="w-4 h-4 text-[var(--zf-warning)]" />
+            </button>
+            <button type="button" onClick={() => onDelete(node.snapshot.id)} className="p-2 hover:bg-[var(--zf-hover-tint)] rounded transition" aria-label={`Delete ${node.snapshot.name}`}>
+              <Trash2 className="w-4 h-4 text-[var(--zf-danger)]" />
+            </button>
+          </div>
+          {node.children.length > 0 && (
+            <div className="mt-3 border-l border-[var(--zf-hairline)]" style={{ marginLeft: `${node.depth * 1.5 + 0.75}rem`, paddingLeft: '0.75rem' }}>
+              <SnapshotChainView nodes={node.children} onRevert={onRevert} onDelete={onDelete} />
+            </div>
+          )}
+        </li>
+      ))}
+    </ol>
   )
 }

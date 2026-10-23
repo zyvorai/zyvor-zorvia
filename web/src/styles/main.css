@@ -2121,3 +2121,23 @@ textarea.input-field {
   color: var(--zf-ink) !important;
 }
 
+
+/* Skip link: visible only on keyboard focus */
+.zf-skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: -4rem;
+  z-index: 1000;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  background: var(--zf-cta, #0071e3);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
+.zf-skip-link:focus {
+  top: 0.75rem;
+}
+#main-content:focus {
+  outline: none;
+}
