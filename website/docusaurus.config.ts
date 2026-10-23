@@ -34,6 +34,18 @@ const config: Config = {
   // Serve README screenshots and social/OG cards in place instead of duplicating them.
   staticDirectories: ['static', '../docs/screenshots', '../docs/social'],
 
+  themes: [
+    [
+      '@easyops-cn/docusaurus-search-local',
+      {
+        hashed: true,
+        docsRouteBasePath: '/docs',
+        indexBlog: false,
+        highlightSearchTermsOnTargetPage: true,
+      },
+    ],
+  ],
+
   presets: [
     [
       'classic',
@@ -72,7 +84,13 @@ const config: Config = {
           position: 'right',
           label: 'Docs',
         },
+        {href: 'https://zyvorai.github.io/zyvor-zorvia/#tour', label: 'Product', position: 'right'},
         {to: '/support', label: 'Support', position: 'right'},
+        {
+          href: 'https://github.com/zyvorai/zyvor-zorvia/blob/main/CHANGELOG.md',
+          label: 'Changelog',
+          position: 'right',
+        },
         {
           href: 'https://github.com/zyvorai/zyvor-zorvia',
           label: 'GitHub',

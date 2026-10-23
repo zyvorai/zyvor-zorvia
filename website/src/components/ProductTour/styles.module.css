@@ -1,0 +1,13 @@
+.tour { padding: var(--zv-section-space) 0; }
+.heading { text-align: center; font-size: clamp(1.75rem, 3vw, 2.5rem); letter-spacing: -0.02em; margin-bottom: 2rem; }
+.tabs { display: flex; justify-content: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 2rem; }
+.tab { border: 1px solid var(--ifm-color-emphasis-300); background: transparent; color: inherit; border-radius: 999px; padding: 0.5rem 1.25rem; font: inherit; cursor: pointer; transition: background 0.2s, color 0.2s, border-color 0.2s; min-height: 44px; }
+.tab:hover { border-color: var(--ifm-color-primary); }
+.tab:focus-visible { outline: 2px solid var(--ifm-color-primary); outline-offset: 2px; }
+.tabActive { background: var(--ifm-color-primary); border-color: var(--ifm-color-primary); color: #fff; }
+.panel { display: grid; grid-template-columns: 1fr 1.6fr; gap: 2.5rem; align-items: center; }
+.copy p { color: var(--ifm-color-emphasis-700); font-size: 1.05rem; }
+.shot { width: 100%; border-radius: 16px; border: 1px solid var(--ifm-color-emphasis-200); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25); animation: tourIn 0.35s ease both; }
+@keyframes tourIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .shot { animation: none; } .tab { transition: none; } }
+@media screen and (max-width: 996px) { .panel { grid-template-columns: 1fr; } }
