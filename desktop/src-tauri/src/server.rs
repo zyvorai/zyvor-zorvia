@@ -81,9 +81,10 @@ fn spawn_serve(
     std::fs::create_dir_all(&data).map_err(|e| e.to_string())?;
 
     let mut cmd = Command::new(&bin);
-    cmd.args(["api-serve", "--host", "127.0.0.1", "--port", &port.to_string()])
+    cmd.args(["api", "api-serve", "--host", "127.0.0.1", "--port", &port.to_string()])
         .current_dir(&data)
         .env("ZORVIA_WEB_DIR", &web)
+        .env("ZORVIA_ALLOW_NO_CLUSTER", "1")
         .env("ZORVIA_JWT_SECRET", secrets::jwt_secret()?)
         .env("ZORVIA_ADMIN_USER", "admin")
         .env("ZORVIA_ADMIN_PASSWORD", secrets::admin_password()?)
