@@ -38,6 +38,11 @@ function HomepageHeader() {
             </Link>
             <Link
               className="button button--outline button--lg button--secondary"
+              to="https://github.com/zyvorai/zyvor-zorvia/releases/download/desktop-v0.1.0/Zorvia-0.1.0-arm64.dmg">
+              Download for Mac
+            </Link>
+            <Link
+              className="button button--outline button--lg button--secondary"
               to="/docs/LAB">
               Read the docs
             </Link>
@@ -61,6 +66,34 @@ function HomepageHeader() {
         </p>
       </div>
     </header>
+  );
+}
+
+function DownloadSection() {
+  return (
+    <section className={styles.problem}>
+      <div className="container text--center">
+        <Heading as="h2" className={styles.sectionHeading}>
+          Download for Mac
+        </Heading>
+        <p>
+          A signed, notarized app with the Zorvia server bundled. Apple
+          Silicon, macOS 12 or later. Point it at your kubeconfig in Settings.
+        </p>
+        <div className={styles.buttons}>
+          <Link
+            className="button button--primary button--lg"
+            to="https://github.com/zyvorai/zyvor-zorvia/releases/download/desktop-v0.1.0/Zorvia-0.1.0-arm64.dmg">
+            Download Zorvia 0.1.0 (.dmg)
+          </Link>
+          <Link
+            className="button button--outline button--lg button--primary"
+            to="https://github.com/zyvorai/zyvor-zorvia/releases/tag/desktop-v0.1.0">
+            Release notes and checksums
+          </Link>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -185,6 +218,7 @@ export default function Home(): ReactNode {
         <DemoSection />
         <ProductTour />
         <FeatureHighlights />
+        <DownloadSection />
         <Quickstart />
         <Migrate />
         <TrustBand />
