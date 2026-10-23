@@ -93,6 +93,8 @@ export interface SnapshotSchedule {
   /** Empty means every VM in the namespace. */
   vm_names: string[]
   schedule_type: SnapshotScheduleFrequency | 'cron'
+  /** Readable timing such as "daily at 02:00 UTC"; absent on servers older than this field. */
+  schedule_text?: string
   retention: {
     max_snapshots: number | null
     max_age_days: number | null

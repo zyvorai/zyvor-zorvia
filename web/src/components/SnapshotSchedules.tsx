@@ -231,7 +231,7 @@ export default function SnapshotSchedules({ vmName, onChanged }: { vmName: strin
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-[var(--zf-ink)]">{s.name}</span>
                   <span className="px-2 py-0.5 text-[11px] rounded text-[var(--zf-muted)] bg-[var(--zf-canvas)] border border-[var(--zf-hairline)]">
-                    {s.schedule_type}
+                    {s.schedule_text ?? s.schedule_type}
                   </span>
                   <span className="px-2 py-0.5 text-[11px] rounded text-[var(--zf-muted)] bg-[var(--zf-canvas)] border border-[var(--zf-hairline)]">
                     {scheduleScope(s)}

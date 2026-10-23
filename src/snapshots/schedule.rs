@@ -88,6 +88,30 @@ impl SnapshotSchedule {
     }
 }
 
+/// Human-readable timing, e.g. "daily at 02:00 UTC". All schedule times are UTC.
+pub fn describe_schedule(t: &ScheduleType) -> String {
+    match t {
+        ScheduleType::Hourly { minute } => format!("hourly at :{minute:02}"),
+        ScheduleType::Daily { time } => format!("daily at {} UTC", time.format("%H:%M")),
+        ScheduleType::Weekly { weekday, time } => {
+            let day = match weekday {
+                chrono::Weekday::Mon => "Monday",
+                chrono::Weekday::Tue => "Tuesday",
+                chrono::Weekday::Wed => "Wednesday",
+                chrono::Weekday::Thu => "Thursday",
+                chrono::Weekday::Fri => "Friday",
+                chrono::Weekday::Sat => "Saturday",
+                chrono::Weekday::Sun => "Sunday",
+            };
+            format!("weekly on {day} at {} UTC", time.format("%H:%M"))
+        }
+        ScheduleType::Monthly { day, time } => {
+            format!("monthly on day {day} at {} UTC", time.format("%H:%M"))
+        }
+        ScheduleType::Cron { expression } => format!("cron {expression}"),
+    }
+}
+
 pub fn snapshot_name(schedule: &str, vm: &str, slot: DateTime<Utc>) -> String {
     format!("{vm}-sched-{schedule}-{}", slot.format("%Y%m%d%H%M"))
 }
@@ -269,6 +293,30 @@ mod tests {
         assert_eq!(s.snapshot_name("web1", slot), s.snapshot_name("web1", slot));
         let next = Utc.with_ymd_and_hms(2026, 10, 25, 2, 0, 0).unwrap();
         assert_ne!(s.snapshot_name("web1", slot), s.snapshot_name("web1", next));
+    }
+
+    #[test]
+    fn describes_each_schedule_type() {
+        use chrono::Weekday;
+        assert_eq!(describe_schedule(&ScheduleType::hourly(5)), "hourly at :05");
+        assert_eq!(
+            describe_schedule(&ScheduleType::daily(2, 0)),
+            "daily at 02:00 UTC"
+        );
+        assert_eq!(
+            describe_schedule(&ScheduleType::weekly(Weekday::Sun, 14, 30)),
+            "weekly on Sunday at 14:30 UTC"
+        );
+        assert_eq!(
+            describe_schedule(&ScheduleType::monthly(15, 3, 0)),
+            "monthly on day 15 at 03:00 UTC"
+        );
+        assert_eq!(
+            describe_schedule(&ScheduleType::Cron {
+                expression: "0 * * * *".into()
+            }),
+            "cron 0 * * * *"
+        );
     }
 
     #[test]
