@@ -18,6 +18,7 @@ import { useVMActions } from '../hooks/useVMActions'
 import { StatusBadge, DataTable, EmptyState, type DataTableColumn } from '../components/ui'
 import { Skeleton } from '../components/Skeleton'
 import ConfirmDialog from '../components/ConfirmDialog'
+import SnapshotSchedules from '../components/SnapshotSchedules'
 import CloneVMDialog from '../components/CloneVMDialog'
 import ErrorBanner from '../components/ErrorBanner'
 import CopyButton from '../components/CopyButton'
@@ -1237,6 +1238,8 @@ function SnapshotsTab({ vm }: { vm: VM }) {
           }
         />
       </div>
+
+      <SnapshotSchedules vmName={vm.name} onChanged={loadSnapshots} />
     </div>
   )
 }
