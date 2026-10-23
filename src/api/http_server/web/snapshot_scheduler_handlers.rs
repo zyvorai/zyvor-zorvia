@@ -8,8 +8,8 @@
 use super::*;
 use crate::backup::schedule::{ScheduleType, VMSelector};
 use crate::snapshots::schedule::{
-    snapshots_to_prune, validate_schedule_name, SnapshotSchedule, SnapshotScheduleManager,
-    SCHEDULED_BY_LABEL,
+    describe_schedule, snapshots_to_prune, validate_schedule_name, SnapshotSchedule,
+    SnapshotScheduleManager, SCHEDULED_BY_LABEL,
 };
 use crate::snapshots::{RetentionPolicy, SnapshotConfig, SnapshotManager};
 use axum::extract::Json as AxumJson;
@@ -37,6 +37,7 @@ fn schedule_json(s: &SnapshotSchedule) -> serde_json::Value {
         "name": s.name,
         "vm_names": vm_names,
         "schedule_type": schedule_type_label(&s.schedule_type),
+        "schedule_text": describe_schedule(&s.schedule_type),
         "retention": {
             "max_snapshots": s.retention.max_snapshots,
             "max_age_days": s.retention.max_age_days,
