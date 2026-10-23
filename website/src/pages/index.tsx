@@ -5,6 +5,9 @@ import useBaseUrl from '@docusaurus/useBaseUrl';
 import Layout from '@theme/Layout';
 import Heading from '@theme/Heading';
 import FeatureHighlights from '@site/src/components/FeatureHighlights';
+import ProductTour from '@site/src/components/ProductTour';
+import Quickstart from '@site/src/components/Quickstart';
+import Migrate from '@site/src/components/Migrate';
 
 import styles from './index.module.css';
 
@@ -30,7 +33,7 @@ function HomepageHeader() {
           <div className={styles.buttons}>
             <Link
               className="button button--secondary button--lg"
-              to="https://github.com/zyvorai/zorvia#quick-start">
+              to="#quickstart">
               Try it now
             </Link>
             <Link
@@ -40,7 +43,7 @@ function HomepageHeader() {
             </Link>
             <Link
               className="button button--outline button--lg button--secondary"
-              to="https://github.com/zyvorai/zorvia">
+              to="https://github.com/zyvorai/zyvor-zorvia">
               View on GitHub
             </Link>
           </div>
@@ -58,6 +61,25 @@ function HomepageHeader() {
         </p>
       </div>
     </header>
+  );
+}
+
+function DemoSection() {
+  const demo = useBaseUrl('/readme-demo.gif');
+  return (
+    <section className={styles.problem}>
+      <div className="container text--center">
+        <Heading as="h2" className={styles.sectionHeading}>
+          See it run
+        </Heading>
+        <img
+          className={styles.heroMedia}
+          src={demo}
+          alt="Animated demo: creating and operating a VM in the Zorvia console"
+          loading="lazy"
+        />
+      </div>
+    </section>
   );
 }
 
@@ -104,7 +126,7 @@ function TrustBand() {
               TUI, or web console is what's actually running in the
               cluster.
             </p>
-            <Link to="https://github.com/zyvorai/zorvia#readme">
+            <Link to="https://github.com/zyvorai/zyvor-zorvia#readme">
               Read the full README →
             </Link>
             <p>
@@ -116,7 +138,7 @@ function TrustBand() {
           </div>
           <div className={styles.trustBadges}>
             <img
-              src="https://github.com/zyvorai/zorvia/workflows/CI/badge.svg"
+              src="https://github.com/zyvorai/zyvor-zorvia/actions/workflows/ci.yml/badge.svg"
               alt="CI status"
             />
             <img
@@ -160,7 +182,11 @@ export default function Home(): ReactNode {
       <HomepageHeader />
       <main>
         <ProblemStatement />
+        <DemoSection />
+        <ProductTour />
         <FeatureHighlights />
+        <Quickstart />
+        <Migrate />
         <TrustBand />
         <EnterpriseCTA />
       </main>
