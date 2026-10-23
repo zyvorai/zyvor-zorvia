@@ -65,6 +65,9 @@ export default function WhatsNew() {
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
+            <Link to="/app/changelog" onClick={close} className="text-xs text-[var(--zf-cta)] inline-block mb-3">
+              View all
+            </Link>
             <ul className="space-y-4">
               {WHATS_NEW.map((e) => (
                 <li key={e.id}>
