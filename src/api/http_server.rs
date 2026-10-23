@@ -305,7 +305,7 @@ pub mod web {
             if crate::api::auth::lab_mode() {
                 log::warn!("ZORVIA_LAB_MODE=1: lab credentials and shared API key are permitted");
             }
-            let kube_client = KubeClient::new().await?;
+            let kube_client = KubeClient::new_or_offline().await?;
             let fleet = Arc::new(
                 crate::multi_cluster::fleet::FleetService::from_env(
                     kube_client.client(),

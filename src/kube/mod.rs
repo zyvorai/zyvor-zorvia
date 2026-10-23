@@ -59,6 +59,23 @@ impl KubeClient {
         Ok(Self { client })
     }
 
+    /// Like [`KubeClient::new`], but when no usable kubeconfig exists and
+    /// `ZORVIA_ALLOW_NO_CLUSTER=1`, returns a client pointed at an unreachable
+    /// address so the web console still starts (every cluster call then fails
+    /// with a connection error instead of the whole server refusing to run).
+    pub async fn new_or_offline() -> Result<Self> {
+        match Self::new().await {
+            Ok(c) => Ok(c),
+            Err(e) if std::env::var("ZORVIA_ALLOW_NO_CLUSTER").as_deref() == Ok("1") => {
+                log::warn!("no usable kubeconfig ({e}); starting without a cluster");
+                let uri = "https://127.0.0.1:9".parse::<http::Uri>()?;
+                let client = Client::try_from(Config::new(uri))?;
+                Ok(Self { client })
+            }
+            Err(e) => Err(e),
+        }
+    }
+
     /// Create a new KubeClient with custom kubeconfig path
     pub async fn with_kubeconfig(path: &str) -> Result<Self> {
         let kubeconfig = kube::config::Kubeconfig::read_from(path)?;
