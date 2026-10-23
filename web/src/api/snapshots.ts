@@ -82,3 +82,55 @@ export async function deleteSnapshot(vmName: string, id: string): Promise<void> 
 export async function revertSnapshot(vmName: string, id: string): Promise<void> {
   return apiPostVoid(`${API_BASE_URL}/vms/${vmName}/snapshots/${id}/revert`)
 }
+
+// ─── Scheduled snapshots ────────────────────────────────────────────────────────
+
+export type SnapshotScheduleFrequency = 'hourly' | 'daily' | 'weekly' | 'monthly'
+
+export interface SnapshotSchedule {
+  id: string
+  name: string
+  /** Empty means every VM in the namespace. */
+  vm_names: string[]
+  schedule_type: SnapshotScheduleFrequency | 'cron'
+  retention: {
+    max_snapshots: number | null
+    max_age_days: number | null
+    keep_last_n: number | null
+  }
+  enabled: boolean
+  last_run: string | null
+  next_run: string | null
+  /** Per-VM failures from the most recent run; null after a clean run. */
+  last_error: string | null
+}
+
+export interface CreateSnapshotScheduleRequest {
+  name: string
+  schedule_type: SnapshotScheduleFrequency
+  hour?: number
+  minute?: number
+  weekday?: string
+  day_of_month?: number
+  vm_names?: string[]
+  max_snapshots?: number
+  max_age_days?: number
+  keep_last_n?: number
+  enabled?: boolean
+}
+
+export async function listVMSnapshotSchedules(vmName: string): Promise<SnapshotSchedule[]> {
+  return apiGet<SnapshotSchedule[]>(`${API_BASE_URL}/vms/${vmName}/snapshot-schedules`)
+}
+
+export async function createSnapshotSchedule(req: CreateSnapshotScheduleRequest): Promise<SnapshotSchedule> {
+  return apiPost<SnapshotSchedule>(`${API_BASE_URL}/snapshot-schedules`, req)
+}
+
+export async function deleteSnapshotSchedule(name: string): Promise<void> {
+  return apiDelete(`${API_BASE_URL}/snapshot-schedules/${name}`)
+}
+
+export async function setSnapshotScheduleEnabled(name: string, enabled: boolean): Promise<void> {
+  return apiPostVoid(`${API_BASE_URL}/snapshot-schedules/${name}/${enabled ? 'enable' : 'disable'}`)
+}

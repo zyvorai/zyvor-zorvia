@@ -190,6 +190,21 @@ describe('backup', () => {
     expect(mockApiPostVoid).toHaveBeenCalledWith('/api/backups/policies/p1/enable')
   })
 
+  it('snapshot schedule calls hit the /snapshot-schedules routes', async () => {
+    const m = await import('../snapshots')
+    await m.listVMSnapshotSchedules('web1')
+    expect(mockApiGet).toHaveBeenCalledWith('/api/vms/web1/snapshot-schedules')
+    const req = { name: 'nightly', schedule_type: 'daily' as const, vm_names: ['web1'] }
+    await m.createSnapshotSchedule(req)
+    expect(mockApiPost).toHaveBeenCalledWith('/api/snapshot-schedules', req)
+    await m.deleteSnapshotSchedule('nightly')
+    expect(mockApiDelete).toHaveBeenCalledWith('/api/snapshot-schedules/nightly')
+    await m.setSnapshotScheduleEnabled('nightly', true)
+    expect(mockApiPostVoid).toHaveBeenCalledWith('/api/snapshot-schedules/nightly/enable')
+    await m.setSnapshotScheduleEnabled('nightly', false)
+    expect(mockApiPostVoid).toHaveBeenCalledWith('/api/snapshot-schedules/nightly/disable')
+  })
+
   it('disableBackupPolicy calls apiPostVoid', async () => {
     const { disableBackupPolicy } = await import('../backup')
     await disableBackupPolicy('p1')
