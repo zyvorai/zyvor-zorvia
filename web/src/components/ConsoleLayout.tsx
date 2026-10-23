@@ -143,6 +143,9 @@ export default function ConsoleLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="console-shell">
+      <a href="#main-content" className="zf-skip-link">
+        Skip to main content
+      </a>
       <ConsoleShortcuts
         helpOpen={helpOpen}
         helpTab={helpTab}
@@ -290,7 +293,7 @@ export default function ConsoleLayout({ children }: { children: ReactNode }) {
       </header>
 
       <div className="console-body">
-        <main id="main-content" className="console-main" role="main">
+        <main id="main-content" className="console-main" tabIndex={-1}>
           <Breadcrumb />
           {children}
         </main>
