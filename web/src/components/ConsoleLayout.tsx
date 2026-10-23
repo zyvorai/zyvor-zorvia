@@ -15,6 +15,7 @@ import HelpDialog, { type HelpTab } from './HelpDialog'
 import { useSequenceShortcuts } from '../hooks/useSequenceShortcut'
 import { ZyvorLockup } from './ZyvorMark'
 import ThemeToggle from './ThemeToggle'
+import WhatsNew from './WhatsNew'
 import { useKeyboardShortcut, isInputFocused } from '../hooks/useKeyboardShortcut'
 import { useRecordRecentPage } from '../hooks/useRecordRecentPage'
 
@@ -272,6 +273,7 @@ export default function ConsoleLayout({ children }: { children: ReactNode }) {
             <kbd className="text-[10px] text-[var(--zf-muted)] ml-1">⌘K</kbd>
           </button>
           <ConnectionStatus />
+          <WhatsNew />
           <ThemeToggle />
           <Link
             to="/"
