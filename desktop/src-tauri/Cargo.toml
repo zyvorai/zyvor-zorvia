@@ -1,0 +1,27 @@
+[package]
+name = "zorvia-desktop"
+version = "0.1.0"
+description = "Zorvia — native macOS app around the bundled `zorvia api-serve`"
+edition = "2021"
+license = "Apache-2.0"
+
+[lib]
+name = "zorvia_desktop_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-notification = "2"
+tauri-plugin-clipboard-manager = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+dirs = "7"
+rand = "0.9"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
