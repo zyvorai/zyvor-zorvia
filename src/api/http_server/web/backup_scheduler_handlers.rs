@@ -42,7 +42,7 @@ fn policy_json(s: &BackupSchedule) -> serde_json::Value {
     })
 }
 
-fn parse_weekday(s: &str) -> Option<Weekday> {
+pub fn parse_weekday(s: &str) -> Option<Weekday> {
     use Weekday::*;
     Some(match s.to_ascii_lowercase().as_str() {
         "mon" | "monday" => Mon,
