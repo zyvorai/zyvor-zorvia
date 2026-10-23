@@ -55,6 +55,7 @@ const Zones = lazy(() => import('./pages/Zones'))
 const Analytics = lazy(() => import('./pages/Analytics'))
 const ResourceOptimizer = lazy(() => import('./pages/ResourceOptimizer'))
 const Templates = lazy(() => import('./pages/Templates'))
+const Changelog = lazy(() => import('./pages/Changelog'))
 const Schedules = lazy(() => import('./pages/Schedules'))
 const Webhooks = lazy(() => import('./pages/Webhooks'))
 const Alerts = lazy(() => import('./pages/Alerts'))
@@ -139,6 +140,7 @@ function ConsoleRoutes() {
             <Route path="analytics" element={<Analytics />} />
             <Route path="optimizer" element={<ResourceOptimizer />} />
             <Route path="templates" element={<Templates />} />
+            <Route path="changelog" element={<Changelog />} />
             <Route path="schedules" element={<Schedules />} />
             <Route path="webhooks" element={<Webhooks />} />
             <Route path="alerts" element={<Alerts />} />

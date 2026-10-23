@@ -14,6 +14,7 @@ import { formatUserError } from '../utils/apiError'
 import { toastFailure } from '../utils/toastError'
 import { hintsForError } from '../utils/daemonHints'
 import { GettingStarted } from '../components/GettingStarted'
+import OnboardingChecklist from '../components/OnboardingChecklist'
 import { useCountUp } from '../hooks/useCountUp'
 
 const recentVMColumns: DataTableColumn<VM>[] = [
@@ -159,6 +160,8 @@ export default function Dashboard() {
           )}
         </div>
       </header>
+
+      {!loading && !loadError && <OnboardingChecklist hasVMs={vms.length > 0} />}
 
       {loadError && (
         <ErrorBanner
