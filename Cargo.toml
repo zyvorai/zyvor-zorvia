@@ -64,7 +64,7 @@ colored = "3.1"
 miette = { version = "7.0", features = ["fancy"] }
 toml = "1"
 dirs = "7.0"
-rustyline = "18.0"
+rustyline = "19.0"
 
 # Web dashboard dependencies
 axum = { version = "0.8", optional = true, features = ["ws"] }
