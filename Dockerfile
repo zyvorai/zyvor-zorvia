@@ -1,7 +1,7 @@
 # Multi-stage build for minimal production image
 
 # Web console: built from web/ so the released image serves the UI (ZORVIA_WEB_DIR below).
-FROM node:25-bookworm-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS web
+FROM node:26-bookworm-slim@sha256:28147155d47dc31abe0a46e0d12b59b2fb3d0a2dcc5dc65fce76a074180b16fe AS web
 WORKDIR /web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --legacy-peer-deps
