@@ -22,7 +22,7 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-is": "^19.2.8",
-    "react-router": "^8.4.0",
+    "react-router": "^8.5.1",
     "recharts": "^3.10.1"
   },
   "devDependencies": {
