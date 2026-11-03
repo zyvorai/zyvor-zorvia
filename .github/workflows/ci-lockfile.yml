@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: bnjbvr/cargo-machete@fb7ff0f4aa2a60cf75ab656d27f67d47d719b830 # main
+      - uses: bnjbvr/cargo-machete@c25c629b05e3ecb0295a5e33bd82821cf24937ba # main
         continue-on-error: true
 
   npm-ci-web:
