@@ -75,7 +75,7 @@ tower-http = { version = "0.7", features = ["cors", "timeout", "fs"], optional =
 tower = { version = "0.5", default-features = false, features = ["util"], optional = true }
 jsonwebtoken = { version = "11.1", optional = true, default-features = false, features = ["use_pem", "rust_crypto"] }
 bcrypt = { version = "0.19", optional = true }
-rusqlite = { version = "0.40", features = ["bundled"], optional = true }
+rusqlite = { version = "0.41", features = ["bundled"], optional = true }
 uuid = { version = "1", features = ["v4"], optional = true }
 aes-gcm = { version = "0.11", optional = true }
 chrono-tz = { version = "0.10", optional = true }
