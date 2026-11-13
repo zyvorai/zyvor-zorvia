@@ -82,7 +82,7 @@ Your `VirtualMachine`, `DataVolume` and `PersistentVolumeClaim` objects stay as 
 
 ## Cost
 
-Red Hat does not publish a list price for OpenShift Virtualization. It states that OpenShift Virtualization Engine is licensed per bare-metal node ([Red Hat](https://www.redhat.com/en/technologies/cloud-computing/openshift/virtualization-engine)). Put your own quote against the licence line above. A calculator that takes your figure, and assumes none, is planned.
+Red Hat does not publish a list price for OpenShift Virtualization. It states that OpenShift Virtualization Engine is licensed per bare-metal node ([Red Hat](https://www.redhat.com/en/technologies/cloud-computing/openshift/virtualization-engine)). Put your own quote against the licence line above. Use the [OVE cost worksheet](OVE_COST_WORKSHEET.md) (and `scripts/ove-cost-worksheet.sh`) — it never invents an OVE list price.
 
 ## Scope of this comparison and who is responsible for what
 

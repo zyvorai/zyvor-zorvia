@@ -22,6 +22,7 @@ Start here: root [README.md](../README.md) (hero, gallery, quick start) · live 
 | [SUPPORT_SCOPE.md](SUPPORT_SCOPE.md) | What paid support covers and excludes |
 | [COMMERCIAL_FAQ.md](COMMERCIAL_FAQ.md) | Licensing, contracts and expiry questions |
 | [OPENSHIFT_COMPARISON.md](OPENSHIFT_COMPARISON.md) | How to compare against OpenShift Virtualization Engine |
+| [OVE_COST_WORKSHEET.md](OVE_COST_WORKSHEET.md) | Paste-your-OVE-quote worksheet + `scripts/ove-cost-worksheet.sh` |
 | [COMMERCIAL_OFFERINGS.md](COMMERCIAL_OFFERINGS.md) | Offerings, quote → contract flow and API |
 
 ## Core
