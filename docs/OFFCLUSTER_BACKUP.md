@@ -100,6 +100,27 @@ Cluster-local backup snapshots are deleted hourly once past their
 objects are protected by Object Lock at write time and expire through a bucket
 lifecycle rule -- Zorvia holds no delete rights on the store.
 
+## Lab S3 (same-cluster rehearsal)
+
+`scripts/lab-minio-backup.sh` deploys an in-cluster S3-compatible store
+(default `adobe/s3mock` — pulls where MinIO/Quay do not; override with
+`ZORVIA_LAB_S3_IMAGE`), creates bucket `zorvia-backups`, and copies Secret
+`backup-s3` (`access-key` / `secret-key`) into the VM and DR namespaces.
+Point the API Deployment at:
+
+```
+ZORVIA_BACKUP_S3_ENDPOINT=http://minio.zorvia-lab-minio.svc:9090   # 9000 for MinIO
+ZORVIA_BACKUP_S3_BUCKET=zorvia-backups
+ZORVIA_BACKUP_S3_SECRET=backup-s3
+ZORVIA_BACKUP_AGENT_IMAGE=ghcr.io/zyvorai/zorvia-backup-agent:latest
+```
+
+PVC disks need a CSI `VolumeSnapshotClass` for off-cluster upload (k3s
+`local-path` alone yields a Succeeded VirtualMachineSnapshot with no
+volumeBackups — `/run` still queues; restore correctly refuses
+cluster-local-only ops). With CSI snapshots, `/run` backup → `/run` with
+`backup_operation_ids` restores as `{vm}-dr`.
+
 ## Limits
 
 Filesystem-mode volumes only (block-mode volumes are rejected). Restores read

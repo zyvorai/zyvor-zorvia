@@ -130,15 +130,15 @@ impl GoldenPipelinePlan {
             namespace: namespace.into(),
             stages: vec![
                 "build".into(),
-                "scan".into(),
-                "sign".into(),
+                "scan:deferred".into(),
+                "sign:deferred".into(),
                 "promote".into(),
             ],
             notes: vec![
                 format!(
                     "POST /api/v1/enterprise/golden-pipeline/run applies CDI DataVolume+DataSource for {image_name}:{version}."
                 ),
-                "Scan/sign (cosign) remain operator-owned; promote is the stable DataSource alias.".into(),
+                "build+promote are live CDI apply; scan/sign (cosign) remain operator-owned.".into(),
             ],
         })
     }

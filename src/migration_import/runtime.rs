@@ -58,7 +58,7 @@ async fn import_op(ctx: &OpContext) -> Result<Outcome, Outcome> {
     let ns = p.namespace.as_str();
     let vms = vm_api(&client, ns);
 
-    if !p.mode.is_lab_stub() {
+    if !p.mode.is_lab_stub() || p.mode.is_local() {
         ensure_target_available(&client, ns, &p.target_vm_name)
             .await
             .map_err(|e| Outcome::Failed(e.to_string()))?;
@@ -76,7 +76,9 @@ async fn import_op(ctx: &OpContext) -> Result<Outcome, Outcome> {
         .collect();
     let job_name = format!("zorvia-import-{short}");
     ctx.progress(
-        if p.mode.is_lab_stub() {
+        if p.mode.is_local() {
+            "starting local import"
+        } else if p.mode.is_lab_stub() {
             "starting stub import"
         } else {
             "starting h2kvm"
@@ -96,19 +98,29 @@ async fn import_op(ctx: &OpContext) -> Result<Outcome, Outcome> {
 
     match follow(ctx, &client, &p, &job_name).await {
         Followed::Done(prog) => {
-            // Lab stub/local Jobs only prove orchestration; they do not create VMs.
-            if p.mode.is_lab_stub() {
+            // Stub Jobs prove orchestration only — no VirtualMachine is created.
+            if matches!(p.mode, super::ImportMode::Stub) {
                 stop_job(&client, &p, &job_name, job_uid).await;
                 return Ok(Outcome::Succeeded(Some(json!({
                     "vm_name": p.target_vm_name,
                     "namespace": p.namespace,
                     "source_vm": p.vm.source_vm,
-                    "mode": format!("{:?}", p.mode).to_ascii_lowercase(),
+                    "mode": "stub",
                     "stub": true,
                     "vm_created": false,
                     "stages_completed": prog.stages_done,
                     "deployed_marker": prog.deployed_vm,
                 }))));
+            }
+            // Local lab mode: create a stopped emptyDisk VM after stage markers.
+            if p.mode.is_local() {
+                ctx.progress("creating local emptyDisk VM", 90);
+                if let Err(e) = create_local_empty_vm(&client, &p).await {
+                    stop_job(&client, &p, &job_name, job_uid).await;
+                    return Ok(Outcome::Failed(format!(
+                        "local import Job finished but VirtualMachine create failed: {e}"
+                    )));
+                }
             }
             // Trust the cluster, not the log: the VM must actually exist.
             let mut vm = match vms.get(&p.target_vm_name).await {
@@ -144,7 +156,15 @@ async fn import_op(ctx: &OpContext) -> Result<Outcome, Outcome> {
                 "stages_completed": prog.stages_done,
                 "networks": p.vm.networks,
                 "cutover_requested": p.vm.start,
+                "vm_created": true,
             });
+            if p.mode.is_local() {
+                result["mode"] = json!("local");
+                result["stub"] = json!(false);
+                result["disk"] = json!("emptyDisk");
+                // emptyDisk has no PVC; keep the key for shape compatibility.
+                result["pvc"] = json!(null);
+            }
             if p.vm.start {
                 if ctx.cancelled() {
                     stop_job(&client, &p, &job_name, job_uid).await;
@@ -206,6 +226,57 @@ async fn import_op(ctx: &OpContext) -> Result<Outcome, Outcome> {
             Ok(Outcome::Cancelled)
         }
     }
+}
+
+/// Create a halted emptyDisk VirtualMachine for `mode=local` lab imports.
+async fn create_local_empty_vm(client: &kube::Client, p: &ImportOpParams) -> anyhow::Result<()> {
+    let cpu = p.vm.cpu.unwrap_or(1).max(1);
+    let memory = p.vm.memory.clone().unwrap_or_else(|| "128Mi".into());
+    let disk = p.vm.pvc_size.clone().unwrap_or_else(|| "1Gi".into());
+    let body = json!({
+        "apiVersion": "kubevirt.io/v1",
+        "kind": "VirtualMachine",
+        "metadata": {
+            "name": p.target_vm_name,
+            "namespace": p.namespace,
+            "labels": {
+                "app.kubernetes.io/managed-by": "zorvia",
+                "zorvia.io/import-mode": "local",
+                "zorvia.io/wave": p.wave_id,
+            }
+        },
+        "spec": {
+            "running": false,
+            "template": {
+                "metadata": {
+                    "labels": {
+                        "kubevirt.io/domain": p.target_vm_name,
+                        "zorvia.io/import-mode": "local",
+                    }
+                },
+                "spec": {
+                    "domain": {
+                        "cpu": { "cores": cpu },
+                        "resources": { "requests": { "memory": memory } },
+                        "devices": {
+                            "disks": [{ "name": "rootdisk", "disk": { "bus": "virtio" } }]
+                        }
+                    },
+                    "volumes": [{
+                        "name": "rootdisk",
+                        "emptyDisk": { "capacity": disk }
+                    }]
+                }
+            }
+        }
+    });
+    let vm: DynamicObject = serde_json::from_value(body)
+        .map_err(|e| anyhow::anyhow!("invalid local VM body: {e}"))?;
+    let vms = vm_api(client, &p.namespace);
+    vms.create(&PostParams::default(), &vm)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    Ok(())
 }
 
 async fn follow(

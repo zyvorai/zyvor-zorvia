@@ -57,15 +57,20 @@ pub async fn ensure_target_available(
 pub enum ImportMode {
     #[default]
     Vsphere,
-    /// Lab-only: busybox (or `ZORVIA_H2KVM_IMAGE`) prints stage markers.
+    /// Lab-only: busybox (or `ZORVIA_H2KVM_IMAGE`) prints stage markers; no VM.
     Stub,
-    /// Same Job shape as stub; reserved for a future offline/qcow path.
+    /// Lab-only: same Job as stub, then creates a stopped emptyDisk VirtualMachine.
     Local,
 }
 
 impl ImportMode {
+    /// Stub or local: unprivileged Job, no vCenter / h2kvm image required.
     pub fn is_lab_stub(self) -> bool {
         matches!(self, Self::Stub | Self::Local)
+    }
+
+    pub fn is_local(self) -> bool {
+        matches!(self, Self::Local)
     }
 }
 
