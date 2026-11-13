@@ -115,10 +115,34 @@ permissions are needed. The collector issues only LIST requests (HTTP GET).
   lifecycle actions. Results are observations, not a transactional snapshot
   spanning clusters or Kubernetes resource kinds.
 
+## Lab dual-enrollment (same API, two identities)
+
+On a single k3s/KubeVirt host you can exercise the remote probe path without a
+second physical cluster: enroll the **same** API server twice under a different
+name with a dedicated read-only ServiceAccount kubeconfig. This double-counts
+inventory on purpose for lab proof only — do not use in production (see the
+"enroll each physical cluster once" rule above).
+
+```bash
+# From a clone on the lab host (needs kubectl + cluster-admin):
+./scripts/lab-fleet-dual-enroll.sh
+# Then restart / redeploy Zorvia with:
+#   ZORVIA_EXPERIMENTAL=1
+#   ZORVIA_FEATURE_FLEET=1
+#   ZORVIA_FLEET_CONFIG=/etc/zorvia/fleet/registry.json
+# and mount the generated Secret + ConfigMap (script prints the kubectl apply).
+curl -sk -H "Authorization: Bearer $TOKEN" \
+  https://127.0.0.1:30152/api/v1/enterprise/fleet | jq .
+```
+
+Chaos check: delete the RoleBinding for the lab-alias SA and refresh — that
+cluster should become `unknown` with redacted issues, not a 500.
+
 ## Validation before production
 
 Unit/API tests exercise real Kubernetes client requests against mock servers,
 pagination, permissions, partial failures, redaction, cache coalescing, and
-configuration guards. Real multi-cluster connectivity, certificate/token
-rotation, remote least-privilege RBAC, and cluster outages still require a
-live-cluster trial. The feature remains **Experimental**.
+configuration guards. Lab dual-enrollment (script above) exercises the remote
+kubeconfig path on one host. Certificate/token rotation across true multi-API
+clusters and outages still require a live multi-cluster trial. The feature
+remains **Experimental**.

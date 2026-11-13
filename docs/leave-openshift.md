@@ -35,10 +35,10 @@ ZeusOS is a separate Zyvor product. It is proprietary (not open source) and is n
 | Runs on any KubeVirt cluster | No, OpenShift only | Yes | Same as Zorvia |
 | Software cost | Red Hat subscription | $0 (Apache-2.0) | $0 for the software; a paid service contract for support ([pricing](PRICING.md)) |
 | Vendor support contract | Yes (Red Hat) | No, community | Yes (production support and SLAs) |
-| Multi-cluster management | Yes (Advanced Cluster Management) | Experimental (`fleet-multicluster`, inventory stub) | Ask sales |
-| VM migration from VMware | Yes (Migration Toolkit for Virtualization) | Zorvia's own importer is Experimental (`transiva-migration`, plan only); use the Zyvor suite, Transiva then h2kvm then GuestKit (separate tools) | Migration Factory (Transiva, h2kvm); ask sales |
+| Multi-cluster management | Yes (Advanced Cluster Management) | Experimental (`fleet-multicluster`, live read-only inventory; lab dual-enrollment supported) | Ask sales |
+| VM migration from VMware | Yes (Migration Toolkit for Virtualization) | Experimental in-product importer (`vm-import-h2kvm`, plus lab `mode=stub`); production path is still Transiva → h2kvm → GuestKit (separate tools). `transiva-migration` plan API is superseded | Migration Factory (Transiva, h2kvm); ask sales |
 | Operator lifecycle and certified ecosystem | Yes (OLM, certified operators) | No | No |
-| Telco-grade networking (SR-IOV, NFV, encrypted mesh) | Mature | Experimental (`gpu-sriov-numa`, plan only) | Ask sales |
+| Telco-grade networking (SR-IOV, NFV, encrypted mesh) | Mature | Experimental (`gpu-sriov-numa`: create/preflight/permit + live placement plan; not proven on real GPU/SR-IOV hardware) | Ask sales |
 
 ## Choose OpenShift when
 

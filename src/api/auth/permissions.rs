@@ -664,6 +664,18 @@ mod tests {
     }
 
     #[test]
+    fn cross_cluster_dr_run_requires_cluster_admin() {
+        assert_eq!(
+            required_permission("POST", "/v1/enterprise/cross-cluster-dr/run"),
+            Some(ApiPermission::ClusterAdmin)
+        );
+        assert_eq!(
+            required_permission("POST", "/v1/enterprise/cross-cluster-dr/plan"),
+            Some(ApiPermission::ClusterAdmin)
+        );
+    }
+
+    #[test]
     fn fleet_inventory_requires_cluster_admin_even_for_reads() {
         for method in ["GET", "HEAD", "POST"] {
             for path in ["/v1/enterprise/fleet", "/v1/enterprise/fleet/"] {

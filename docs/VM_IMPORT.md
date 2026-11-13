@@ -14,23 +14,33 @@ it.
 
 ## Set up
 
+0. Set `ZORVIA_EXPERIMENTAL=1` — the feature is Experimental and routes refuse
+   otherwise.
 1. Set `ZORVIA_H2KVM_IMAGE` on the Zorvia deployment to your h2kvm CLI image
    (optional: `ZORVIA_H2KVM_INIT_IMAGE`, default `fedora:43`, used to load the
-   `nbd` kernel module).
+   `nbd` kernel module). Not required for `mode=stub|local` lab Jobs.
 2. Prepare each target namespace (see `deploy/h2kvm-import-rbac.yaml`): label it
    `pod-security.kubernetes.io/enforce=privileged`, create the vCenter
    credentials Secret (`username` / `password` keys) and the `zorvia-h2kvm`
    ServiceAccount + Role. Zorvia has no access to Secrets or ServiceAccounts, so
-   preflight can only remind you of these.
-3. KubeVirt and CDI must be installed, and the cluster needs somewhere to hold
+   preflight can only remind you of these. Stub/local Jobs are unprivileged and
+   skip the Secret.
+3. KubeVirt and CDI must be installed, and (for vsphere) the cluster needs
    scratch space: the Job gets a per-import ephemeral volume
    (`scratch_size`, default 200Gi). It must hold the largest disk about twice
    over (the export and the converted image).
 
+## Lab stub mode (no vCenter)
+
+Send `"mode": "stub"` (or `"local"`) on the import body with an empty
+`source.vcenter` / `source.secret_name`. Zorvia starts an unprivileged Job that
+emits h2kvm-shaped stage logs so follow/cancel and wave progress can be tested.
+No VirtualMachine is created (`vm_created: false` on success).
+
 ## Use
 
-All routes are cluster.admin (they start **privileged** Jobs and read vCenter
-credentials) and are audited.
+All routes are cluster.admin (vsphere starts **privileged** Jobs and reads
+vCenter credentials) and are audited.
 
 ```
 POST /api/vm-imports/preflight   # dry run: blockers and warnings

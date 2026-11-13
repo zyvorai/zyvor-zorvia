@@ -1361,6 +1361,10 @@ pub mod web {
                 post(enterprise_cross_cluster_dr_plan),
             )
             .route(
+                "/v1/enterprise/cross-cluster-dr/run",
+                post(enterprise_cross_cluster_dr_run),
+            )
+            .route(
                 "/v1/enterprise/placement/gpu-numa",
                 post(enterprise_gpu_numa_plan),
             )
@@ -3111,6 +3115,48 @@ pub mod web {
     }
 
     #[derive(Deserialize)]
+    struct CrossClusterDrRunReq {
+        source_cluster: String,
+        target_cluster: String,
+        #[serde(default)]
+        vm_names: Vec<String>,
+        #[serde(default = "default_rpo")]
+        rpo_seconds: u64,
+        #[serde(default)]
+        namespace: Option<String>,
+        #[serde(default)]
+        restore_namespace: Option<String>,
+        /// When set, skip backup enqueue and restore from these succeeded ops.
+        #[serde(default)]
+        backup_operation_ids: Vec<String>,
+    }
+
+    async fn enterprise_cross_cluster_dr_run(
+        State(state): State<SharedState>,
+        Json(body): Json<CrossClusterDrRunReq>,
+    ) -> impl IntoResponse {
+        let default_ns = state.read().await.namespace.clone();
+        let namespace = body.namespace.unwrap_or(default_ns);
+        let restore_namespace = body
+            .restore_namespace
+            .unwrap_or_else(|| "zorvia-dr".into());
+        match crate::enterprise::CrossClusterDrRun::try_run(
+            body.source_cluster,
+            body.target_cluster,
+            body.vm_names,
+            body.rpo_seconds,
+            namespace,
+            restore_namespace,
+            body.backup_operation_ids,
+        )
+        .await
+        {
+            Ok(run) => Json(serde_json::json!({ "success": true, "data": run })).into_response(),
+            Err(e) => enterprise_err(e).into_response(),
+        }
+    }
+
+    #[derive(Deserialize)]
     struct GpuNumaReq {
         vm_name: String,
         #[serde(default = "default_gpu")]
@@ -3119,21 +3165,58 @@ pub mod web {
         sriov_networks: Vec<String>,
         #[serde(default)]
         numa_passthrough: bool,
+        #[serde(default)]
+        namespace: Option<String>,
     }
     fn default_gpu() -> u32 {
         1
     }
 
-    async fn enterprise_gpu_numa_plan(Json(body): Json<GpuNumaReq>) -> impl IntoResponse {
-        match crate::enterprise::GpuSriovNumaPlan::try_plan(
+    async fn enterprise_gpu_numa_plan(
+        State(state): State<SharedState>,
+        Json(body): Json<GpuNumaReq>,
+    ) -> impl IntoResponse {
+        let plan = match crate::enterprise::GpuSriovNumaPlan::try_plan(
             body.vm_name,
             body.gpu_count,
-            body.sriov_networks,
+            body.sriov_networks.clone(),
             body.numa_passthrough,
         ) {
-            Ok(plan) => Json(serde_json::json!({ "success": true, "data": plan })).into_response(),
-            Err(e) => enterprise_err(e).into_response(),
-        }
+            Ok(p) => p,
+            Err(e) => return enterprise_err(e).into_response(),
+        };
+        let s = state.read().await;
+        let ns = body.namespace.unwrap_or_else(|| s.namespace.clone());
+        let client = s.kube_client.client();
+        drop(s);
+        use crate::config::{HostDeviceConfig, HostDeviceKind};
+        use crate::devices::PlacementRequest;
+        let devices: Vec<HostDeviceConfig> = (0..plan.gpu_count)
+            .map(|i| HostDeviceConfig {
+                name: format!("gpu-{i}"),
+                device_name: "nvidia.com/gpu".into(),
+                kind: HostDeviceKind::Gpu,
+            })
+            .collect();
+        let placement = PlacementRequest {
+            dedicated_cpus: plan.numa_passthrough,
+            numa_passthrough: plan.numa_passthrough,
+            hugepages: plan.numa_passthrough.then(|| "2Mi".into()),
+        };
+        let issues = devices_handlers::preflight_for_create(
+            &client,
+            &ns,
+            &devices,
+            &plan.sriov_networks,
+            &placement,
+        )
+        .await;
+        let issue_strs = issues
+            .iter()
+            .map(|i| format!("{}:{}: {}", i.severity, i.subject, i.message))
+            .collect::<Vec<_>>();
+        let plan = plan.with_preflight_issues(issue_strs);
+        Json(serde_json::json!({ "success": true, "data": plan })).into_response()
     }
 
     async fn enterprise_fleet_inventory(State(state): State<SharedState>) -> impl IntoResponse {

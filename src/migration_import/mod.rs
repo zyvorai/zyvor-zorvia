@@ -48,6 +48,27 @@ pub async fn ensure_target_available(
     Ok(())
 }
 
+/// Import orchestration mode. `vsphere` is production (h2kvmctl against
+/// vCenter). `stub` / `local` exercise Job create/follow/cancel on a lab
+/// without vCenter — the Job emits h2kvm-shaped stage logs and does not
+/// need a licensed h2kvm image.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ImportMode {
+    #[default]
+    Vsphere,
+    /// Lab-only: busybox (or `ZORVIA_H2KVM_IMAGE`) prints stage markers.
+    Stub,
+    /// Same Job shape as stub; reserved for a future offline/qcow path.
+    Local,
+}
+
+impl ImportMode {
+    pub fn is_lab_stub(self) -> bool {
+        matches!(self, Self::Stub | Self::Local)
+    }
+}
+
 /// Where the source VMs live. The password never appears here: it is read by
 /// the Job from `secret_name` in the target namespace.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -115,6 +136,9 @@ pub struct ImportRequest {
     /// DataVolumes in the namespace). Default `zorvia-h2kvm`.
     #[serde(default)]
     pub service_account: Option<String>,
+    /// `vsphere` (default), `stub`, or `local`. Stub/local skip vCenter.
+    #[serde(default)]
+    pub mode: ImportMode,
 }
 
 /// What one operation persists. No secret values.
@@ -128,6 +152,8 @@ pub struct ImportOpParams {
     pub scratch_size: String,
     pub scratch_storage_class: Option<String>,
     pub service_account: String,
+    #[serde(default)]
+    pub mode: ImportMode,
 }
 
 pub fn dns_label(s: &str) -> bool {
@@ -236,26 +262,35 @@ impl ImportRequest {
     /// Every problem with the request (empty when valid).
     pub fn problems(&self) -> Vec<String> {
         let mut p: Vec<String> = Vec::new();
-        if !hostname(&self.source.vcenter) {
-            p.push("source.vcenter is not a valid host name or address".into());
-        }
-        if self.source.port == Some(0) {
-            p.push("source.port must be 1-65535".into());
+        if self.mode.is_lab_stub() {
+            if !self.source.vcenter.is_empty() && !hostname(&self.source.vcenter) {
+                p.push("source.vcenter is not a valid host name or address".into());
+            }
+            if !self.source.secret_name.is_empty() && !dns_label(&self.source.secret_name) {
+                p.push("source.secret_name must be a DNS label".into());
+            }
+        } else {
+            if !hostname(&self.source.vcenter) {
+                p.push("source.vcenter is not a valid host name or address".into());
+            }
+            if self.source.port == Some(0) {
+                p.push("source.port must be 1-65535".into());
+            }
+            if !dns_label(&self.source.secret_name) {
+                p.push("source.secret_name must be a DNS label".into());
+            }
+            for (k, v) in [
+                ("source.username_key", &self.source.username_key),
+                ("source.password_key", &self.source.password_key),
+                ("source.datacenter", &self.source.datacenter),
+            ] {
+                if let Some(v) = v {
+                    note(&mut p, safe_arg(k, v));
+                }
+            }
         }
         if !dns_label(&self.namespace) {
             p.push("namespace must be a DNS label".into());
-        }
-        if !dns_label(&self.source.secret_name) {
-            p.push("source.secret_name must be a DNS label".into());
-        }
-        for (k, v) in [
-            ("source.username_key", &self.source.username_key),
-            ("source.password_key", &self.source.password_key),
-            ("source.datacenter", &self.source.datacenter),
-        ] {
-            if let Some(v) = v {
-                note(&mut p, safe_arg(k, v));
-            }
         }
         if let Some(sa) = &self.service_account {
             if !dns_label(sa) {
@@ -333,6 +368,7 @@ impl ImportRequest {
 
 /// argv for `h2kvmctl` (after the binary). `$(VC_USER)` is expanded by
 /// Kubernetes from the Job's env, so the credentials never enter the spec.
+/// Not used for stub/local lab Jobs (see `job::build_import_job`).
 pub fn h2kvm_args(p: &ImportOpParams) -> Vec<String> {
     let mut a: Vec<String> = vec![
         "--cmd".into(),
@@ -472,10 +508,14 @@ pub fn enqueue_wave_in(db: &OperationsDb, req: &ImportRequest) -> Result<(String
             target_vm_name: target.clone(),
             scratch_size: req.scratch_size.clone().unwrap_or_else(|| "200Gi".into()),
             scratch_storage_class: req.scratch_storage_class.clone(),
-            service_account: req
-                .service_account
-                .clone()
-                .unwrap_or_else(|| "zorvia-h2kvm".into()),
+            service_account: req.service_account.clone().unwrap_or_else(|| {
+                if req.mode.is_lab_stub() {
+                    "default".into()
+                } else {
+                    "zorvia-h2kvm".into()
+                }
+            }),
+            mode: req.mode,
         };
         let mut new = NewOperation::new(OP_KIND, &vm.source_vm, &req.namespace);
         new.max_attempts = 1; // an import is not safely repeatable; the user retries
@@ -616,7 +656,17 @@ mod tests {
             scratch_size: None,
             scratch_storage_class: None,
             service_account: None,
+            mode: ImportMode::Vsphere,
         }
+    }
+
+    #[test]
+    fn stub_mode_skips_vcenter_and_secret() {
+        let mut r = req();
+        r.mode = ImportMode::Stub;
+        r.source.vcenter.clear();
+        r.source.secret_name.clear();
+        assert!(r.problems().is_empty());
     }
 
     #[test]
@@ -780,6 +830,7 @@ mod tests {
             scratch_size: "200Gi".into(),
             scratch_storage_class: None,
             service_account: "zorvia-h2kvm".into(),
+            mode: ImportMode::Vsphere,
         }
     }
 

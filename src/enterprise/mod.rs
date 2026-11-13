@@ -252,8 +252,130 @@ impl CrossClusterDrPlan {
             vm_names,
             rpo_seconds,
             notes: vec![
-                "Plan only — no cross-cluster data path is executed.".into(),
-                "Pair with ZORVIA_FEATURE_S3_BACKUP for offsite snapshot copies.".into(),
+                "Plan only — POST /api/v1/enterprise/cross-cluster-dr/run queues off-cluster backups (same-cluster DR rehearsal).".into(),
+                "Requires an off-cluster S3 target (ZORVIA_BACKUP_S3_* or Atlas bucket). Not site failover.".into(),
+            ],
+        })
+    }
+}
+
+/// Same-cluster DR rehearsal: queue off-cluster backups and/or restores.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CrossClusterDrRun {
+    pub source_cluster: String,
+    pub target_cluster: String,
+    pub rpo_seconds: u64,
+    pub namespace: String,
+    pub restore_namespace: String,
+    pub backup_operation_ids: Vec<String>,
+    pub restore_operation_ids: Vec<String>,
+    pub notes: Vec<String>,
+}
+
+impl CrossClusterDrRun {
+    /// Phase 1: enqueue off-cluster backups for each VM.
+    /// Phase 2 (when `backup_operation_ids` is set): enqueue restores into
+    /// `restore_namespace` as `{vm}-dr`.
+    pub async fn try_run(
+        source_cluster: impl Into<String>,
+        target_cluster: impl Into<String>,
+        vm_names: Vec<String>,
+        rpo_seconds: u64,
+        namespace: impl Into<String>,
+        restore_namespace: impl Into<String>,
+        backup_operation_ids: Vec<String>,
+    ) -> Result<Self, String> {
+        require("ZORVIA_FEATURE_CROSS_CLUSTER_DR")?;
+        let source_cluster = source_cluster.into();
+        let target_cluster = target_cluster.into();
+        let namespace = namespace.into();
+        let restore_namespace = restore_namespace.into();
+        if !backup_operation_ids.is_empty() {
+            let mut restore_operation_ids = Vec::new();
+            let mut notes = vec![
+                "Restore phase: queuing restores from prior off-cluster backup operations.".into(),
+                "This is a same-cluster DR rehearsal via object storage, not cross-site failover."
+                    .into(),
+            ];
+            for op_id in &backup_operation_ids {
+                let op = crate::operations::OperationsDb::global()
+                    .get(op_id)
+                    .map_err(|e| e.to_string())?
+                    .ok_or_else(|| format!("backup operation '{op_id}' not found"))?;
+                let src = crate::backup::restore::source_from_op(&op).map_err(|e| e.to_string())?;
+                let new_name = format!("{}-dr", src.vm_name);
+                let restore_op = crate::backup::restore::enqueue_restore_in(
+                    crate::operations::OperationsDb::global(),
+                    &src,
+                    &restore_namespace,
+                    &new_name,
+                    None,
+                    false,
+                    None,
+                )
+                .map_err(|e| e.to_string())?;
+                restore_operation_ids.push(restore_op.id);
+            }
+            notes.push(format!(
+                "Poll GET /api/operations/{{id}} for each restore; RPO target metadata: {rpo_seconds}s"
+            ));
+            return Ok(Self {
+                source_cluster,
+                target_cluster,
+                rpo_seconds,
+                namespace,
+                restore_namespace,
+                backup_operation_ids,
+                restore_operation_ids,
+                notes,
+            });
+        }
+        if vm_names.is_empty() {
+            return Err(
+                "vm_names must not be empty (or pass backup_operation_ids for restore phase)".into(),
+            );
+        }
+        match crate::backup::offcluster::OffClusterTarget::resolve().await {
+            Ok(Some(_)) => {}
+            Ok(None) => {
+                return Err(
+                    "no off-cluster target is configured (set ZORVIA_BACKUP_S3_* or ZORVIA_BACKUP_ATLAS_BUCKET)"
+                        .into(),
+                );
+            }
+            Err(e) => return Err(format!("off-cluster target invalid: {e}")),
+        }
+        let mut backup_ids = Vec::new();
+        for vm in &vm_names {
+            let key = format!("dr-rehearsal:{}", uuid::Uuid::new_v4().simple());
+            let (op, _) = crate::backup::op::enqueue(
+                &namespace,
+                vm,
+                "full",
+                None,
+                Some(format!(
+                    "cross-cluster-dr rehearsal {source_cluster}->{target_cluster}"
+                )),
+                &key,
+            )
+            .map_err(|e| e.to_string())?;
+            backup_ids.push(op.id);
+        }
+        Ok(Self {
+            source_cluster,
+            target_cluster,
+            rpo_seconds,
+            namespace,
+            restore_namespace: restore_namespace.clone(),
+            backup_operation_ids: backup_ids,
+            restore_operation_ids: Vec::new(),
+            notes: vec![
+                "Backup phase queued. When each backup succeeds, POST the same /run with backup_operation_ids to restore into the DR namespace.".into(),
+                format!(
+                    "Planned restore namespace: {restore_namespace}; new VM names: {{vm}}-dr"
+                ),
+                "Same-cluster object-store rehearsal — not ACM/site failover.".into(),
+                format!("RPO target metadata only: {rpo_seconds}s"),
             ],
         })
     }
@@ -268,6 +390,11 @@ pub struct GpuSriovNumaPlan {
     pub numa_passthrough: bool,
     pub suggested_patches: serde_json::Value,
     pub notes: Vec<String>,
+    /// Live device/placement preflight against cluster inventory (never applied).
+    #[serde(default)]
+    pub preflight_ok: bool,
+    #[serde(default)]
+    pub preflight_issues: Vec<String>,
 }
 
 impl GpuSriovNumaPlan {
@@ -302,10 +429,19 @@ impl GpuSriovNumaPlan {
             numa_passthrough,
             suggested_patches,
             notes: vec![
-                "Plan only — patches are not applied to the VM CR.".into(),
-                "Requires device-plugin / SR-IOV CNI on target nodes.".into(),
+                "Patches are not applied to the VM CR; preflight_issues reflect live inventory.".into(),
+                "Lab tip: advertise a fake extended resource (e.g. lab.zorvia.io/fake-gpu) to exercise permit/preflight without NVIDIA hardware.".into(),
             ],
+            preflight_ok: true,
+            preflight_issues: Vec::new(),
         })
+    }
+
+    /// Attach live preflight issue strings (still no apply).
+    pub fn with_preflight_issues(mut self, issues: Vec<String>) -> Self {
+        self.preflight_ok = issues.is_empty();
+        self.preflight_issues = issues;
+        self
     }
 }
 
