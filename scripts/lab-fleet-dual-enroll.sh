@@ -71,8 +71,13 @@ EOF
 
 echo "==> Mint SA token kubeconfig"
 TOKEN=$($KUBECTL -n "$NS" create token "$SA" --duration=24h)
-SERVER=$($KUBECTL config view --minify -o jsonpath='{.clusters[0].cluster.server}')
-CA=$($KUBECTL config view --raw --minify -o jsonpath='{.clusters[0].cluster.certificate-authority-data}')
+# Prefer the in-cluster API when the kubeconfig will be mounted into a Zorvia
+# pod (127.0.0.1:6443 from the host is unreachable inside the pod network).
+SERVER="${ZORVIA_FLEET_SERVER:-https://kubernetes.default.svc}"
+CA=$($KUBECTL -n kube-system get configmap kube-root-ca.crt -o jsonpath='{.data.ca\.crt}' 2>/dev/null | base64 -w0 || true)
+if [[ -z "$CA" ]]; then
+  CA=$($KUBECTL config view --raw --minify -o jsonpath='{.clusters[0].cluster.certificate-authority-data}')
+fi
 if [[ -z "$CA" && -r /var/lib/rancher/k3s/server/tls/server-ca.crt ]]; then
   CA=$(sudo -n base64 -w0 /var/lib/rancher/k3s/server/tls/server-ca.crt 2>/dev/null || true)
 fi
