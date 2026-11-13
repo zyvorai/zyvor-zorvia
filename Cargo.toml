@@ -68,7 +68,7 @@ rustyline = "19.0"
 
 # Web dashboard dependencies
 axum = { version = "0.8", optional = true, features = ["ws"] }
-axum-server = { version = "0.8", features = ["tls-rustls-no-provider"], optional = true }
+axum-server = { version = "0.9", features = ["tls-rustls-no-provider"], optional = true }
 rustls = { version = "0.23", default-features = false, features = ["ring", "logging", "std", "tls12"], optional = true }
 tower-http = { version = "0.7", features = ["cors", "timeout", "fs"], optional = true }
 # `oneshot` replays MCP tool calls through the REST router in-process (already in the tree via axum).
