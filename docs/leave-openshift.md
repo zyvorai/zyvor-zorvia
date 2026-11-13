@@ -65,9 +65,20 @@ Your `VirtualMachine`, `DataVolume` and `PersistentVolumeClaim` objects stay as 
 
 ## What is not done yet
 
-- Zorvia has no production VM importer of its own; its Transiva hook is Experimental and plan-only. Migrating from VMware today means the separate Zyvor suite: Transiva (export; Apache-2.0 Community, Platform adds CBT and waves), h2kvm (convert and deploy to KubeVirt; free for non-production, paid licence for production) and GuestKit (boot-readiness). None of these are driven from the Zorvia console yet.
-- Running Zorvia on OpenShift itself has not been verified. See the runbook for what to check.
+- **VMware import in production:** `vm-import-h2kvm` is Experimental. Lab
+  `mode=stub|local` exercises Jobs without vCenter; `mode=vsphere` needs a
+  reachable vCenter, `ZORVIA_H2KVM_IMAGE`, and `scripts/lab-vsphere-preflight.sh`.
+  The older Transiva plan API remains plan-only. External suite (Transiva /
+  h2kvm / GuestKit) still applies for many migrations.
+- **On OpenShift:** Helm now ships Route (passthrough) + optional SCC
+  (`charts/zorvia/values-openshift.yaml`). A live OpenShift Virtualization
+  install has **not** been recorded yet — see the [adoption runbook](adopt-existing-kubevirt-cluster.md).
+- **Multi-cluster:** fleet dual-enroll of one API is lab-proven; a second
+  Kubernetes API is scripted via `scripts/lab-fleet-second-cluster.sh` (k3d/kind).
+  ACM-style site failover is not shipped (`cross-cluster-dr` is same-cluster
+  object-store rehearsal).
 - Format conversion (VMDK, VHD to qcow2) is not shipped.
+- OLM / OperatorHub / HyperShift / MachineConfig: not planned.
 
 ## Cost
 

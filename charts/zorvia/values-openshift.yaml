@@ -1,0 +1,35 @@
+# OpenShift / OKD-oriented overrides. Pair with values-production.yaml (or
+# values-lab.yaml for a throwaway) after creating the auth Secret.
+#
+#   helm upgrade --install zorvia charts/zorvia -n zorvia-system --create-namespace \
+#     -f charts/zorvia/values-production.yaml \
+#     -f charts/zorvia/values-openshift.yaml \
+#     --set openshift.route.host=zorvia.apps.example.com \
+#     --set image.repository=ghcr.io/zyvorai/zorvia --set image.tag=0.7.4 --set image.pullPolicy=IfNotPresent
+#
+# Untested against a live OpenShift Virtualization cluster — see
+# docs/adopt-existing-kubevirt-cluster.md.
+
+labMode: false
+
+service:
+  type: ClusterIP
+  # Route targets the Service; NodePort is unused on OCP.
+
+openshift:
+  route:
+    enabled: true
+    host: "" # set --set openshift.route.host=...
+    annotations: {}
+  scc:
+    # Create a dedicated SCC for UID 10001. Set create=false and bindExisting=anyuid
+    # if your cluster policy prefers the stock SCC.
+    create: true
+    bindExisting: ""
+
+# Prefer omitting a fixed runAsUser so a bound SCC can assign; deployment still
+# sets runAsNonRoot. Override further if your SecurityContextConstraints require it.
+podSecurityContext:
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault

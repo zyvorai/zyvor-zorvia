@@ -164,3 +164,17 @@ kryton:
   # Keys: url, token, project (optional)
 
 extraEnv: []
+
+# OpenShift / OKD: Route (passthrough TLS) and optional SCC. Off by default so
+# plain Kubernetes installs do not need route.openshift.io CRDs. See
+# values-openshift.yaml and docs/adopt-existing-kubevirt-cluster.md.
+openshift:
+  route:
+    enabled: false
+    host: ""
+    annotations: {}
+  scc:
+    create: false
+    # Bind the release ServiceAccount to an existing SCC, e.g. "anyuid" or
+    # "nonroot". Creates a RoleBinding to system:openshift:scc:<name>.
+    bindExisting: ""

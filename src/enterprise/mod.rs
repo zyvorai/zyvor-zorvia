@@ -62,9 +62,9 @@ impl S3ImmutableBackupPlan {
             object_lock_mode: "COMPLIANCE".into(),
             retention_days: retention_days.max(1),
             notes: vec![
-                "Plan only — VolumeSnapshot bytes are not uploaded in this release.".into(),
-                "Enable S3 Object Lock (compliance) on the bucket before first write.".into(),
-                "Wire Velero/Kopia or a custom exporter to execute this plan.".into(),
+                "Plan shape only — execute via POST /api/backups/offcluster (or scheduled backups) when ZORVIA_BACKUP_S3_* is set; see docs/OFFCLUSTER_BACKUP.md.".into(),
+                "Enable S3 Object Lock (compliance) on the bucket before first write if you need immutability.".into(),
+                "Live path is feature s3-immutable-backup (Beta), not Velero/Kopia.".into(),
             ],
         })
     }
