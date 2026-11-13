@@ -152,7 +152,7 @@ pub const FEATURES: &[Feature] = &[
         id: "cross-cluster-dr",
         name: "Cross-cluster VM mobility / DR",
         maturity: Maturity::Experimental,
-        notes: "Phase 5 — plan API at /api/v1/enterprise/cross-cluster-dr/plan",
+        notes: "Phase 5 — plan + POST /api/v1/enterprise/cross-cluster-dr/run (same-cluster off-cluster backup/restore rehearsal)",
     },
     Feature {
         id: "transiva-migration",
@@ -164,7 +164,7 @@ pub const FEATURES: &[Feature] = &[
         id: "vm-import-h2kvm",
         name: "VMware → KubeVirt import via h2kvm Jobs",
         maturity: Maturity::Experimental,
-        notes: "POST /api/vm-imports runs h2kvmctl as a privileged Job (needs ZORVIA_H2KVM_IMAGE); admin console, fail-closed preflight, target NIC mapping, guarded cutover, boot policy, data-preserving cancellation; not yet exercised against a real vCenter",
+        notes: "Requires ZORVIA_EXPERIMENTAL=1; POST /api/vm-imports runs h2kvmctl (needs ZORVIA_H2KVM_IMAGE) or mode=stub|local lab Jobs; admin console, fail-closed preflight, NIC mapping, cutover, cancel; not yet exercised against a real vCenter",
     },
     Feature {
         id: "golden-image-pipeline",
@@ -182,13 +182,13 @@ pub const FEATURES: &[Feature] = &[
         id: "gpu-sriov-numa",
         name: "GPU/SR-IOV/NUMA placement",
         maturity: Maturity::Experimental,
-        notes: "GPU / host-device passthrough and SR-IOV interfaces at VM create (KubeVirt gpus/hostDevices) with a scheduling preflight, device and SR-IOV pool inventory, permit/remove of devices in the KubeVirt CR (cluster.admin, Helm devices.managePermitted), and NUMA / dedicated-CPU / hugepage placement with node checks (docs/DEVICES.md). Unit-tested and checked against a real KubeVirt API (dry runs and live permit/remove) on a lab without GPU or SR-IOV hardware: not run on real devices. NUMA placement-advisor planning remains a plan API at /api/v1/enterprise/placement/gpu-numa",
+        notes: "GPU / host-device passthrough and SR-IOV at VM create with scheduling preflight, inventory, permit/remove (Helm devices.managePermitted), NUMA/dedicated-CPU/hugepage checks (docs/DEVICES.md). Placement plan at /api/v1/enterprise/placement/gpu-numa runs live inventory preflight (patches not applied). Lab fake-device script; not proven on real GPU/SR-IOV hardware",
     },
     Feature {
         id: "fleet-multicluster",
         name: "Multi-cluster fleet inventory",
         maturity: Maturity::Experimental,
-        notes: "Live read-only inventory with explicit enrollment; GET /api/v1/enterprise/fleet; live multi-cluster validation pending",
+        notes: "Live read-only inventory with explicit enrollment; GET /api/v1/enterprise/fleet; lab dual-enrollment via scripts/lab-fleet-dual-enroll.sh; true multi-API validation pending",
     },
 ];
 

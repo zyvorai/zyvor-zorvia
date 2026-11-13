@@ -13,7 +13,7 @@ resources. Fleet does not mutate remote clusters.
 | Capability | Env flag | API |
 |------------|----------|-----|
 | S3 immutable backups | `ZORVIA_FEATURE_S3_BACKUP=1` | `POST /api/v1/enterprise/s3-backup/plan` |
-| Cross-cluster DR | `ZORVIA_FEATURE_CROSS_CLUSTER_DR=1` | `POST /api/v1/enterprise/cross-cluster-dr/plan` |
+| Cross-cluster DR | `ZORVIA_FEATURE_CROSS_CLUSTER_DR=1` | `POST /api/v1/enterprise/cross-cluster-dr/plan` and `/run` (off-cluster backup→restore rehearsal) |
 | Transiva VMware migration | `ZORVIA_FEATURE_TRANSIVA=1` | `POST /api/v1/enterprise/transiva/plan` |
 | Golden-image pipeline | `ZORVIA_FEATURE_GOLDEN_PIPELINE=1` | `POST /api/v1/enterprise/golden-pipeline/plan` and `/run` |
 | GPU/SR-IOV/NUMA | `ZORVIA_FEATURE_GPU_NUMA=1` | `POST /api/v1/enterprise/placement/gpu-numa` |

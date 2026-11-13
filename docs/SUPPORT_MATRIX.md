@@ -100,10 +100,11 @@ real PostgreSQL. See [POSTGRES.md](POSTGRES.md) and [HA.md](HA.md).
   database-flush hooks (none installed in the lab guest), Windows and RPM-based guests
   (see [GUEST_AGENT.md](GUEST_AGENT.md)).
 - **VMware import** against a real vCenter (and the Migration Cockpit's NIC mapping against
-  real Multus networks). Unit and mock tests only. Experimental.
-- **GPU / SR-IOV passthrough on real devices.** The API behaviour (inventory, preflight refusals, permissions, permit/remove of devices in the KubeVirt CR, NUMA/hugepage rules) was checked, on a lab
-  with neither ([DEVICES.md](DEVICES.md)). Experimental.
-- **Multi-cluster fleet inventory** against real remote clusters. Experimental.
+  real Multus networks). Unit/mock tests + lab `mode=stub` Job orchestration; not a real vCenter. Experimental.
+- **GPU / SR-IOV passthrough on real devices.** The API behaviour (inventory, preflight refusals, permissions, permit/remove of devices in the KubeVirt CR, NUMA/hugepage rules, placement plan live preflight) was checked, on a lab
+  with neither ([DEVICES.md](DEVICES.md), `scripts/lab-fake-gpu-device.sh`). Experimental.
+- **Multi-cluster fleet inventory** against real remote clusters. Lab dual-enrollment of the same API (`scripts/lab-fleet-dual-enroll.sh`) exercises the remote path on one host. Experimental.
+- **Cross-cluster / site DR.** `/cross-cluster-dr/run` is a same-cluster off-cluster backup→restore rehearsal only.
 - **Block-mode backup beyond one run**: a 1 GiB RBD Block volume holding 64 MiB of random data was backed up and restored with identical SHA-256 (2026-10-01); restoring into Block volumes was also verified (same SHA-256 into a Block volume and, with `volume_mode: Filesystem`, into a file, 2026-10-02); larger or real guest disks are not covered. **CSI drivers beyond RBD and the hostpath
   driver (no networked/replicated driver other than Ceph)**, **other
   Kubernetes/KubeVirt/CDI versions**, upgrades between Zorvia versions, site-level DR.

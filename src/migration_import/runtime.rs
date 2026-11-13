@@ -3,7 +3,7 @@
 //! fails or is cancelled. Imported VM disks are preserved for
 //! inspection: names alone do not establish ownership for destructive rollback.
 
-use super::job::{build_import_job, h2kvm_image};
+use super::job::{build_import_job, h2kvm_image, stub_image};
 use super::{
     ensure_target_available, networks, parse_h2kvm_logs, pvc_name, H2kvmProgress, ImportOpParams,
 };
@@ -43,20 +43,26 @@ fn deadline_secs() -> u64 {
 async fn import_op(ctx: &OpContext) -> Result<Outcome, Outcome> {
     let p: ImportOpParams = serde_json::from_value(ctx.op.params.clone())
         .map_err(|e| Outcome::Failed(format!("invalid operation params: {e}")))?;
-    let image = h2kvm_image().ok_or_else(|| {
-        Outcome::Failed(
-            "ZORVIA_H2KVM_IMAGE is not set: point it at your h2kvm CLI image (h2kvm is licensed \
+    let image = if p.mode.is_lab_stub() {
+        stub_image()
+    } else {
+        h2kvm_image().ok_or_else(|| {
+            Outcome::Failed(
+                "ZORVIA_H2KVM_IMAGE is not set: point it at your h2kvm CLI image (h2kvm is licensed \
              separately and Zorvia does not ship it)"
-                .into(),
-        )
-    })?;
+                    .into(),
+            )
+        })?
+    };
     let client = ctx.client.client();
     let ns = p.namespace.as_str();
     let vms = vm_api(&client, ns);
 
-    ensure_target_available(&client, ns, &p.target_vm_name)
-        .await
-        .map_err(|e| Outcome::Failed(e.to_string()))?;
+    if !p.mode.is_lab_stub() {
+        ensure_target_available(&client, ns, &p.target_vm_name)
+            .await
+            .map_err(|e| Outcome::Failed(e.to_string()))?;
+    }
     if ctx.cancelled() {
         return Ok(Outcome::Cancelled);
     }
@@ -69,7 +75,14 @@ async fn import_op(ctx: &OpContext) -> Result<Outcome, Outcome> {
         .take(10)
         .collect();
     let job_name = format!("zorvia-import-{short}");
-    ctx.progress("starting h2kvm", 2);
+    ctx.progress(
+        if p.mode.is_lab_stub() {
+            "starting stub import"
+        } else {
+            "starting h2kvm"
+        },
+        2,
+    );
     let job =
         build_import_job(&job_name, &image, &p).map_err(|e| Outcome::Failed(e.to_string()))?;
     let jobs: Api<Job> = Api::namespaced(client.clone(), ns);
@@ -83,6 +96,20 @@ async fn import_op(ctx: &OpContext) -> Result<Outcome, Outcome> {
 
     match follow(ctx, &client, &p, &job_name).await {
         Followed::Done(prog) => {
+            // Lab stub/local Jobs only prove orchestration; they do not create VMs.
+            if p.mode.is_lab_stub() {
+                stop_job(&client, &p, &job_name, job_uid).await;
+                return Ok(Outcome::Succeeded(Some(json!({
+                    "vm_name": p.target_vm_name,
+                    "namespace": p.namespace,
+                    "source_vm": p.vm.source_vm,
+                    "mode": format!("{:?}", p.mode).to_ascii_lowercase(),
+                    "stub": true,
+                    "vm_created": false,
+                    "stages_completed": prog.stages_done,
+                    "deployed_marker": prog.deployed_vm,
+                }))));
+            }
             // Trust the cluster, not the log: the VM must actually exist.
             let mut vm = match vms.get(&p.target_vm_name).await {
                 Ok(vm) => vm,

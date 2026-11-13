@@ -8,7 +8,7 @@
 //! come from a Secret via `secretKeyRef`; scratch space is a generic ephemeral
 //! volume, deleted with the pod.
 
-use super::{h2kvm_args, ImportOpParams};
+use super::{h2kvm_args, ImportMode, ImportOpParams};
 use anyhow::{anyhow, Result};
 use k8s_openapi::api::batch::v1::Job;
 use serde_json::{json, Value};
@@ -19,6 +19,11 @@ pub fn h2kvm_image() -> Option<String> {
     std::env::var("ZORVIA_H2KVM_IMAGE")
         .ok()
         .filter(|s| !s.trim().is_empty())
+}
+
+/// Image for stub/local lab Jobs. Prefers `ZORVIA_H2KVM_IMAGE`, else busybox.
+pub fn stub_image() -> String {
+    h2kvm_image().unwrap_or_else(|| "busybox:1.36".into())
 }
 
 fn init_image() -> String {
@@ -36,6 +41,9 @@ fn deadline_secs() -> i64 {
 }
 
 pub fn build_import_job(job_name: &str, image: &str, p: &ImportOpParams) -> Result<Job> {
+    if p.mode.is_lab_stub() {
+        return build_stub_import_job(job_name, image, p);
+    }
     let user_key = p.source.username_key.as_deref().unwrap_or("username");
     let pass_key = p.source.password_key.as_deref().unwrap_or("password");
 
@@ -52,6 +60,7 @@ pub fn build_import_job(job_name: &str, image: &str, p: &ImportOpParams) -> Resu
         "app.kubernetes.io/managed-by": "zorvia",
         "zorvia.io/wave": p.wave_id,
         "zorvia.io/target-vm": p.target_vm_name,
+        "zorvia.io/import-mode": "vsphere",
     });
 
     let job = json!({
@@ -112,10 +121,69 @@ pub fn build_import_job(job_name: &str, image: &str, p: &ImportOpParams) -> Resu
     serde_json::from_value(job).map_err(|e| anyhow!("invalid import Job: {e}"))
 }
 
+/// Unprivileged Job that emits h2kvm-shaped stage logs so follow/cancel work
+/// without vCenter or a licensed h2kvm image.
+fn build_stub_import_job(job_name: &str, image: &str, p: &ImportOpParams) -> Result<Job> {
+    let mode = match p.mode {
+        ImportMode::Local => "local",
+        _ => "stub",
+    };
+    let labels: Value = json!({
+        "app.kubernetes.io/name": "zorvia-import",
+        "app.kubernetes.io/managed-by": "zorvia",
+        "zorvia.io/wave": p.wave_id,
+        "zorvia.io/target-vm": p.target_vm_name,
+        "zorvia.io/import-mode": mode,
+    });
+    let target = &p.target_vm_name;
+    let script = format!(
+        r#"set -e
+TARGET="{target}"
+echo "➡️  Stage: INSPECT"
+echo "✅ inspect completed in 0.10s"
+echo "➡️  Stage: EXPORT"
+echo "✅ export completed in 0.10s"
+echo "➡️  Stage: CONVERT"
+echo "✅ convert completed in 0.10s"
+echo "➡️  Stage: DEPLOY"
+echo "✅ deploy completed in 0.10s"
+echo "✅ Deployed: $TARGET"
+"#
+    );
+    let job = json!({
+        "apiVersion": "batch/v1",
+        "kind": "Job",
+        "metadata": {"name": job_name, "namespace": p.namespace, "labels": labels},
+        "spec": {
+            "backoffLimit": 0,
+            "ttlSecondsAfterFinished": 600,
+            "activeDeadlineSeconds": 600,
+            "template": {
+                "metadata": {"labels": labels},
+                "spec": {
+                    "restartPolicy": "Never",
+                    "serviceAccountName": p.service_account,
+                    "containers": [{
+                        "name": "h2kvm-stub",
+                        "image": image,
+                        "imagePullPolicy": "IfNotPresent",
+                        "command": ["sh", "-c", script],
+                        "resources": {
+                            "requests": {"cpu": "50m", "memory": "32Mi"},
+                            "limits": {"memory": "128Mi"},
+                        },
+                    }],
+                },
+            },
+        },
+    });
+    serde_json::from_value(job).map_err(|e| anyhow!("invalid stub import Job: {e}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::migration_import::{ImportVm, VsphereSource};
+    use crate::migration_import::{ImportMode, ImportVm, VsphereSource};
 
     fn params() -> ImportOpParams {
         ImportOpParams {
@@ -146,7 +214,25 @@ mod tests {
             scratch_size: "300Gi".into(),
             scratch_storage_class: Some("fast".into()),
             service_account: "zorvia-h2kvm".into(),
+            mode: ImportMode::Vsphere,
         }
+    }
+
+    #[test]
+    fn stub_job_is_unprivileged_and_has_no_secrets() {
+        let mut p = params();
+        p.mode = ImportMode::Stub;
+        let job = build_import_job("zorvia-import-stub", "busybox:1.36", &p).unwrap();
+        let spec = pod(&job);
+        assert!(spec.init_containers.as_ref().map(|c| c.is_empty()).unwrap_or(true));
+        assert_eq!(spec.containers[0].name, "h2kvm-stub");
+        assert!(spec.containers[0]
+            .env
+            .as_ref()
+            .map(|e| e.is_empty())
+            .unwrap_or(true));
+        let sc = spec.containers[0].security_context.as_ref();
+        assert!(sc.map(|c| c.privileged != Some(true)).unwrap_or(true));
     }
 
     fn pod(j: &Job) -> &k8s_openapi::api::core::v1::PodSpec {

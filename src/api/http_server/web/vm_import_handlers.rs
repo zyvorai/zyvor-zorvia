@@ -45,7 +45,12 @@ async fn preflight(client: &kube::Client, req: &ImportRequest) -> (Vec<String>, 
     let mut blockers = req.problems();
     let mut warnings = Vec::new();
 
-    if h2kvm_image().is_none() {
+    if !crate::features::allow_non_ga("vm-import-h2kvm") {
+        blockers.push(
+            "vm-import-h2kvm is Experimental; set ZORVIA_EXPERIMENTAL=1 to enable".into(),
+        );
+    }
+    if !req.mode.is_lab_stub() && h2kvm_image().is_none() {
         blockers.push(
             "ZORVIA_H2KVM_IMAGE is not set (h2kvm is licensed separately; point it at your h2kvm CLI image)"
                 .into(),
@@ -69,26 +74,28 @@ async fn preflight(client: &kube::Client, req: &ImportRequest) -> (Vec<String>, 
         Err(e) => blockers.push(format!("could not check installed API groups: {e}")),
     }
 
-    // Namespace, and whether it will admit a privileged pod.
+    // Namespace, and whether it will admit a privileged pod (vsphere only).
     let namespaces: Api<Namespace> = Api::all(client.clone());
     match namespaces.get(&req.namespace).await {
         Ok(ns) => {
-            let enforce = ns
-                .metadata
-                .labels
-                .as_ref()
-                .and_then(|l| l.get("pod-security.kubernetes.io/enforce"))
-                .cloned();
-            match enforce.as_deref() {
-                Some("privileged") => {}
-                Some(level) => blockers.push(format!(
-                    "namespace '{}' enforces Pod Security '{level}', which rejects the privileged h2kvm Job; set pod-security.kubernetes.io/enforce=privileged",
-                    req.namespace
-                )),
-                None => warnings.push(format!(
-                    "namespace '{}' has no Pod Security label; the privileged h2kvm Job needs pod-security.kubernetes.io/enforce=privileged if your cluster's default is stricter",
-                    req.namespace
-                )),
+            if !req.mode.is_lab_stub() {
+                let enforce = ns
+                    .metadata
+                    .labels
+                    .as_ref()
+                    .and_then(|l| l.get("pod-security.kubernetes.io/enforce"))
+                    .cloned();
+                match enforce.as_deref() {
+                    Some("privileged") => {}
+                    Some(level) => blockers.push(format!(
+                        "namespace '{}' enforces Pod Security '{level}', which rejects the privileged h2kvm Job; set pod-security.kubernetes.io/enforce=privileged",
+                        req.namespace
+                    )),
+                    None => warnings.push(format!(
+                        "namespace '{}' has no Pod Security label; the privileged h2kvm Job needs pod-security.kubernetes.io/enforce=privileged if your cluster's default is stricter",
+                        req.namespace
+                    )),
+                }
             }
         }
         Err(e) => blockers.push(format!("cannot inspect namespace '{}': {e}", req.namespace)),
@@ -153,17 +160,29 @@ async fn preflight(client: &kube::Client, req: &ImportRequest) -> (Vec<String>, 
         }
     }
 
-    // Zorvia has no read access to Secrets or ServiceAccounts by design.
-    warnings.push(format!(
-        "Secret '{}' (vCenter credentials) and ServiceAccount '{}' must already exist in namespace '{}'; Zorvia cannot verify them",
-        req.source.secret_name,
-        req.service_account.as_deref().unwrap_or("zorvia-h2kvm"),
-        req.namespace
-    ));
-    warnings.push(
-        "vCenter reachability and the scratch size (must hold the largest disk twice over) are not checked until the Job runs"
-            .into(),
-    );
+    if req.mode.is_lab_stub() {
+        warnings.push(
+            "mode=stub|local: Job emits stage logs only; no VirtualMachine is created (lab orchestration proof)"
+                .into(),
+        );
+        warnings.push(format!(
+            "ServiceAccount '{}' must exist in namespace '{}' if you override the default",
+            req.service_account.as_deref().unwrap_or("default"),
+            req.namespace
+        ));
+    } else {
+        // Zorvia has no read access to Secrets or ServiceAccounts by design.
+        warnings.push(format!(
+            "Secret '{}' (vCenter credentials) and ServiceAccount '{}' must already exist in namespace '{}'; Zorvia cannot verify them",
+            req.source.secret_name,
+            req.service_account.as_deref().unwrap_or("zorvia-h2kvm"),
+            req.namespace
+        ));
+        warnings.push(
+            "vCenter reachability and the scratch size (must hold the largest disk twice over) are not checked until the Job runs"
+                .into(),
+        );
+    }
     (blockers, warnings)
 }
 
@@ -171,6 +190,14 @@ pub async fn preflight_import_handler(
     State(state): State<SharedState>,
     Json(req): Json<ImportRequest>,
 ) -> impl IntoResponse {
+    if !crate::features::allow_non_ga("vm-import-h2kvm") {
+        let (st, j) = err_json(
+            403,
+            "EXPERIMENTAL_DISABLED",
+            "vm-import-h2kvm is Experimental; set ZORVIA_EXPERIMENTAL=1 to enable",
+        );
+        return (st, j).into_response();
+    }
     let client = state.read().await.kube_client.client();
     let (blockers, warnings) = preflight(&client, &req).await;
     Json(json!({ "ready": blockers.is_empty(), "blockers": blockers, "warnings": warnings }))
@@ -182,6 +209,14 @@ pub async fn create_import_handler(
     auth: Option<axum::Extension<crate::api::auth::AuthIdentity>>,
     Json(req): Json<ImportRequest>,
 ) -> impl IntoResponse {
+    if !crate::features::allow_non_ga("vm-import-h2kvm") {
+        let (st, j) = err_json(
+            403,
+            "EXPERIMENTAL_DISABLED",
+            "vm-import-h2kvm is Experimental; set ZORVIA_EXPERIMENTAL=1 to enable",
+        );
+        return (st, j).into_response();
+    }
     let (client, audit) = {
         let s = state.read().await;
         (s.kube_client.client(), s.audit.clone())
