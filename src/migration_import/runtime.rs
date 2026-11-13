@@ -270,8 +270,8 @@ async fn create_local_empty_vm(client: &kube::Client, p: &ImportOpParams) -> any
             }
         }
     });
-    let vm: DynamicObject = serde_json::from_value(body)
-        .map_err(|e| anyhow::anyhow!("invalid local VM body: {e}"))?;
+    let vm: DynamicObject =
+        serde_json::from_value(body).map_err(|e| anyhow::anyhow!("invalid local VM body: {e}"))?;
     let vms = vm_api(client, &p.namespace);
     vms.create(&PostParams::default(), &vm)
         .await

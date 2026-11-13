@@ -3137,9 +3137,7 @@ pub mod web {
     ) -> impl IntoResponse {
         let default_ns = state.read().await.namespace.clone();
         let namespace = body.namespace.unwrap_or(default_ns);
-        let restore_namespace = body
-            .restore_namespace
-            .unwrap_or_else(|| "zorvia-dr".into());
+        let restore_namespace = body.restore_namespace.unwrap_or_else(|| "zorvia-dr".into());
         match crate::enterprise::CrossClusterDrRun::try_run(
             body.source_cluster,
             body.target_cluster,

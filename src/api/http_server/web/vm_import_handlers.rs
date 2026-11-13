@@ -46,9 +46,8 @@ async fn preflight(client: &kube::Client, req: &ImportRequest) -> (Vec<String>, 
     let mut warnings = Vec::new();
 
     if !crate::features::allow_non_ga("vm-import-h2kvm") {
-        blockers.push(
-            "vm-import-h2kvm is Experimental; set ZORVIA_EXPERIMENTAL=1 to enable".into(),
-        );
+        blockers
+            .push("vm-import-h2kvm is Experimental; set ZORVIA_EXPERIMENTAL=1 to enable".into());
     }
     if !req.mode.is_lab_stub() && h2kvm_image().is_none() {
         blockers.push(

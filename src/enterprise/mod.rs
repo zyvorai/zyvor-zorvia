@@ -332,7 +332,8 @@ impl CrossClusterDrRun {
         }
         if vm_names.is_empty() {
             return Err(
-                "vm_names must not be empty (or pass backup_operation_ids for restore phase)".into(),
+                "vm_names must not be empty (or pass backup_operation_ids for restore phase)"
+                    .into(),
             );
         }
         match crate::backup::offcluster::OffClusterTarget::resolve().await {
