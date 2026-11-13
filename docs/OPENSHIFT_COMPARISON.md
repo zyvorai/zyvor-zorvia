@@ -8,6 +8,13 @@
 
 The primary comparator is OpenShift Virtualization Engine. Zorvia does not imply equivalent certification, feature maturity or support coverage. Where OpenShift is the better fit, [leave-openshift.md](leave-openshift.md) says so.
 
+## Worksheet
+
+Fill [OVE_COST_WORKSHEET.md](OVE_COST_WORKSHEET.md) or run
+`./scripts/ove-cost-worksheet.sh <nodes> <inr|usd> <supported|supported-plus> [ove_year1]`.
+It estimates Zorvia support from [PRICING.md](PRICING.md) and optionally subtracts
+that from **your** OVE year-1 figure. It does not publish OpenShift prices.
+
 ## How to compare: use a customer-specific proposal
 
 Put both proposals side by side on the same assumptions:
