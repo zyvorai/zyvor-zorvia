@@ -224,7 +224,11 @@ mod tests {
         p.mode = ImportMode::Stub;
         let job = build_import_job("zorvia-import-stub", "busybox:1.36", &p).unwrap();
         let spec = pod(&job);
-        assert!(spec.init_containers.as_ref().map(|c| c.is_empty()).unwrap_or(true));
+        assert!(spec
+            .init_containers
+            .as_ref()
+            .map(|c| c.is_empty())
+            .unwrap_or(true));
         assert_eq!(spec.containers[0].name, "h2kvm-stub");
         assert!(spec.containers[0]
             .env
