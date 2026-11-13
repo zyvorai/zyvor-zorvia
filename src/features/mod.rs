@@ -152,7 +152,7 @@ pub const FEATURES: &[Feature] = &[
         id: "cross-cluster-dr",
         name: "Cross-cluster VM mobility / DR",
         maturity: Maturity::Experimental,
-        notes: "Phase 5 — plan + POST /api/v1/enterprise/cross-cluster-dr/run (same-cluster off-cluster backup/restore rehearsal)",
+        notes: "Phase 5 — plan + POST /api/v1/enterprise/cross-cluster-dr/run (same-cluster MinIO/S3 backup→restore rehearsal; lab: scripts/lab-minio-backup.sh)",
     },
     Feature {
         id: "transiva-migration",
@@ -164,13 +164,13 @@ pub const FEATURES: &[Feature] = &[
         id: "vm-import-h2kvm",
         name: "VMware → KubeVirt import via h2kvm Jobs",
         maturity: Maturity::Experimental,
-        notes: "Requires ZORVIA_EXPERIMENTAL=1; POST /api/vm-imports runs h2kvmctl (needs ZORVIA_H2KVM_IMAGE) or mode=stub|local lab Jobs; admin console, fail-closed preflight, NIC mapping, cutover, cancel; not yet exercised against a real vCenter",
+        notes: "Requires ZORVIA_EXPERIMENTAL=1; mode=stub Job-only; mode=local Job+stopped emptyDisk VM; vsphere needs ZORVIA_H2KVM_IMAGE; not yet exercised against a real vCenter",
     },
     Feature {
         id: "golden-image-pipeline",
         name: "Golden-image build/scan/sign/promote",
         maturity: Maturity::Experimental,
-        notes: "Plan + POST /api/v1/enterprise/golden-pipeline/run applies CDI DV/DS; scan/sign deferred",
+        notes: "Plan marks scan:deferred/sign:deferred; /run applies CDI DV/DS (build+promote); cosign/scan operator-owned",
     },
     Feature {
         id: "commercial-contracts",
@@ -182,7 +182,7 @@ pub const FEATURES: &[Feature] = &[
         id: "gpu-sriov-numa",
         name: "GPU/SR-IOV/NUMA placement",
         maturity: Maturity::Experimental,
-        notes: "GPU / host-device passthrough and SR-IOV at VM create with scheduling preflight, inventory, permit/remove (Helm devices.managePermitted), NUMA/dedicated-CPU/hugepage checks (docs/DEVICES.md). Placement plan at /api/v1/enterprise/placement/gpu-numa runs live inventory preflight (patches not applied). Lab fake-device script; not proven on real GPU/SR-IOV hardware",
+        notes: "GPU / host-device passthrough and SR-IOV at VM create with scheduling preflight, inventory, permit/remove (Helm devices.managePermitted), NUMA/dedicated-CPU/hugepage checks (docs/DEVICES.md). Placement plan runs live inventory preflight. Lab: deploy/lab-fake-gpu-device-plugin.yaml + scripts/lab-fake-gpu-device.sh; not proven on real GPU/SR-IOV hardware",
     },
     Feature {
         id: "fleet-multicluster",

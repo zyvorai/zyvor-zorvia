@@ -162,8 +162,13 @@ async fn preflight(client: &kube::Client, req: &ImportRequest) -> (Vec<String>, 
 
     if req.mode.is_lab_stub() {
         warnings.push(
-            "mode=stub|local: Job emits stage logs only; no VirtualMachine is created (lab orchestration proof)"
-                .into(),
+            if matches!(req.mode, crate::migration_import::ImportMode::Local) {
+                "mode=local: Job emits stage logs, then creates a stopped emptyDisk VirtualMachine (lab)"
+                    .into()
+            } else {
+                "mode=stub: Job emits stage logs only; no VirtualMachine is created (lab orchestration proof)"
+                    .into()
+            },
         );
         warnings.push(format!(
             "ServiceAccount '{}' must exist in namespace '{}' if you override the default",

@@ -30,12 +30,18 @@ it.
    (`scratch_size`, default 200Gi). It must hold the largest disk about twice
    over (the export and the converted image).
 
-## Lab stub mode (no vCenter)
+## Lab stub / local modes (no vCenter)
 
-Send `"mode": "stub"` (or `"local"`) on the import body with an empty
+Send `"mode": "stub"` or `"mode": "local"` on the import body with an empty
 `source.vcenter` / `source.secret_name`. Zorvia starts an unprivileged Job that
 emits h2kvm-shaped stage logs so follow/cancel and wave progress can be tested.
-No VirtualMachine is created (`vm_created: false` on success).
+
+| Mode | After Job success |
+|---|---|
+| `stub` | No VirtualMachine (`vm_created: false`) |
+| `local` | Creates a **stopped** emptyDisk VirtualMachine (`vm_created: true`, `disk: emptyDisk`) |
+
+`local` still does not talk to vCenter or pull disks; it is for lab cutover/UI flows that need a real halted VM object.
 
 ## Use
 

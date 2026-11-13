@@ -104,6 +104,9 @@ API answers 403 `RBAC_DENIED` and says so.
 1. A **device plugin** for the hardware (NVIDIA GPU operator / KubeVirt GPU device plugin, the SR-IOV network
    device plugin, ...) so nodes advertise the resource.
 2. The device in the KubeVirt CR's `permittedHostDevices`: from the console or API above (with `devices.managePermitted`), or yourself.
+   Lab without NVIDIA hardware: `scripts/lab-fake-gpu-device.sh` +
+   `deploy/lab-fake-gpu-device-plugin.yaml` advertise `lab.zorvia.io/fake-gpu`
+   (permit with `external_resource_provider: true`, then preflight/create).
 3. For SR-IOV: Multus and a `NetworkAttachmentDefinition` whose annotation `k8s.v1.cni.cncf.io/resourceName`
    names the VF pool. On older KubeVirt versions, the `GPU` / `HostDevices` feature gates.
 4. Host prerequisites for passthrough (IOMMU enabled, VFIO binding, the CPU manager static policy, reserved hugepages) are the node's job.
