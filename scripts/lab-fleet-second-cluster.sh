@@ -33,7 +33,16 @@ fi
 echo "==> Create second cluster ($NAME)"
 if have k3d; then
   if ! k3d_cmd cluster list 2>/dev/null | grep -qw "$NAME"; then
-    k3d_cmd cluster create "$NAME" --agents 0 --servers 1 --wait
+    # Optional TLS SAN / API bind so another cluster's pods can reach this API
+    # via the host IP (set ZORVIA_FLEET_TLS_SAN=80.x.x.x).
+    EXTRA=()
+    if [[ -n "${ZORVIA_FLEET_TLS_SAN:-}" ]]; then
+      EXTRA+=(--k3s-arg "--tls-san=${ZORVIA_FLEET_TLS_SAN}@server:0")
+    fi
+    if [[ -n "${ZORVIA_FLEET_API_PORT:-}" ]]; then
+      EXTRA+=(--api-port "${ZORVIA_FLEET_API_PORT}")
+    fi
+    k3d_cmd cluster create "$NAME" --agents 0 --servers 1 --wait "${EXTRA[@]}"
   else
     echo "    k3d cluster $NAME already exists"
   fi
