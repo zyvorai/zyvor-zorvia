@@ -21,6 +21,9 @@ Zorvia install notes
 {{- if and .Values.service (eq .Values.service.type "NodePort") .Values.service.nodePort }}
 
 3. Console: https://<node>:{{ .Values.service.nodePort }}
+{{- else if .Values.openshift.route.enabled }}
+
+3. Console: https://{{ .Values.openshift.route.host | default "<openshift-route-host>" }} (OpenShift Route, passthrough TLS)
 {{- else if .Values.httpRoute.enabled }}
 
 3. Console: https://{{ first .Values.httpRoute.hostnames }}
@@ -30,6 +33,10 @@ Zorvia install notes
 {{- else }}
 
 3. Port-forward: kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "zorvia.fullname" . }} 8443:443
+{{- end }}
+{{- if or .Values.openshift.route.enabled .Values.openshift.scc.create .Values.openshift.scc.bindExisting }}
+
+OpenShift: Route/SCC templates are enabled. Confirm the pod is admitted (oc describe pod) and the Route shows Admitted=True. See docs/adopt-existing-kubevirt-cluster.md.
 {{- end }}
 
 4. Health: /api/v1/health

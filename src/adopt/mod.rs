@@ -56,7 +56,10 @@ pub struct AdoptReport {
 const OUTSIDE_TODAY: &[&str] = &[
     "fleet-multicluster",
     "transiva-migration",
+    "vm-import-h2kvm",
     "cross-cluster-dr",
+    "gpu-sriov-numa",
+    "golden-image-pipeline",
 ];
 
 const NOTE: &str = "Read-only report. Not verified against OpenShift Virtualization; \
@@ -175,6 +178,10 @@ mod tests {
             .outside_zorvia_today
             .iter()
             .all(|f| !matches!(f.maturity, Maturity::Ga | Maturity::Beta)));
+        let ids: Vec<_> = r.outside_zorvia_today.iter().map(|f| f.id).collect();
+        assert!(ids.contains(&"vm-import-h2kvm"));
+        assert!(ids.contains(&"gpu-sriov-numa"));
+        assert!(ids.contains(&"fleet-multicluster"));
     }
 
     #[test]

@@ -37,6 +37,13 @@ kubeconfig affects only that cluster. Restart after registry changes.
 Enroll each physical cluster once: identity is administrator assigned; two
 contexts pointing at the same API server would double-count that inventory.
 
+Lab helpers:
+
+- `scripts/lab-fleet-dual-enroll.sh` — same API twice (`local` + `lab-alias`) for
+  remote probing without a second cluster.
+- `scripts/lab-fleet-second-cluster.sh` — creates a **distinct** k3d/kind API and
+  prints a registry fragment + read-only kubeconfig (true multi-API inventory).
+
 Mount kubeconfigs as **read-only Kubernetes Secrets**, separately from the
 registry ConfigMap. They need HTTPS, verified TLS, and embedded credentials
 (`token` or `client-certificate-data`/`client-key-data`) and, for private CAs,
