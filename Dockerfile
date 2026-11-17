@@ -39,7 +39,7 @@ COPY src/ src/
 RUN touch src/main.rs src/lib.rs && cargo build --release --locked && strip target/release/zorvia
 
 # Runtime image
-FROM debian:bookworm-slim@sha256:7ff6ba31527b9e336162fa061746c366c4b2032f4d2cff2078bea43f78efe3f8
+FROM debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates openssh-client \
