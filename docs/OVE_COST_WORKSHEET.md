@@ -30,7 +30,7 @@ Annual support is the **greater of** (nodes × per-node) and the annual minimum.
 | Supported (INR) | ₹30,000 | ₹1.5 lakh |
 | Supported Plus (INR) | ₹60,000 | ₹4 lakh |
 | Supported (USD) | $600 | $3,000 |
-| Supported Plus (USD) | $1,200 | $6,000 |
+| Supported Plus (USD) | $1,200 | $8,000 |
 
 Optional one-time (not support): Deployment ₹1–3 lakh / from $3,000;
 Migration from ₹2 lakh / $5,000. Managed is quoted separately.

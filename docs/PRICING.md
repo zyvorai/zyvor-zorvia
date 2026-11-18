@@ -3,7 +3,9 @@
 > **Note:** Zyvor is moving to an enterprise subscription model for new quotes: an annual subscription that includes updates and the stated support level, with open-source and non-production terms unchanged. See `docs/SUBSCRIPTION-MODEL.md` in this repository. Rates below apply to existing agreements; contact [sales@zyvor.dev](mailto:sales@zyvor.dev) for current rates.
 
 
-> **Approved launch prices.** These are the launch prices for Zorvia services. Final terms are in your signed order form. No billing, payment collection or entitlement enforcement exists in the product yet.
+> **Approved launch prices.** The India and International tables below are the approved launch prices for Zorvia services. Final terms are in your signed order form.
+>
+> **Draft, not approved:** the section "Relationship to Zyvor Platform editions (proposal v1.2)" is a proposal pending commercial approval. It does not change the approved prices above it. No billing, payment collection or entitlement enforcement exists in the product yet.
 
 ## The software stays free
 
@@ -30,7 +32,7 @@ These are independently set regional prices, **not currency conversions** of the
 | Offering | Starting price | Billing period |
 |---|---:|---|
 | Supported | $600 per worker node; $3,000 annual minimum | Per year |
-| Supported Plus | $1,200 per worker node; $6,000 annual minimum | Per year |
+| Supported Plus | $1,200 per worker node; $8,000 annual minimum | Per year |
 | Managed | $1,500 per cluster | Per month |
 | Deployment | $3,000 per project | One-time |
 | Migration | $5,000 per project | Per project |
@@ -43,7 +45,7 @@ Zorvia's per-node support prices above are the **open-source support meter** in 
 - **Zyvor Platform Enterprise and above** ($149 / physical core / year; founding price $129 in year 1 for the first 25 customers) include Zorvia **Supported Plus** on the covered hosts. Do not add a second Zorvia subscription for those nodes.
 - **Zyvor Platform Professional** ($79 / core) does not include Zorvia support; Zorvia **Supported** ($600 / worker node) can be added.
 - One support subscription per covered node covers all Apache-2.0 Zyvor infrastructure products on that node, not one subscription per product.
-- Edition minimums are $3,000 (Professional) and $6,000 (Enterprise); the core floor is 16 cores per CPU.
+- Edition minimums are $3,000 (Professional) and $6,000 (Enterprise); the core floor is 16 cores per CPU. The proposal also lowers the USD Supported Plus minimum from $8,000 to $6,000; until approved, the $8,000 in the table above applies.
 - Volume bands (256–499 units −10%, 500–999 −15%, 1,000+ −20%) and term discounts (2-year −5%, 3-year −10%, combined cap −25%) need commercial approval; annual minimums apply after discounts.
 - VM migration is priced per VM on one ladder: $75 (1–99 VMs), $60 (100–499), $50 (500+), project minimum $2,500. This replaces the $5,000 per-project starting price only where a per-VM quote is used.
 - **Getting started:** the software is free (Community: up to 64 cores / 4 nodes). A free two-week migration assessment, a 60-day proof of concept, a capped 90-day migration promotion and a startup program are available by agreement. Program discounts never stack and total at most 50%.
@@ -71,8 +73,8 @@ Hardware, infrastructure hosting, third-party subscriptions, travel and applicab
 
 | Worker nodes | Supported (India) | Supported Plus (India) | Supported (USD) | Supported Plus (USD) |
 |---:|---:|---:|---:|---:|
-| 3 | ₹1.5 lakh (minimum) | ₹4 lakh (minimum) | $3,000 (minimum) | $6,000 (minimum) |
-| 5 | ₹1.5 lakh (= 5 × ₹30,000) | ₹4 lakh (minimum) | $3,000 (= 5 × $600) | $6,000 (= 5 × $1,200) |
+| 3 | ₹1.5 lakh (minimum) | ₹4 lakh (minimum) | $3,000 (minimum) | $8,000 (minimum) |
+| 5 | ₹1.5 lakh (= 5 × ₹30,000) | ₹4 lakh (minimum) | $3,000 (= 5 × $600) | $8,000 (minimum) |
 | 8 | ₹2.4 lakh | ₹4.8 lakh | $4,800 | $9,600 |
 | 12 | ₹3.6 lakh | ₹7.2 lakh | $7,200 | $14,400 |
 
