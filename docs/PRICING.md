@@ -42,13 +42,13 @@ These are independently set regional prices, **not currency conversions** of the
 
 Zorvia's per-node support prices above are the **open-source support meter** in the Zyvor pricing proposal v1.2 and apply to Zorvia alone.
 
-- **Zyvor Platform Enterprise and above** ($149 / physical core / year; founding price $129 in year 1 for the first 25 customers) include Zorvia **Supported Plus** on the covered hosts. Do not add a second Zorvia subscription for those nodes.
-- **Zyvor Platform Professional** ($79 / core) does not include Zorvia support; Zorvia **Supported** ($600 / worker node) can be added.
+- **Zyvor Platform Enterprise and above** ($8,500 per node per year; founding price $7,350 in year 1 for the first 25 customers) include Zorvia **Supported Plus** on the covered hosts. Do not add a second Zorvia subscription for those nodes.
+- **Zyvor Platform Professional** ($4,500 per node per year) does not include Zorvia support; Zorvia **Supported** ($600 / worker node) can be added.
 - One support subscription per covered node covers all Apache-2.0 Zyvor infrastructure products on that node, not one subscription per product.
-- Edition minimums are $3,000 (Professional) and $6,000 (Enterprise); the core floor is 16 cores per CPU. The proposal also lowers the USD Supported Plus minimum from $8,000 to $6,000; until approved, the $8,000 in the table above applies.
-- Volume bands (256–499 units −10%, 500–999 −15%, 1,000+ −20%) and term discounts (2-year −5%, 3-year −10%, combined cap −25%) need commercial approval; annual minimums apply after discounts.
+- A node is one physical server with up to 2 CPU sockets and 64 cores. The minimum for every platform edition is one node. The proposal also lowers the USD Supported Plus minimum from $8,000 to $6,000; until approved, the $8,000 in the table above applies.
+- Volume bands (4–7 nodes −10%, 8–15 −15%, 16+ −20%) and term discounts (2-year −5%, 3-year −10%, combined cap −25%) need commercial approval; annual minimums apply after discounts.
 - VM migration is priced per VM on one ladder: $75 (1–99 VMs), $60 (100–499), $50 (500+), project minimum $2,500. This replaces the $5,000 per-project starting price only where a per-VM quote is used.
-- **Getting started:** the software is free (Community: up to 64 cores / 4 nodes). A free two-week migration assessment, a 30-day proof of concept (extendable by agreement), a capped 90-day migration promotion and a startup program are available by agreement. Program discounts never stack and total at most 50%.
+- **Getting started:** the software is free (Community: up to 4 nodes with 64 cores in total). A free two-week migration assessment, a 30-day proof of concept (extendable by agreement), a capped 90-day migration promotion and a startup program are available by agreement. Program discounts never stack and total at most 50%.
 - The founding price cannot be combined with the proof-of-concept or any program discount; volume and term bands are capped at 25% in total, measured against list price.
 - Renewal increases are capped at 7%. Counts use a fixed measurement date; true-ups are prospective only, with a 90-day grace period.
 
