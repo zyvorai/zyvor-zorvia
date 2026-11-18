@@ -36,6 +36,18 @@ These are independently set regional prices, **not currency conversions** of the
 | Migration | $5,000 per project | Per project |
 | Training | Custom quote | n/a |
 
+## Relationship to Zyvor Platform editions (proposal v1.1)
+
+Zorvia's per-node support prices above are the **open-source support meter** in the Zyvor pricing proposal v1.1 and apply to Zorvia alone.
+
+- **Zyvor Platform Enterprise and above** ($149 / physical core / year) include Zorvia **Supported Plus** on the covered hosts. Do not add a second Zorvia subscription for those nodes.
+- **Zyvor Platform Professional** ($79 / core) does not include Zorvia support; Zorvia **Supported** ($600 / worker node) can be added.
+- One support subscription per covered node covers all Apache-2.0 Zyvor infrastructure products on that node, not one subscription per product.
+- Volume bands (256–499 units −10%, 500–999 −15%, 1,000+ −20%) and term discounts (2-year −5%, 3-year −10%, combined cap −25%) are proposed in v1.1 and need commercial approval; annual minimums apply after discounts.
+- VM migration is priced per VM on one ladder: $75 (1–99 VMs), $60 (100–499), $50 (500+), project minimum $2,500. This replaces the $5,000 per-project starting price only where a per-VM quote is used.
+
+Draft status: the v1.1 platform and bundle rates are proposals pending approval. Source: `zyvorai/zyvor-pricing`.
+
 ## What is not included
 
 Hardware, infrastructure hosting, third-party subscriptions, travel and applicable taxes are additional. So is any service listed as "separately scoped" in [SUPPORT_SCOPE.md](SUPPORT_SCOPE.md).
