@@ -30,7 +30,7 @@ These are independently set regional prices, **not currency conversions** of the
 | Offering | Starting price | Billing period |
 |---|---:|---|
 | Supported | $600 per worker node; $3,000 annual minimum | Per year |
-| Supported Plus | $1,200 per worker node; $8,000 annual minimum | Per year |
+| Supported Plus | $1,200 per worker node; $6,000 annual minimum | Per year |
 | Managed | $1,500 per cluster | Per month |
 | Deployment | $3,000 per project | One-time |
 | Migration | $5,000 per project | Per project |
@@ -47,6 +47,7 @@ Zorvia's per-node support prices above are the **open-source support meter** in 
 - Volume bands (256–499 units −10%, 500–999 −15%, 1,000+ −20%) and term discounts (2-year −5%, 3-year −10%, combined cap −25%) need commercial approval; annual minimums apply after discounts.
 - VM migration is priced per VM on one ladder: $75 (1–99 VMs), $60 (100–499), $50 (500+), project minimum $2,500. This replaces the $5,000 per-project starting price only where a per-VM quote is used.
 - **Getting started:** the software is free (Community: up to 64 cores / 4 nodes). A free two-week migration assessment, a 60-day proof of concept, a capped 90-day migration promotion and a startup program are available by agreement. Program discounts never stack and total at most 50%.
+- The founding price cannot be combined with the proof-of-concept or any program discount; volume and term bands are capped at 25% in total, measured against list price.
 - Renewal increases are capped at 7%. Counts use a fixed measurement date; true-ups are prospective only, with a 90-day grace period.
 
 Draft status: the v1.2 platform and bundle rates are proposals pending approval and are not binding until a written quotation or order form. Contact [sales@zyvor.dev](mailto:sales@zyvor.dev).
@@ -70,8 +71,8 @@ Hardware, infrastructure hosting, third-party subscriptions, travel and applicab
 
 | Worker nodes | Supported (India) | Supported Plus (India) | Supported (USD) | Supported Plus (USD) |
 |---:|---:|---:|---:|---:|
-| 3 | ₹1.5 lakh (minimum) | ₹4 lakh (minimum) | $3,000 (minimum) | $8,000 (minimum) |
-| 5 | ₹1.5 lakh (= 5 × ₹30,000) | ₹4 lakh (minimum) | $3,000 (= 5 × $600) | $8,000 (minimum) |
+| 3 | ₹1.5 lakh (minimum) | ₹4 lakh (minimum) | $3,000 (minimum) | $6,000 (minimum) |
+| 5 | ₹1.5 lakh (= 5 × ₹30,000) | ₹4 lakh (minimum) | $3,000 (= 5 × $600) | $6,000 (= 5 × $1,200) |
 | 8 | ₹2.4 lakh | ₹4.8 lakh | $4,800 | $9,600 |
 | 12 | ₹3.6 lakh | ₹7.2 lakh | $7,200 | $14,400 |
 
