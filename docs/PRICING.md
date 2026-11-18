@@ -36,17 +36,20 @@ These are independently set regional prices, **not currency conversions** of the
 | Migration | $5,000 per project | Per project |
 | Training | Custom quote | n/a |
 
-## Relationship to Zyvor Platform editions (proposal v1.1)
+## Relationship to Zyvor Platform editions (proposal v1.2)
 
-Zorvia's per-node support prices above are the **open-source support meter** in the Zyvor pricing proposal v1.1 and apply to Zorvia alone.
+Zorvia's per-node support prices above are the **open-source support meter** in the Zyvor pricing proposal v1.2 and apply to Zorvia alone.
 
-- **Zyvor Platform Enterprise and above** ($149 / physical core / year) include Zorvia **Supported Plus** on the covered hosts. Do not add a second Zorvia subscription for those nodes.
+- **Zyvor Platform Enterprise and above** ($149 / physical core / year; founding price $129 in year 1 for the first 25 customers) include Zorvia **Supported Plus** on the covered hosts. Do not add a second Zorvia subscription for those nodes.
 - **Zyvor Platform Professional** ($79 / core) does not include Zorvia support; Zorvia **Supported** ($600 / worker node) can be added.
 - One support subscription per covered node covers all Apache-2.0 Zyvor infrastructure products on that node, not one subscription per product.
-- Volume bands (256–499 units −10%, 500–999 −15%, 1,000+ −20%) and term discounts (2-year −5%, 3-year −10%, combined cap −25%) are proposed in v1.1 and need commercial approval; annual minimums apply after discounts.
+- Edition minimums are $3,000 (Professional) and $6,000 (Enterprise); the core floor is 16 cores per CPU.
+- Volume bands (256–499 units −10%, 500–999 −15%, 1,000+ −20%) and term discounts (2-year −5%, 3-year −10%, combined cap −25%) need commercial approval; annual minimums apply after discounts.
 - VM migration is priced per VM on one ladder: $75 (1–99 VMs), $60 (100–499), $50 (500+), project minimum $2,500. This replaces the $5,000 per-project starting price only where a per-VM quote is used.
+- **Getting started:** the software is free (Community: up to 64 cores / 4 nodes). A free two-week migration assessment, a 60-day proof of concept, a capped 90-day migration promotion and a startup program are available by agreement. Program discounts never stack and total at most 50%.
+- Renewal increases are capped at 7%. Counts use a fixed measurement date; true-ups are prospective only, with a 90-day grace period.
 
-Draft status: the v1.1 platform and bundle rates are proposals pending approval. Source: `zyvorai/zyvor-pricing`.
+Draft status: the v1.2 platform and bundle rates are proposals pending approval and are not binding until a written quotation or order form. Contact [sales@zyvor.dev](mailto:sales@zyvor.dev).
 
 ## What is not included
 
