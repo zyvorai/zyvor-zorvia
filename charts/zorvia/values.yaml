@@ -1,0 +1,180 @@
+# Default values — lab-friendly. Override with values-production.yaml for prod.
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Create the release namespace if missing (useful for first install).
+createNamespace: false
+
+image:
+  repository: zorvia
+  tag: local
+  pullPolicy: Never
+
+# Lab mode allows known bootstrap credentials and the shared API key.
+labMode: true
+
+replicaCount: 1
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# cluster = ClusterRole (default). namespace = Role limited to release namespace.
+rbac:
+  create: true
+  scope: cluster
+  # Optional near-cluster-admin SA for Rook operator bootstrap only.
+  rookBootstrap: false
+
+auth:
+  # Existing Secret name (must provide admin-user, admin-password, jwt-secret).
+  # Leave empty to rely on an externally managed Secret named <fullname>-auth.
+  existingSecret: ""
+  secretName: "" # computed; set to override
+  # When true and existingSecret empty, chart fails NOTES with create instructions.
+  # Secrets are never generated into committed values.
+
+database:
+  # PostgreSQL for users/tokens/revocations (docs/POSTGRES.md). Empty = SQLite on the data volume.
+  # Prefer existingSecret (a Secret holding the connection URL) over a URL in values.
+  url: ""
+  existingSecret: ""
+  secretKey: url
+  # One-time copy of an existing auth.db into an empty database (idempotent; turn off afterwards).
+  import: false
+
+service:
+  type: NodePort
+  port: 443
+  targetPort: https
+  nodePort: 30152
+  annotations: {}
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: zorvia.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  # - secretName: zorvia-tls
+  #   hosts:
+  #     - zorvia.example.com
+
+# Gateway API exposure (Envoy Gateway). Requires the Gateway API CRDs and an Envoy Gateway
+# install; see README. Use instead of `ingress` (keep that for non-Envoy ingress controllers).
+httpRoute:
+  enabled: false
+  annotations: {}
+  hostnames:
+    - zorvia.example.com
+  # Gateways the route attaches to. Defaults to the Gateway created below when gateway.create=true.
+  parentRefs: []
+  # - name: eg
+  #   namespace: envoy-gateway-system
+  gateway:
+    # Create a Gateway (HTTP :80 redirect + HTTPS :443) for this release.
+    create: false
+    className: eg
+    annotations: {}
+    # TLS Secret for the HTTPS listener (e.g. issued by cert-manager's gateway-shim).
+    tlsSecretName: zorvia-tls
+
+tls:
+  # In-pod self-signed cert via init container (lab). Disable when using Ingress TLS.
+  inPod: true
+  initImage: alpine/openssl:3.5.8
+
+devices:
+  # Let cluster admins permit/remove passthrough devices in the KubeVirt CR from Zorvia
+  # (adds `patch` on kubevirts to the service account). Off by default: read-only inventory and preflight.
+  managePermitted: false
+
+ha:
+  # Needed for replicaCount > 1 (which also needs `database` and api.leaderElection): confirms you
+  # do not rely on commercial-offerings records or the JSONL audit sidecar, which stay per replica.
+  acceptLocalState: false
+
+persistence:
+  enabled: true
+  size: 1Gi
+  storageClassName: ""
+  accessModes:
+    - ReadWriteOnce
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+networkPolicy:
+  enabled: false
+  # Allow ingress from anywhere on the service port when enabled with empty from.
+  ingressFrom: []
+
+affinity: {}
+topologySpreadConstraints: []
+nodeSelector: {}
+tolerations: []
+podAnnotations: {}
+podLabels: {}
+# Optional pod-level securityContext override (fsGroup / seccomp).
+podSecurityContext: {}
+
+# Model Context Protocol endpoint (POST /api/mcp) for AI assistants; see docs/MCP.md.
+# Off by default. Calls run with the caller's own token, so RBAC and audit apply unchanged.
+mcp:
+  enabled: false
+  # Tools to withhold even when MCP is on, e.g. [delete_vm, delete_snapshot, revert_snapshot].
+  disableTools: []
+
+# API process behaviour
+api:
+  port: 5151
+  exposeHost: ""
+  # Persist audit trail alongside auth.db on the data volume.
+  auditDbPath: /data/audit.db
+  # Optional append-only JSONL sidecar for SIEM (Loki/Fluent Bit). Empty = off.
+  auditJsonlPath: ""
+  # Kubernetes Lease-based leader election for background schedulers.
+  leaderElection: true
+  leaderElectionLease: zorvia-schedulers
+  jwtTtlMinutes: "60"
+
+# Atlas storage control plane (docs/ATLAS_INTEGRATION.md). Empty url = integration off.
+atlas:
+  url: ""              # e.g. http://atlas-gateway.zyvor-system.svc:5110
+  tokenSecret: ""      # Secret holding an Atlas service-account JWT (operator or admin role)
+  tokenSecretKey: token
+
+kryton:
+  existingSecret: ""
+  # Keys: url, token, project (optional)
+
+extraEnv: []
+
+# OpenShift / OKD: Route (passthrough TLS) and optional SCC. Off by default so
+# plain Kubernetes installs do not need route.openshift.io CRDs. See
+# values-openshift.yaml and docs/adopt-existing-kubevirt-cluster.md.
+openshift:
+  route:
+    enabled: false
+    host: ""
+    annotations: {}
+  scc:
+    create: false
+    # Bind the release ServiceAccount to an existing SCC, e.g. "anyuid" or
+    # "nonroot". Creates a RoleBinding to system:openshift:scc:<name>.
+    bindExisting: ""

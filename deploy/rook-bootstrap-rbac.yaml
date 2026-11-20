@@ -1,0 +1,60 @@
+# Optional Rook operator bootstrap privileges.
+#
+# Apply ONLY when you intentionally want Zorvia (or a one-shot Job) to install
+# the Rook operator + CRDs. Never bind these rights to the core `zorvia`
+# ServiceAccount used by the API Deployment.
+#
+#   kubectl apply -f deploy/rook-bootstrap-rbac.yaml
+#
+# To run bootstrap, use a Job that mounts this SA, or temporarily patch the
+# Deployment's serviceAccountName to zorvia-rook-bootstrap for the bootstrap
+# call, then switch back to `zorvia`.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: zorvia-rook-bootstrap
+  namespace: zorvia-system
+  labels:
+    app.kubernetes.io/name: zorvia
+    app.kubernetes.io/component: rook-bootstrap
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: zorvia-rook-bootstrap
+  labels:
+    app.kubernetes.io/name: zorvia
+    app.kubernetes.io/component: rook-bootstrap
+rules:
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["clusterroles", "clusterrolebindings", "roles", "rolebindings"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "daemonsets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts", "configmaps", "namespaces"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["ceph.rook.io"]
+    resources: ["cephclusters", "cephblockpools", "cephfilesystems", "cephobjectstores"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: zorvia-rook-bootstrap
+  labels:
+    app.kubernetes.io/name: zorvia
+    app.kubernetes.io/component: rook-bootstrap
+subjects:
+  - kind: ServiceAccount
+    name: zorvia-rook-bootstrap
+    namespace: zorvia-system
+roleRef:
+  kind: ClusterRole
+  name: zorvia-rook-bootstrap
+  apiGroup: rbac.authorization.k8s.io

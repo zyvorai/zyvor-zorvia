@@ -1,0 +1,27 @@
+# Lab overrides (NodePort + in-pod TLS + single replica).
+labMode: true
+replicaCount: 1
+
+image:
+  repository: zorvia
+  tag: local
+  pullPolicy: Never
+
+service:
+  type: NodePort
+  nodePort: 30152
+
+tls:
+  inPod: true
+
+ingress:
+  enabled: false
+
+podDisruptionBudget:
+  enabled: false
+
+networkPolicy:
+  enabled: false
+
+api:
+  leaderElection: true

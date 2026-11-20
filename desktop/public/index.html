@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zorvia</title>
+<style>
+:root{color-scheme:dark light;--bg:#0b0b0f;--fg:#e8e8ec;--muted:#9a9aa6;--accent:#2997ff;--err:#ff6b6b}
+@media (prefers-color-scheme:light){:root{--bg:#fff;--fg:#1d1d1f;--muted:#6e6e73;--accent:#0071e3;--err:#c62828}}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif}
+body{display:flex;align-items:center;justify-content:center;-webkit-app-region:drag}
+.panel{text-align:center;max-width:440px;padding:32px}
+.spinner{width:36px;height:36px;margin:0 auto 20px;border-radius:50%;border:3px solid rgba(41,151,255,.25);border-top-color:var(--accent);animation:spin .8s linear infinite}
+@media (prefers-reduced-motion:reduce){.spinner{animation-duration:3s}}
+@keyframes spin{to{transform:rotate(360deg)}}
+h1{font-size:15px;font-weight:600;margin:0 0 6px}p{font-size:13px;color:var(--muted);margin:0;line-height:1.5}
+.error{color:var(--err)}button{margin-top:16px;padding:6px 14px;border-radius:8px;border:1px solid var(--muted);background:none;color:var(--fg);font:inherit;cursor:pointer;-webkit-app-region:no-drag}
+</style></head>
+<body><div class="panel" role="status" aria-live="polite">
+<div class="spinner" id="spinner"></div><h1 id="title">Starting Zorvia…</h1><p id="detail">Launching the local control plane.</p>
+</div>
+<script>
+const t=document.getElementById("title"),d=document.getElementById("detail"),s=document.getElementById("spinner");
+function fail(msg){s.style.display="none";t.textContent="Couldn’t start Zorvia";t.className="error";d.textContent=msg;
+  const b=document.createElement("button");b.textContent="Open Settings";b.onclick=()=>location.href="settings.html";d.after(b);}
+async function poll(n){
+  if(!window.__TAURI__){return n>25?fail("Tauri bridge unavailable."):setTimeout(()=>poll(n+1),200)}
+  try{const url=await window.__TAURI__.core.invoke("app_url");
+    if(url){location.replace(url);return}
+    if(n>200)return fail("Timed out waiting for the server.");
+    setTimeout(()=>poll(n+1),400);
+  }catch(e){fail(String(e))}
+}
+poll(0);
+</script></body></html>

@@ -1,0 +1,57 @@
+# Zorvia VM Configuration
+# This file uses Zorvia's simplified YAML format.
+# To convert to KubeVirt manifest: zorvia create --from-file ubuntu-cloud-init.yaml --output yaml --dry-run
+name: ubuntu-server
+namespace: default
+cpu:
+  cores: 4
+  sockets: 1
+  threads: 1
+memory:
+  size: 8Gi
+disks:
+  - name: containerdisk
+    size: "0"
+    boot_order: 1
+    source:
+      type: containerDisk
+      image: quay.io/containerdisks/ubuntu:22.04
+  - name: datadisk
+    size: 40Gi
+    boot_order: 2
+    storage_class: standard
+    source:
+      type: blank
+interfaces:
+  - name: default
+    network: default
+    model: virtio
+    network_type: pod
+cloud_init:
+  user_data: |
+    #cloud-config
+    users:
+      - name: admin
+        sudo: ALL=(ALL) NOPASSWD:ALL
+        ssh_authorized_keys:
+          - ssh-rsa AAAAB3NzaC1yc2E... your-key-here
+    package_update: true
+    packages:
+      - qemu-guest-agent
+      - gnupg
+      - curl
+      - git
+    runcmd:
+      - systemctl enable qemu-guest-agent
+      - systemctl start qemu-guest-agent
+      - mkdir -p /etc/apt/keyrings
+      - |
+        curl -fsSL https://apt.envoyproxy.io/signing.key | gpg --dearmor -o /etc/apt/keyrings/envoy-keyring.gpg
+      - |
+        echo "deb [signed-by=/etc/apt/keyrings/envoy-keyring.gpg] https://apt.envoyproxy.io $(lsb_release -cs) main" > /etc/apt/sources.list.d/envoy.list
+      - apt-get update && apt-get install -y envoy
+      - systemctl enable envoy
+      - systemctl start envoy
+labels:
+  os: ubuntu
+  version: "22.04"

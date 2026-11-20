@@ -1,0 +1,14 @@
+# Runtime image for host-built release binary (ubuntu 24.04 / glibc 2.39+).
+FROM ubuntu:26.04@sha256:61ebaa5cc23ca45450db85eac015435199ec569e28ec222ea13f2aed2110b8a6
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates openssh-client \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd -u 10001 -m zorvia \
+    && mkdir -p /usr/share/zorvia/web \
+    && chown -R zorvia:zorvia /usr/share/zorvia
+COPY zorvia /usr/local/bin/zorvia
+COPY web/ /usr/share/zorvia/web/
+RUN chmod 755 /usr/local/bin/zorvia
+ENV ZORVIA_WEB_DIR=/usr/share/zorvia/web
+USER zorvia
+ENTRYPOINT ["/usr/local/bin/zorvia"]
+CMD ["api", "api-serve"]

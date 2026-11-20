@@ -1,0 +1,48 @@
+name: CI Coverage
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_MIN_STACK: 8388608
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    name: llvm-cov (lib)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # stable
+        with:
+          toolchain: stable
+          components: llvm-tools-preview
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: coverage
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@ea0cd0420956692678d2145c3f991994d6ad6934 # cargo-llvm-cov
+      - name: Generate coverage
+        run: |
+          cargo llvm-cov --features web --lib --lcov --output-path lcov.info
+        continue-on-error: true
+      - name: Upload lcov
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: lcov
+          path: lcov.info
+          if-no-files-found: ignore
+      - name: Web vitest coverage
+        working-directory: web
+        run: |
+          npm ci
+          npm run test:coverage
+        continue-on-error: true

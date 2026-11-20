@@ -1,0 +1,62 @@
+{{- if .Values.openshift.scc.create }}
+# Optional SCC so the API pod can run as the chart UID (10001) under OpenShift.
+# Prefer binding an existing SCC (anyuid / nonroot) when your platform policy allows;
+# set openshift.scc.create=false and openshift.scc.bindExisting instead.
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: {{ include "zorvia.fullname" . }}
+  labels:
+    {{- include "zorvia.labels" . | nindent 4 }}
+allowPrivilegeEscalation: false
+allowPrivilegedContainer: false
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowedCapabilities: []
+defaultAddCapabilities: null
+requiredDropCapabilities:
+  - ALL
+fsGroup:
+  type: MustRunAs
+  ranges:
+    - min: 10001
+      max: 10001
+runAsUser:
+  type: MustRunAs
+  uid: 10001
+seLinuxContext:
+  type: MustRunAs
+supplementalGroups:
+  type: RunAsAny
+readOnlyRootFilesystem: false
+volumes:
+  - configMap
+  - downwardAPI
+  - emptyDir
+  - persistentVolumeClaim
+  - projected
+  - secret
+users:
+  - system:serviceaccount:{{ .Release.Namespace }}:{{ include "zorvia.serviceAccountName" . }}
+{{- end }}
+{{- if .Values.openshift.scc.bindExisting }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "zorvia.fullname" . }}-scc-{{ .Values.openshift.scc.bindExisting | replace ":" "-" | replace "/" "-" }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "zorvia.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:{{ .Values.openshift.scc.bindExisting }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "zorvia.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

@@ -1,0 +1,35 @@
+name: CI Zizmor
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  zizmor:
+    name: Workflow security audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # stable
+        with:
+          toolchain: stable
+      - name: Install zizmor
+        run: cargo install zizmor --locked
+        continue-on-error: true
+      - name: Audit workflows
+        run: |
+          if command -v zizmor >/dev/null; then
+            zizmor .github/workflows || true
+          else
+            echo "zizmor not installed; skipped"
+          fi

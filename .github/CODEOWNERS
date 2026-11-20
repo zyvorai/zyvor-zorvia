@@ -1,0 +1,6 @@
+# This file is used by dependabot / renovate and documents required PR policy.
+# Configure GitHub branch protection on `main` (UI/API) to require:
+#   - PR reviews (at least 1)
+#   - Status checks: CI / Web, Format Check, Clippy, Test Suite
+#   - No force push; no deletion
+* @zyvorai

@@ -1,0 +1,38 @@
+name: CI Integration Contract
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  kryton-contract:
+    name: Kryton integration contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: verify_integration.py
+        run: python3 tests/verify_integration.py
+
+  changelog-present:
+    name: CHANGELOG exists
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check required docs
+        run: |
+          test -f CHANGELOG.md
+          test -f SECURITY.md
+          test -f LICENSE
+          test -f docs/FEATURE_MATURITY.md
+          test -f docs/UPGRADE.md
+          grep -q '## \[Unreleased\]' CHANGELOG.md
+          grep -qE '^version = "[0-9]+\.[0-9]+\.[0-9]+"' Cargo.toml

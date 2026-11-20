@@ -1,0 +1,32 @@
+name: CI ShellCheck
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/**"
+      - "deploy/**/*.sh"
+      - ".github/workflows/ci-shellcheck.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/**"
+      - "deploy/**/*.sh"
+      - ".github/workflows/ci-shellcheck.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: Run shellcheck
+        run: |
+          find scripts deploy -type f -name '*.sh' -print0 \
+            | xargs -0 shellcheck -x -e SC2086,SC1091,SC2034,SC2015

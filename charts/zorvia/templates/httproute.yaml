@@ -1,0 +1,59 @@
+{{- if .Values.httpRoute.enabled }}
+{{- $fullname := include "zorvia.fullname" . }}
+{{- $parentRefs := .Values.httpRoute.parentRefs }}
+{{- $createGateway := .Values.httpRoute.gateway.create }}
+{{- if $createGateway }}
+# Redirect plain HTTP to HTTPS.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ $fullname }}-redirect
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "zorvia.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - name: {{ $fullname }}
+      sectionName: http
+  hostnames:
+    {{- toYaml .Values.httpRoute.hostnames | nindent 4 }}
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+---
+{{- end }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "zorvia.labels" . | nindent 4 }}
+  {{- with .Values.httpRoute.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  parentRefs:
+    {{- if $parentRefs }}
+    {{- toYaml $parentRefs | nindent 4 }}
+    {{- else }}
+    - name: {{ $fullname }}
+      {{- if $createGateway }}
+      sectionName: https
+      {{- end }}
+    {{- end }}
+  hostnames:
+    {{- toYaml .Values.httpRoute.hostnames | nindent 4 }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: {{ $fullname }}
+          port: {{ .Values.service.port }}
+{{- end }}

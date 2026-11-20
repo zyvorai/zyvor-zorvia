@@ -1,0 +1,34 @@
+[Unit]
+Description=Zorvia Web Dashboard
+Documentation=https://github.com/zyvorai/zorvia
+After=network-online.target k3s.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sus
+Group=sus
+ExecStart=/usr/local/bin/zorvia api api-serve --port 5151 --host 0.0.0.0 --tls --tls-cert /etc/zorvia/tls/server.crt --tls-key /etc/zorvia/tls/server.key
+Restart=on-failure
+RestartSec=5
+Environment=KUBECONFIG=/etc/zorvia/kubeconfig
+EnvironmentFile=-/etc/zorvia/env
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+MemoryDenyWriteExecute=yes
+LockPersonality=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+# Allow reading kubeconfig / TLS / env under /etc/zorvia
+ReadOnlyPaths=/etc/zorvia
+
+[Install]
+WantedBy=multi-user.target

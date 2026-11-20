@@ -1,0 +1,8 @@
+.section { padding: var(--zv-section-space) 0; }
+.heading { text-align: center; font-size: clamp(1.75rem, 3vw, 2.5rem); letter-spacing: -0.02em; margin-bottom: 2rem; }
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+.card { height: 100%; padding: 1.75rem; border-radius: 16px; border: 1px solid var(--ifm-color-emphasis-200); background: var(--ifm-card-background-color); transition: transform 0.2s, border-color 0.2s; }
+.card:hover { transform: translateY(-3px); border-color: var(--ifm-color-primary); }
+.card p { color: var(--ifm-color-emphasis-700); }
+@media (prefers-reduced-motion: reduce) { .card { transition: none; } .card:hover { transform: none; } }
+@media screen and (max-width: 996px) { .grid { grid-template-columns: 1fr; } }

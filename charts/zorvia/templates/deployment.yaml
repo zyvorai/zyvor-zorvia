@@ -1,0 +1,265 @@
+{{- include "zorvia.validateHA" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "zorvia.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "zorvia.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  {{- if not (or (include "zorvia.multiReplica" .) (and .Values.persistence.enabled (has "ReadWriteMany" .Values.persistence.accessModes))) }}
+  # A ReadWriteOnce volume cannot be attached by the new pod while the old one
+  # still holds it (Multi-Attach error), so replace rather than surge.
+  strategy:
+    type: Recreate
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "zorvia.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "zorvia.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "zorvia.serviceAccountName" . }}
+      securityContext:
+        {{- if .Values.podSecurityContext }}
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+        {{- else }}
+        fsGroup: 10001
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.tls.inPod }}
+      initContainers:
+        - name: gen-cert
+          image: {{ .Values.tls.initImage }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              openssl req -x509 -nodes -days 3650 \
+                -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 \
+                -keyout /certs/tls.key -out /certs/tls.crt \
+                -subj "/CN=zorvia/O=ZyvorAI Labs Private Limited" \
+                -addext "subjectAltName=DNS:{{ include "zorvia.fullname" . }},DNS:{{ include "zorvia.fullname" . }}.{{ .Release.Namespace }}.svc,DNS:localhost,IP:127.0.0.1"
+              chown 10001:10001 /certs/tls.key /certs/tls.crt
+              chmod 600 /certs/tls.key && chmod 644 /certs/tls.crt
+          securityContext:
+            runAsUser: 0
+            runAsNonRoot: false
+          volumeMounts:
+            - name: tls-certs
+              mountPath: /certs
+      {{- end }}
+      containers:
+        - name: zorvia
+          image: {{ include "zorvia.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/usr/local/bin/zorvia"]
+          args:
+            - api
+            - api-serve
+            - --port
+            - {{ .Values.api.port | quote }}
+            - --host
+            - "0.0.0.0"
+            {{- if .Values.tls.inPod }}
+            - --tls
+            - --tls-cert
+            - /certs/tls.crt
+            - --tls-key
+            - /certs/tls.key
+            {{- end }}
+          ports:
+            - name: {{ if .Values.tls.inPod }}https{{ else }}http{{ end }}
+              containerPort: {{ .Values.api.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: {{ if .Values.tls.inPod }}https{{ else }}http{{ end }}
+              scheme: {{ if .Values.tls.inPod }}HTTPS{{ else }}HTTP{{ end }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/readyz
+              port: {{ if .Values.tls.inPod }}https{{ else }}http{{ end }}
+              scheme: {{ if .Values.tls.inPod }}HTTPS{{ else }}HTTP{{ end }}
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            {{- if .Values.labMode }}
+            - name: ZORVIA_LAB_MODE
+              value: "1"
+            {{- end }}
+            - name: ZORVIA_WEB_DIR
+              value: /usr/share/zorvia/web
+            - name: ZORVIA_AUTH_DB
+              value: /data/auth.db
+            {{- if or .Values.database.url .Values.database.existingSecret }}
+            # Users/tokens in PostgreSQL (docs/POSTGRES.md). Operations, audit and
+            # JSON state still live on the data volume.
+            - name: ZORVIA_DATABASE_URL
+              {{- if .Values.database.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.existingSecret }}
+                  key: {{ .Values.database.secretKey }}
+              {{- else }}
+              value: {{ .Values.database.url | quote }}
+              {{- end }}
+            {{- if .Values.database.import }}
+            - name: ZORVIA_DATABASE_IMPORT
+              value: "1"
+            {{- end }}
+            {{- end }}
+            - name: ZORVIA_OPS_DB
+              value: /data/ops.db
+            # JSON stores (backup/power schedules, warm pools, alerts, ...) use
+            # the per-user data dir; keep it on the persistent volume so a pod
+            # restart does not discard them.
+            - name: XDG_DATA_HOME
+              value: /data
+            {{- if .Values.atlas.url }}
+            # Atlas storage integration (docs/ATLAS_INTEGRATION.md).
+            - name: ATLAS_URL
+              value: {{ .Values.atlas.url | quote }}
+            {{- if .Values.atlas.tokenSecret }}
+            - name: ATLAS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.atlas.tokenSecret | quote }}
+                  key: {{ .Values.atlas.tokenSecretKey | default "token" | quote }}
+            {{- end }}
+            {{- end }}
+            - name: ZORVIA_AUDIT_DB
+              value: {{ .Values.api.auditDbPath | quote }}
+            {{- if .Values.api.auditJsonlPath }}
+            - name: ZORVIA_AUDIT_JSONL
+              value: {{ .Values.api.auditJsonlPath | quote }}
+            {{- end }}
+            {{- if .Values.mcp.enabled }}
+            - name: ZORVIA_MCP_ENABLED
+              value: "1"
+            {{- with .Values.mcp.disableTools }}
+            - name: ZORVIA_MCP_DISABLE_TOOLS
+              value: {{ join "," . | quote }}
+            {{- end }}
+            {{- end }}
+            {{- if .Values.api.leaderElection }}
+            - name: ZORVIA_LEADER_ELECTION
+              value: "1"
+            - name: ZORVIA_LEADER_LEASE
+              value: {{ .Values.api.leaderElectionLease | quote }}
+            - name: ZORVIA_LEADER_NAMESPACE
+              value: {{ .Release.Namespace | quote }}
+            {{- end }}
+            - name: ZORVIA_JWT_TTL_MINUTES
+              value: {{ .Values.api.jwtTtlMinutes | quote }}
+            - name: ZORVIA_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "zorvia.authSecretName" . }}
+                  key: admin-user
+            - name: ZORVIA_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "zorvia.authSecretName" . }}
+                  key: admin-password
+            - name: ZORVIA_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "zorvia.authSecretName" . }}
+                  key: jwt-secret
+            - name: ZORVIA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "zorvia.authSecretName" . }}
+                  key: api-key
+                  optional: true
+            {{- if .Values.kryton.existingSecret }}
+            - name: KRYTON_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.kryton.existingSecret }}
+                  key: url
+                  optional: true
+            - name: KRYTON_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.kryton.existingSecret }}
+                  key: token
+                  optional: true
+            - name: KRYTON_PROJECT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.kryton.existingSecret }}
+                  key: project
+                  optional: true
+            {{- end }}
+            {{- if .Values.api.exposeHost }}
+            - name: ZORVIA_EXPOSE_HOST
+              value: {{ .Values.api.exposeHost | quote }}
+            - name: HOST
+              value: {{ .Values.api.exposeHost | quote }}
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          volumeMounts:
+            {{- if .Values.tls.inPod }}
+            - name: tls-certs
+              mountPath: /certs
+              readOnly: true
+            {{- end }}
+            {{- if or .Values.persistence.enabled (include "zorvia.multiReplica" .) }}
+            - name: data
+              mountPath: /data
+            {{- end }}
+      volumes:
+        {{- if .Values.tls.inPod }}
+        - name: tls-certs
+          emptyDir: {}
+        {{- end }}
+        {{- if include "zorvia.multiReplica" . }}
+        # Replicas share PostgreSQL, not a volume: /data is scratch space.
+        - name: data
+          emptyDir: {}
+        {{- else if .Values.persistence.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "zorvia.fullname" . }}-data
+        {{- end }}

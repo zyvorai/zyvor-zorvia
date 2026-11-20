@@ -1,0 +1,19 @@
+# Optional: scrape kubevirt_vmi_* from virt-launcher when Prometheus Operator is installed.
+# kubectl apply -f deploy/servicemonitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kubevirt-vmis
+  namespace: zorvia-system
+  labels:
+    app.kubernetes.io/managed-by: zorvia
+spec:
+  selector:
+    matchLabels:
+      kubevirt.io: virt-launcher
+  namespaceSelector:
+    any: true
+  endpoints:
+    - port: metrics
+      interval: 30s
+      honorLabels: true

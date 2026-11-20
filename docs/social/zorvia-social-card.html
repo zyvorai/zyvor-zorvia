@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Zorvia social card</title>
+<!--
+  1600x900 (16:9) card for LinkedIn and X.
+  Palette: white / #f5f5f7, ink #1d1d1f, blue #0071e3 -> #2997ff, hairline #d2d2d7.
+  Orange appears once, as the dot on the Create step.
+  Build:  ./docs/social/build-social-cards.sh
+-->
+<style>
+  :root {
+    --bg:#ffffff; --wash:#f5f5f7; --ink:#1d1d1f; --soft:#6e6e73; --hair:#d2d2d7;
+    --blue:#0071e3; --blue2:#2997ff; --deep:#0066cc;
+    --pill-bg:#e8f2fd; --pill-line:#b9d7f7;
+    --card:#ffffff; --card-line:#d6e3f4; --card-shadow:0 10px 26px rgba(0,60,140,.10), 0 1px 3px rgba(0,0,0,.06);
+    --sans:'Helvetica Neue',Helvetica,Arial,sans-serif;
+    --mono:'SF Mono',Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; margin:0; }
+  html,body { width:1600px; height:900px; overflow:hidden; background:var(--bg); }
+  .card {
+    position:relative; width:1600px; height:900px; color:var(--ink); font-family:var(--sans);
+    background:
+      radial-gradient(760px 520px at 1330px 130px, rgba(0,113,227,.12), rgba(0,113,227,.03) 60%, rgba(0,113,227,0) 100%),
+      linear-gradient(180deg, var(--bg) 0%, var(--wash) 100%);
+  }
+  .wrap { position:absolute; left:80px; right:80px; top:52px; bottom:44px; display:flex; flex-direction:column; }
+  .top { display:flex; align-items:center; gap:14px; }
+  .mark { width:44px; height:44px; }
+  .top b { font-size:24px; font-weight:700; letter-spacing:-.01em; }
+  .top span { font-size:24px; color:var(--soft); }
+  .top .r { margin-left:auto; font-family:var(--mono); font-size:18px; letter-spacing:.16em; text-transform:uppercase; color:var(--deep); }
+  h1 { margin-top:44px; font-size:84px; line-height:1.04; font-weight:700; letter-spacing:-.035em; max-width:1400px; }
+  h1 em { font-style:normal; background:linear-gradient(90deg,var(--blue),var(--blue2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .sub { margin-top:20px; font-size:28px; line-height:1.4; color:var(--soft); max-width:1440px; }
+  .flow { margin-top:44px; display:grid; grid-template-columns:repeat(5,1fr); gap:30px; }
+  .step {
+    position:relative; background:var(--card); border:1px solid var(--card-line); border-radius:22px;
+    padding:22px 22px 24px; min-height:236px; box-shadow:var(--card-shadow);
+  }
+  .step:not(:last-child)::after {
+    content:""; position:absolute; right:-23px; top:50%; margin-top:-9px; width:0; height:0;
+    border-left:12px solid var(--blue2); border-top:9px solid transparent; border-bottom:9px solid transparent; opacity:.65;
+  }
+  .lane { font-family:var(--mono); font-size:14px; font-weight:700; letter-spacing:.14em; color:var(--deep); }
+  .n {
+    float:right; width:34px; height:34px; border-radius:50%; color:#fff; font-weight:700; font-size:17px; line-height:34px;
+    text-align:center; background:linear-gradient(135deg,var(--blue),var(--blue2));
+  }
+  .step h3 { margin:16px 0 10px; font-size:26px; line-height:1.14; letter-spacing:-.015em; text-wrap:balance; }
+  .step p { font-size:19px; line-height:1.4; color:var(--soft); }
+  .dot { position:absolute; left:22px; top:-5px; width:11px; height:11px; border-radius:50%; background:#ff6a2a; }
+  .chips { margin-top:auto; padding-top:26px; display:flex; flex-wrap:wrap; gap:12px; }
+  .chip { font-size:19px; font-weight:700; padding:8px 18px; border-radius:999px; letter-spacing:.01em; }
+  .chip.solid { color:#fff; background:linear-gradient(90deg,var(--blue),var(--blue2)); }
+  .chip.soft { color:var(--deep); background:var(--pill-bg); border:1px solid var(--pill-line); }
+  .foot {
+    margin-top:22px; padding-top:16px; border-top:1px solid var(--hair);
+    display:flex; align-items:center; font-family:var(--mono); font-size:20px; color:var(--soft);
+  }
+  .foot b { color:var(--ink); }
+  .foot .r { margin-left:auto; }
+</style>
+</head>
+<body>
+<div class="card">
+<div class="wrap">
+  <div class="top">
+    <svg class="mark" viewBox="0 0 36 36" aria-hidden="true">
+      <defs><linearGradient id="g" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#0071e3"/><stop offset="1" stop-color="#2997ff"/></linearGradient></defs>
+      <rect width="36" height="36" rx="9" fill="url(#g)"/>
+      <path d="M10.5 11.5h15l-15 13h15" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <b>Zyvor</b><span>Zorvia</span>
+    <span class="r">KubeVirt VM platform</span>
+  </div>
+
+  <h1>Create. Operate. Govern. One control plane for <em>KubeVirt</em>.</h1>
+  <p class="sub">Templates to audit trail &mdash; CLI, TUI, and a signed-in console driving the same API over live cluster objects.</p>
+
+  <div class="flow">
+    <div class="step"><span class="dot"></span><span class="lane">CREATE</span><span class="n">1</span>
+      <h3>Templates &amp; profiles</h3>
+      <p>43 OS templates and workload profiles size and ship VMs in one shot.</p></div>
+    <div class="step"><span class="lane">DAY-2</span><span class="n">2</span>
+      <h3>Hotplug &amp; migrate</h3>
+      <p>CPU/memory/disk/NIC hotplug, live migration, snapshots, and disk resize &mdash; for real.</p></div>
+    <div class="step"><span class="lane">ACCESS</span><span class="n">3</span>
+      <h3>Console &middot; VNC &middot; SSH</h3>
+      <p>Authenticated WebSockets into the guest from the signed-in console.</p></div>
+    <div class="step"><span class="lane">GUARD</span><span class="n">4</span>
+      <h3>RBAC &amp; policies</h3>
+      <p>Server-side roles, ResourceQuota, and NetworkPolicy &mdash; not client-only checks.</p></div>
+    <div class="step"><span class="lane">AUDIT</span><span class="n">5</span>
+      <h3>Prove who did what</h3>
+      <p>Persistent audit trail with JSONL export for SIEM shippers.</p></div>
+  </div>
+
+  <div class="chips">
+    <span class="chip solid">KubeVirt-native</span>
+    <span class="chip solid">Helm chart</span>
+    <span class="chip soft">OIDC Beta</span>
+    <span class="chip soft">Zyvor Production License</span>
+    <span class="chip soft">v0.3.4</span>
+  </div>
+
+  <div class="foot">
+    <span><b>zyvor.dev</b> &middot; github.com/zyvorai/zorvia</span>
+    <span class="r">Product README &middot; docs site</span>
+  </div>
+</div>
+</div>
+</body>
+</html>

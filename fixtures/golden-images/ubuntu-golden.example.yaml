@@ -1,0 +1,45 @@
+# Example CDI golden bundle (Ubuntu 24.04 from quay.io/containerdisks).
+# Prefer generating with your cluster StorageClass:
+#   STORAGE_CLASS=<sc> ./fixtures/golden-images/generate-bundles.sh
+#
+# Apply only after CDI is installed; replace storageClassName as needed.
+---
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: DataVolume
+metadata:
+  name: ubuntu-golden-24-04-r1
+  namespace: vm-images
+  labels:
+    app.kubernetes.io/managed-by: zorvia
+    zorvia.io/golden-image: "true"
+    zorvia.io/stable-alias: "false"
+  annotations:
+    zorvia.io/image-version: 24.04-r1
+    zorvia.io/image-source: docker://quay.io/containerdisks/ubuntu:24.04
+spec:
+  source:
+    registry:
+      url: docker://quay.io/containerdisks/ubuntu:24.04
+  storage:
+    resources:
+      requests:
+        storage: 40Gi
+    storageClassName: fast
+---
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: DataSource
+metadata:
+  name: ubuntu-golden
+  namespace: vm-images
+  labels:
+    app.kubernetes.io/managed-by: zorvia
+    zorvia.io/golden-image: "true"
+    zorvia.io/stable-alias: "true"
+  annotations:
+    zorvia.io/image-version: 24.04-r1
+    zorvia.io/image-source: docker://quay.io/containerdisks/ubuntu:24.04
+spec:
+  source:
+    pvc:
+      name: ubuntu-golden-24-04-r1
+      namespace: vm-images

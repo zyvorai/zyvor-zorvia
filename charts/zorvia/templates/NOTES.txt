@@ -1,0 +1,48 @@
+{{- /*
+Zorvia install notes
+*/ -}}
+1. Create the auth Secret before pods can start (credentials are never charted):
+
+   ./scripts/create-auth-secret.sh
+   # or:
+   kubectl -n {{ .Release.Namespace }} create secret generic {{ include "zorvia.authSecretName" . }} \
+     --from-literal=admin-user=admin \
+     --from-literal=admin-password="$(openssl rand -base64 24)" \
+     --from-literal=jwt-secret="$(openssl rand -hex 32)"
+
+{{- if .Values.labMode }}
+
+2. Lab mode is ON (ZORVIA_LAB_MODE=1). Do not use lab values in production.
+{{- else }}
+
+2. Lab mode is OFF — known default passwords/JWT secrets will refuse to start.
+{{- end }}
+
+{{- if and .Values.service (eq .Values.service.type "NodePort") .Values.service.nodePort }}
+
+3. Console: https://<node>:{{ .Values.service.nodePort }}
+{{- else if .Values.openshift.route.enabled }}
+
+3. Console: https://{{ .Values.openshift.route.host | default "<openshift-route-host>" }} (OpenShift Route, passthrough TLS)
+{{- else if .Values.httpRoute.enabled }}
+
+3. Console: https://{{ first .Values.httpRoute.hostnames }}
+{{- else if .Values.ingress.enabled }}
+
+3. Console: https://{{ (index .Values.ingress.hosts 0).host }}
+{{- else }}
+
+3. Port-forward: kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "zorvia.fullname" . }} 8443:443
+{{- end }}
+{{- if or .Values.openshift.route.enabled .Values.openshift.scc.create .Values.openshift.scc.bindExisting }}
+
+OpenShift: Route/SCC templates are enabled. Confirm the pod is admitted (oc describe pod) and the Route shows Admitted=True. See docs/adopt-existing-kubevirt-cluster.md.
+{{- end }}
+
+4. Health: /api/v1/health
+5. Schedulers use Lease leader election when ZORVIA_LEADER_ELECTION=1 (default in chart).
+6. Audit trail persists to {{ .Values.api.auditDbPath }} on the data volume.
+{{- if .Values.rbac.rookBootstrap }}
+
+7. Rook bootstrap SA enabled: {{ include "zorvia.fullname" . }}-rook-bootstrap
+{{- end }}

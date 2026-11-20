@@ -1,0 +1,28 @@
+# Two replicas on a shared PostgreSQL (docs/POSTGRES.md, docs/HA.md).
+#   kubectl -n zorvia-system create secret generic zorvia-db --from-literal=url='postgres://zorvia:...@pg:5432/zorvia?sslmode=verify-full'
+#   helm upgrade --install zorvia charts/zorvia -f charts/zorvia/values-production.yaml -f charts/zorvia/values-ha.yaml
+replicaCount: 2
+
+database:
+  existingSecret: zorvia-db
+  secretKey: url
+
+ha:
+  acceptLocalState: true
+
+api:
+  leaderElection: true
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          topologyKey: kubernetes.io/hostname
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: zorvia

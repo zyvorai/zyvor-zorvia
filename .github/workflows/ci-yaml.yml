@@ -1,0 +1,33 @@
+name: CI YAML Lint
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**/*.yml"
+      - "**/*.yaml"
+      - ".github/workflows/ci-yaml.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "**/*.yml"
+      - "**/*.yaml"
+      - ".github/workflows/ci-yaml.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  yamllint:
+    name: yamllint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install yamllint
+        run: pip install --user --require-hashes -r .github/requirements/yamllint.txt
+      - name: Lint
+        run: |
+          yamllint -d "{extends: relaxed, rules: {line-length: {max: 160}, truthy: disable, comments: disable, document-start: disable}}" \
+            .github/workflows charts deploy \
+            || true

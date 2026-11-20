@@ -1,0 +1,29 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: payments-db
+  namespace: production
+  labels:
+    app: payments
+spec:
+  running: true
+  template:
+    metadata:
+      labels:
+        kubevirt.io/domain: payments-db
+    spec:
+      domain:
+        resources:
+          requests:
+            memory: 8Gi
+        cpu:
+          cores: 4
+        devices:
+          disks:
+            - name: rootdisk
+              disk:
+                bus: virtio
+      volumes:
+        - name: rootdisk
+          persistentVolumeClaim:
+            claimName: payments-db-root

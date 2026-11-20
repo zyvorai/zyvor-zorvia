@@ -1,0 +1,200 @@
+{{- if .Values.rbac.create }}
+{{- if eq .Values.rbac.scope "cluster" }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "zorvia.fullname" . }}
+  labels:
+    {{- include "zorvia.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["kubevirt.io"]
+    resources: ["virtualmachines", "virtualmachineinstances", "virtualmachineinstancemigrations"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["subresources.kubevirt.io"]
+    resources:
+      - virtualmachineinstances/console
+      - virtualmachineinstances/vnc
+      - virtualmachineinstances/pause
+      - virtualmachineinstances/unpause
+      - virtualmachineinstances/freeze
+      - virtualmachineinstances/unfreeze
+      - virtualmachineinstances/guestosinfo
+      - virtualmachineinstances/filesystemlist
+      - virtualmachineinstances/userlist
+      - virtualmachineinstances/addvolume
+      - virtualmachineinstances/removevolume
+      - virtualmachineinstances/addinterface
+      - virtualmachineinstances/removeinterface
+    verbs: ["get", "update", "patch"]
+  - apiGroups: ["snapshot.kubevirt.io"]
+    resources: ["virtualmachinesnapshots", "virtualmachinesnapshotcontents", "virtualmachinerestores"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Read-only: Zorvia sizes a backup's temporary claims from each snapshot's restoreSize.
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["cdi.kubevirt.io"]
+    resources: ["datavolumes", "datasources"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "events"]
+    verbs: ["get", "list", "watch"]
+  # Pods page (cluster.admin only in the API): streaming logs, interactive shell,
+  # and delete (also used for "restart" of controller-owned pods).
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["delete"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create", "get"]
+  # Rescue mode (cluster.admin only in the API): a privileged Job per
+  # request that mounts a VM's own PVC and runs GuestKit against it.
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["resourcequotas"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  # Read-only: verify existing Multus target attachments before VM import, and list SR-IOV pools.
+  - apiGroups: ["k8s.cni.cncf.io"]
+    resources: ["network-attachment-definitions"]
+    verbs: ["get", "list"]
+  # Which host devices KubeVirt permits (passthrough preflight). `patch` only when
+  # devices.managePermitted is on: it lets cluster admins permit/remove devices from Zorvia.
+  - apiGroups: ["kubevirt.io"]
+    resources: ["kubevirts"]
+    verbs: ["get", "list"{{- if .Values.devices.managePermitted }}, "patch"{{- end }}]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotclasses"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["ceph.rook.io"]
+    resources: ["cephclusters", "cephblockpools", "cephfilesystems", "cephobjectstores"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["scheduling.k8s.io"]
+    resources: ["priorityclasses"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  # Leader election lease
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "zorvia.fullname" . }}
+  labels:
+    {{- include "zorvia.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "zorvia.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "zorvia.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- else }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "zorvia.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "zorvia.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["kubevirt.io"]
+    resources: ["virtualmachines", "virtualmachineinstances", "virtualmachineinstancemigrations"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["subresources.kubevirt.io"]
+    resources:
+      - virtualmachineinstances/console
+      - virtualmachineinstances/vnc
+      - virtualmachineinstances/pause
+      - virtualmachineinstances/unpause
+      - virtualmachineinstances/freeze
+      - virtualmachineinstances/unfreeze
+      - virtualmachineinstances/guestosinfo
+      - virtualmachineinstances/filesystemlist
+      - virtualmachineinstances/userlist
+      - virtualmachineinstances/addvolume
+      - virtualmachineinstances/removevolume
+      - virtualmachineinstances/addinterface
+      - virtualmachineinstances/removeinterface
+    verbs: ["get", "update", "patch"]
+  - apiGroups: ["snapshot.kubevirt.io"]
+    resources: ["virtualmachinesnapshots", "virtualmachinesnapshotcontents", "virtualmachinerestores"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Read-only: Zorvia sizes a backup's temporary claims from each snapshot's restoreSize.
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["cdi.kubevirt.io"]
+    resources: ["datavolumes", "datasources"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "events", "persistentvolumeclaims", "services", "resourcequotas"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create", "get"]
+  # Rescue mode (cluster.admin only in the API): a privileged Job per
+  # request that mounts a VM's own PVC and runs GuestKit against it.
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  # Read-only: verify existing Multus target attachments before VM import, and list SR-IOV pools.
+  - apiGroups: ["k8s.cni.cncf.io"]
+    resources: ["network-attachment-definitions"]
+    verbs: ["get", "list"]
+  # Which host devices KubeVirt permits (passthrough preflight). `patch` only when
+  # devices.managePermitted is on: it lets cluster admins permit/remove devices from Zorvia.
+  - apiGroups: ["kubevirt.io"]
+    resources: ["kubevirts"]
+    verbs: ["get", "list"{{- if .Values.devices.managePermitted }}, "patch"{{- end }}]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "zorvia.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "zorvia.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "zorvia.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "zorvia.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- end }}

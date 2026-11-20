@@ -1,0 +1,32 @@
+name: CI Stale
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@4391f3da665fdf50b6810c1a66712fb9ba21aa93 # v11.0.0
+        with:
+          days-before-issue-stale: 90
+          days-before-pr-stale: 45
+          days-before-issue-close: 30
+          days-before-pr-close: 14
+          stale-issue-label: stale
+          stale-pr-label: stale
+          stale-issue-message: >
+            This issue has been marked stale due to inactivity.
+            Comment to keep it open, or it will close automatically.
+          stale-pr-message: >
+            This PR has been marked stale due to inactivity.
+            Push or comment to keep it open.
+          exempt-issue-labels: "security,pinned,good first issue"
+          exempt-pr-labels: "security,pinned"
+          operations-per-run: 60

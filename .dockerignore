@@ -1,0 +1,13 @@
+target/
+.git/
+.github/
+docs/
+deploy/
+scripts/
+*.md
+LICENSE-*
+.dockerignore
+.gitignore
+.claude/
+web/node_modules/
+web/dist/

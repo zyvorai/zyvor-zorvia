@@ -1,0 +1,136 @@
+[package]
+name = "zorvia"
+version = "0.7.4"
+edition = "2021"
+description = "Craft VMs for KubeVirt with Rust power"
+license = "LicenseRef-Zyvor-Production-1.0"
+authors = ["ZyvorAI Labs Private Limited <info@zyvor.dev>"]
+repository = "https://github.com/zyvorai/zorvia"
+homepage = "https://zyvor.dev"
+documentation = "https://docs.rs/zorvia"
+readme = "README.md"
+keywords = ["kubevirt", "kubernetes", "virtual-machine", "kvm", "cli"]
+categories = ["command-line-utilities", "virtualization"]
+rust-version = "1.89"  # kube 4.x MSRV
+
+[[bin]]
+name = "zorvia"
+path = "src/main.rs"
+
+# Runs inside a privileged Kubernetes Job pod for Rescue mode (offline
+# guest-disk operations via GuestKit) -- never part of the main zorvia
+# server binary's dependency graph, since `guestkit` is only needed here.
+[[bin]]
+name = "rescue-agent"
+path = "src/bin/rescue_agent.rs"
+required-features = ["rescue-agent"]
+
+# Runs inside a Kubernetes Job pod to stream VM disks to S3-compatible
+# storage (checksummed, optionally encrypted, Object Lock aware).
+[[bin]]
+name = "backup-agent"
+path = "src/bin/backup_agent.rs"
+required-features = ["backup-agent"]
+
+[lib]
+name = "zorvia"
+path = "src/lib.rs"
+
+[dependencies]
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive", "env"] }
+clap_complete = "4.5"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+tokio = { version = "1.0", features = ["full"] }
+kube = { version = "5.0", features = ["runtime", "derive", "ws"] }
+k8s-openapi = { version = "0.28", features = ["v1_32"] }
+schemars = "1"
+thiserror = "2.0"
+log = "0.4"
+env_logger = "0.11"
+once_cell = "1.19"
+regex = "1.10"
+chrono = { version = "0.4", features = ["serde"] }
+dialoguer = "0.12"
+indicatif = "0.18"
+rand = "0.10"
+
+# TUI dependencies
+ratatui = "0.30"
+crossterm = "0.29"
+colored = "3.1"
+miette = { version = "7.0", features = ["fancy"] }
+toml = "1"
+dirs = "7.0"
+rustyline = "19.0"
+
+# Web dashboard dependencies
+axum = { version = "0.8", optional = true, features = ["ws"] }
+axum-server = { version = "0.9", features = ["tls-rustls-no-provider"], optional = true }
+rustls = { version = "0.23", default-features = false, features = ["ring", "logging", "std", "tls12"], optional = true }
+tower-http = { version = "0.7", features = ["cors", "timeout", "fs"], optional = true }
+# `oneshot` replays MCP tool calls through the REST router in-process (already in the tree via axum).
+tower = { version = "0.5", default-features = false, features = ["util"], optional = true }
+jsonwebtoken = { version = "11.1", optional = true, default-features = false, features = ["use_pem", "rust_crypto"] }
+bcrypt = { version = "0.19", optional = true }
+rusqlite = { version = "0.41", features = ["bundled"], optional = true }
+uuid = { version = "1", features = ["v4"], optional = true }
+aes-gcm = { version = "0.11", optional = true }
+chrono-tz = { version = "0.10", optional = true }
+totp-rs = { version = "6.0", features = ["gen_secret", "otpauth"], optional = true }
+base64 = { version = "0.23", optional = true }
+sha2 = { version = "0.11", optional = true }
+subtle = { version = "2.6", optional = true }
+urlencoding = { version = "2", optional = true }
+futures-util = { version = "0.3", optional = true }
+tokio-tungstenite = { version = "0.30", optional = true, default-features = false, features = ["connect", "native-tls"] }
+native-tls = { version = "0.2", optional = true }
+tokio-postgres = { version = "0.7", optional = true }
+postgres-native-tls = { version = "0.5", optional = true }
+# native-tls pulls in openssl-sys on Linux, which needs a system OpenSSL +
+# pkg-config to find it -- fine for a same-arch build, but cross-compiling
+# (e.g. aarch64-unknown-linux-gnu from an x86_64 runner) has no target-arch
+# OpenSSL to find. "vendored" compiles OpenSSL from source for the target
+# instead, so this builds the same way on every target release.yml covers.
+openssl = { version = "0.10", features = ["vendored"], optional = true }
+http = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"], optional = true }
+secrecy = "0.10"
+pty-process = { version = "0.5.3", features = ["async"], optional = true }
+
+# Offline guest-disk operations for the `rescue-agent` binary only (Rescue
+# mode). Pinned to a git rev, not a crates.io version: the published
+# `guestkit` crate (0.3.x) is stale, from a different repo, and licensed
+# LGPL-3.0-or-later -- the current zyvorai/guestkit source (this pinned
+# commit) is under the Zyvor Production License v1.0. Repin to a real crates.io release once one exists.
+guestkit = { git = "https://github.com/zyvorai/guestkit", rev = "de5ce5e6f74a8c81e26cf9de441cc64e23f40e89", default-features = false, features = ["guest-inspect"], optional = true }
+
+[features]
+default = ["web"]
+web = [
+  "axum", "axum-server", "rustls", "tower-http", "dep:tower",
+  "dep:jsonwebtoken", "dep:bcrypt", "dep:rusqlite", "dep:uuid",
+  "dep:totp-rs", "dep:base64", "dep:sha2", "dep:subtle", "dep:urlencoding",
+  "dep:futures-util", "dep:tokio-tungstenite", "dep:native-tls", "dep:openssl",
+  "dep:reqwest", "dep:pty-process", "dep:chrono-tz", "dep:aes-gcm",
+  "dep:tokio-postgres", "dep:postgres-native-tls",
+]
+# PAM host auth (Linux): enable with --features pam and system libpam-dev
+pam = []
+# Builds the `rescue-agent` binary (Rescue mode's Job entrypoint). Never
+# enabled for the main server build -- only the rescue-agent container image
+# build passes this.
+rescue-agent = ["dep:guestkit"]
+# Builds the `backup-agent` binary (off-cluster backup Job entrypoint). Not
+# part of the server build; only the backup-agent image build enables it.
+backup-agent = ["dep:reqwest", "dep:sha2", "dep:base64", "dep:aes-gcm"]
+
+[dev-dependencies]
+tempfile = "3.27"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

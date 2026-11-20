@@ -1,0 +1,289 @@
+# Zorvia k3s auto-manifest (same Veyron-style HTTPS as deploy/k8s.yaml)
+# Copied to /var/lib/rancher/k3s/server/manifests/ by remote-deploy.sh
+#
+# Lab URL: https://<HOST>:30152/  (30151 is Veyron on shared labs)
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: zorvia-system
+  labels:
+    app.kubernetes.io/name: zorvia
+    app.kubernetes.io/part-of: zorvia
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: zorvia
+  namespace: zorvia-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: zorvia
+rules:
+  - apiGroups: ["kubevirt.io"]
+    resources: ["virtualmachines", "virtualmachineinstances", "virtualmachineinstancemigrations"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["snapshot.kubevirt.io"]
+    resources: ["virtualmachinesnapshots", "virtualmachinesnapshotcontents", "virtualmachinerestores"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Read-only: Zorvia sizes a backup's temporary claims from each snapshot's restoreSize.
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["namespaces", "persistentvolumeclaims", "pods", "events"]
+    verbs: ["get", "list", "watch"]
+  # Off-cluster backup: temporary PVCs restored from volume snapshots.
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["create", "delete"]
+  # Pods page (cluster.admin only in the API): streaming logs, interactive shell,
+  # and delete (also used for "restart" of controller-owned pods).
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["delete"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create", "get"]
+  # Rescue mode (cluster.admin only in the API): a privileged Job per
+  # request that mounts a VM's own PVC and runs GuestKit against it.
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  # Quotas feature: real ResourceQuota objects.
+  - apiGroups: [""]
+    resources: ["resourcequotas"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  # Placement Advisor / Capacity Planning / Zones: real Node allocatable
+  # capacity, cluster-scoped, read-only.
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  # Network Policies feature.
+  # Read-only: verify existing Multus target attachments before VM import, and list SR-IOV pools.
+  - apiGroups: ["k8s.cni.cncf.io"]
+    resources: ["network-attachment-definitions"]
+    verbs: ["get", "list"]
+  # Read-only: which host devices KubeVirt permits (passthrough preflight). Add "patch" here
+  # to let cluster admins permit/remove devices from Zorvia (POST/DELETE /api/v1/devices/permitted).
+  - apiGroups: ["kubevirt.io"]
+    resources: ["kubevirts"]
+    verbs: ["get", "list"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: zorvia
+subjects:
+  - kind: ServiceAccount
+    name: zorvia
+    namespace: zorvia-system
+roleRef:
+  kind: ClusterRole
+  name: zorvia
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zorvia-api
+  namespace: zorvia-system
+  labels:
+    app.kubernetes.io/name: zorvia
+    app.kubernetes.io/component: api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: zorvia
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: zorvia
+        app.kubernetes.io/component: api
+    spec:
+      serviceAccountName: zorvia
+      # See deploy/k8s.yaml -- same non-root uid needs write access to
+      # /data (auth-data volume) regardless of whether it's an emptyDir or
+      # a PVC.
+      securityContext:
+        fsGroup: 10001
+      initContainers:
+        - name: gen-cert
+          image: alpine/openssl:3.5.8
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              openssl req -x509 -nodes -days 3650 \
+                -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 \
+                -keyout /certs/tls.key -out /certs/tls.crt \
+                -subj "/CN=zorvia/O=ZyvorAI Labs Private Limited" \
+                -addext "subjectAltName=DNS:zorvia-api,DNS:zorvia-api.zorvia-system.svc,DNS:localhost,IP:127.0.0.1"
+              chown 10001:10001 /certs/tls.key /certs/tls.crt
+              chmod 600 /certs/tls.key && chmod 644 /certs/tls.crt
+          securityContext:
+            runAsUser: 0
+            runAsNonRoot: false
+          volumeMounts:
+            - name: tls-certs
+              mountPath: /certs
+      containers:
+        - name: zorvia
+          image: zorvia:local
+          imagePullPolicy: Never
+          command: ["/usr/local/bin/zorvia"]
+          args:
+            - api
+            - api-serve
+            - --port
+            - "5151"
+            - --host
+            - "0.0.0.0"
+            - --tls
+            - --tls-cert
+            - /certs/tls.crt
+            - --tls-key
+            - /certs/tls.key
+          ports:
+            - containerPort: 5151
+              name: https
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: https
+              scheme: HTTPS
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: https
+              scheme: HTTPS
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          env:
+            - name: ZORVIA_WEB_DIR
+              value: /usr/share/zorvia/web
+            - name: ZORVIA_AUTH_DB
+              value: /data/auth.db
+            - name: ZORVIA_OPS_DB
+              value: /data/ops.db
+            # JSON stores (backup/power schedules, warm pools, alerts, ...) use
+            # the per-user data dir; keep it on the persistent volume so a pod
+            # restart does not discard them.
+            - name: XDG_DATA_HOME
+              value: /data
+            # Atlas storage integration (docs/ATLAS_INTEGRATION.md). Set ATLAS_URL to enable
+            # (empty = off); the service-account token comes from an optional Secret with key
+            # `token` (kubectl -n zorvia-system create secret generic zorvia-atlas --from-literal=token=...).
+            - name: ATLAS_URL
+              value: ""
+            - name: ATLAS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: zorvia-atlas
+                  key: token
+                  optional: true
+            - name: ZORVIA_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: zorvia-auth
+                  key: admin-user
+            - name: ZORVIA_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: zorvia-auth
+                  key: admin-password
+            - name: ZORVIA_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: zorvia-auth
+                  key: jwt-secret
+            - name: ZORVIA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: zorvia-auth
+                  key: api-key
+                  optional: true
+            - name: KRYTON_URL
+              valueFrom:
+                secretKeyRef:
+                  name: zorvia-kryton
+                  key: url
+                  optional: true
+            - name: KRYTON_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: zorvia-kryton
+                  key: token
+                  optional: true
+            - name: KRYTON_PROJECT
+              valueFrom:
+                secretKeyRef:
+                  name: zorvia-kryton
+                  key: project
+                  optional: true
+          volumeMounts:
+            - name: tls-certs
+              mountPath: /certs
+              readOnly: true
+            - name: auth-data
+              mountPath: /data
+      volumes:
+        - name: tls-certs
+          emptyDir: {}
+        - name: auth-data
+          emptyDir: {}
+---
+# Auth Secret is NOT committed. Create it before apply:
+#   ./scripts/create-auth-secret.sh
+# Lab mode is deliberately off by default (see k8s.yaml).
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zorvia-api
+  namespace: zorvia-system
+  labels:
+    app.kubernetes.io/name: zorvia
+    app.kubernetes.io/component: api
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: zorvia
+    app.kubernetes.io/component: api
+  ports:
+    - port: 443
+      targetPort: https
+      protocol: TCP
+      name: https
+      nodePort: 30152

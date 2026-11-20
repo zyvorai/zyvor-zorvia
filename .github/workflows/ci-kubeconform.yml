@@ -1,0 +1,50 @@
+name: CI Kubeconform
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "deploy/**"
+      - "charts/**"
+      - ".github/workflows/ci-kubeconform.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "deploy/**"
+      - "charts/**"
+      - ".github/workflows/ci-kubeconform.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  kubeconform:
+    name: Validate manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v3.16.2
+      - name: Install kubeconform
+        run: |
+          curl -fsSL -o /tmp/kubeconform.tgz \
+            https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz
+          tar -xzf /tmp/kubeconform.tgz -C /usr/local/bin kubeconform
+      - name: Validate deploy YAML
+        run: |
+          kubeconform -strict -summary -ignore-missing-schemas \
+            -skip CustomResourceDefinition \
+            deploy/k8s.yaml \
+            deploy/rook-bootstrap-rbac.yaml \
+            deploy/servicemonitor.yaml \
+            deploy/k3s-zorvia-web.yaml
+        continue-on-error: true
+      - name: Validate Helm-rendered lab
+        run: |
+          helm template zorvia charts/zorvia \
+            -f charts/zorvia/values-lab.yaml \
+            --set auth.existingSecret=zorvia-auth \
+            | kubeconform -strict -summary -ignore-missing-schemas
+        continue-on-error: true

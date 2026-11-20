@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "zorvia.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "zorvia.labels" . | nindent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "zorvia.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: {{ if .Values.tls.inPod }}https{{ else }}http{{ end }}
+      port: {{ .Values.service.port }}
+      targetPort: {{ if .Values.tls.inPod }}https{{ else }}http{{ end }}
+      protocol: TCP
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
+      nodePort: {{ .Values.service.nodePort }}
+      {{- end }}

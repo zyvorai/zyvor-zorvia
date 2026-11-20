@@ -1,0 +1,40 @@
+---
+description: Flag Zorvia security and production-readiness regressions on PRs
+globs:
+alwaysApply: true
+---
+
+# Review new Zorvia PRs (security)
+
+When reviewing changes in this repository, flag regressions against the v0.3.3
+P0 security baseline:
+
+## Must flag
+
+1. **Missing route RBAC** — new mutating HTTP routes (`POST`/`PUT`/`PATCH`/`DELETE`
+   under `/api`) that are not covered by `required_permission` in
+   `src/api/auth/permissions.rs` (or an equivalent `route_layer` gate).
+2. **OIDC** — JWT mint from an OIDC callback must keep discovery, PKCE,
+   authorization-code token exchange, issuer/audience/nonce checks, and JWKS
+   verification. `OidcConfig::from_env` must remain off unless
+   `ZORVIA_OIDC_ENABLED=1` and the secure path above is intact. See `docs/OIDC.md`.
+3. **Committed secrets** — `admin-password`, JWT secrets, API keys, or known lab
+   defaults (`Admin@321`, `zorvia-lab-jwt-change-me-*`) in manifests under `deploy/`.
+4. **Shared API-key bypass** — restoring unconditional `ZORVIA_API_KEY` access
+   outside `ZORVIA_LAB_MODE=1`, or accepting a shared key as Admin without scopes.
+5. **Webhook SSRF gaps** — delivery/register that skips DNS resolution, private-IP
+   checks, connect pinning, or redirect revalidation.
+6. **ClusterRole privilege creep** — CRD / ClusterRole / ClusterRoleBinding /
+   ServiceAccount / Deployment create verbs on the core `zorvia` ClusterRole.
+   Bootstrap rights belong only in `deploy/rook-bootstrap-rbac.yaml`.
+7. **Session revocation gaps** — identity changes (disable, delete, password,
+   role, TOTP disable) that do not bump `token_version` / invalidate JWTs.
+8. **TOTP disable without step-up** — disabling MFA with only a bearer token
+   (must require password + TOTP).
+
+## Guidance
+
+- Prefer fixing in the PR rather than filing a follow-up when the regression is
+  clear and localized.
+- Lab convenience (`ZORVIA_LAB_MODE=1`) is allowed in lab manifests only; call
+  out production docs that recommend lab mode.

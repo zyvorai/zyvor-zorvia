@@ -1,0 +1,29 @@
+{{- if .Values.openshift.route.enabled }}
+# OpenShift Route with passthrough TLS (Zorvia terminates HTTPS in-pod).
+# Requires route.openshift.io/v1 CRD (OpenShift / OKD).
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ include "zorvia.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "zorvia.labels" . | nindent 4 }}
+  {{- with .Values.openshift.route.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.openshift.route.host }}
+  host: {{ . | quote }}
+  {{- end }}
+  to:
+    kind: Service
+    name: {{ include "zorvia.fullname" . }}
+    weight: 100
+  port:
+    targetPort: {{ .Values.service.targetPort | default "https" }}
+  tls:
+    termination: passthrough
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
+{{- end }}

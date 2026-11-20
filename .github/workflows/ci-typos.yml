@@ -1,0 +1,22 @@
+name: CI Typos
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  typos:
+    name: Spell check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: crate-ci/typos@53821664afd79bb88fcdd22fdc2f49d8d3f6cac9 # v1
+        with:
+          files: README.md CHANGELOG.md SECURITY.md DEVELOPMENT.md docs/ src/ web/src/ charts/
+        continue-on-error: true

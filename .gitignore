@@ -1,0 +1,32 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local configs
+*.local.yaml
+*.local.json
+
+# Generated golden-image manifests (StorageClass-specific)
+fixtures/golden-images/out/
+
+# Frontend
+web/node_modules/
+web/dist/
+web/coverage/
+web/test-results/
+web/playwright-report/
+
+# Local agent / editor debug logs
+.cursor/*.log

@@ -1,0 +1,162 @@
+# Zorvia Batch Configuration
+# This file uses Zorvia's batch YAML format for creating multiple VMs.
+# Usage: zorvia batch batch-web-cluster.yaml
+# Batch configuration for creating a web server cluster
+namespace: production
+
+vms:
+  - name: web-server-1
+    namespace: production
+    cpu:
+      cores: 4
+      sockets: 1
+      threads: 1
+    memory:
+      size: 8Gi
+    disks:
+      - name: rootdisk
+        size: 40Gi
+        boot_order: 1
+        source:
+          type: containerDisk
+          image: quay.io/containerdisks/ubuntu:22.04
+      - name: datadisk
+        size: 100Gi
+        boot_order: 2
+        source:
+          type: blank
+    interfaces:
+      - name: default
+        network: default
+        model: virtio
+        network_type: pod
+    cloud_init:
+      user_data: |
+        #cloud-config
+        hostname: web-server-1
+        fqdn: web-server-1.production.local
+        users:
+          - name: admin
+            sudo: ALL=(ALL) NOPASSWD:ALL
+            ssh_authorized_keys:
+              - ssh-rsa AAAAB3NzaC1yc2E... admin@example.com
+        packages:
+          - gnupg
+          - curl
+          - certbot
+        runcmd:
+          - mkdir -p /etc/apt/keyrings
+          - curl -fsSL https://apt.envoyproxy.io/signing.key | gpg --dearmor -o /etc/apt/keyrings/envoy-keyring.gpg
+          - |
+            echo "deb [signed-by=/etc/apt/keyrings/envoy-keyring.gpg] https://apt.envoyproxy.io $(lsb_release -cs) main" > /etc/apt/sources.list.d/envoy.list
+          - apt-get update && apt-get install -y envoy
+          - systemctl enable envoy
+          - systemctl start envoy
+    labels:
+      app: web
+      tier: frontend
+      instance: "1"
+
+  - name: web-server-2
+    namespace: production
+    cpu:
+      cores: 4
+      sockets: 1
+      threads: 1
+    memory:
+      size: 8Gi
+    disks:
+      - name: rootdisk
+        size: 40Gi
+        boot_order: 1
+        source:
+          type: containerDisk
+          image: quay.io/containerdisks/ubuntu:22.04
+      - name: datadisk
+        size: 100Gi
+        boot_order: 2
+        source:
+          type: blank
+    interfaces:
+      - name: default
+        network: default
+        model: virtio
+        network_type: pod
+    cloud_init:
+      user_data: |
+        #cloud-config
+        hostname: web-server-2
+        fqdn: web-server-2.production.local
+        users:
+          - name: admin
+            sudo: ALL=(ALL) NOPASSWD:ALL
+            ssh_authorized_keys:
+              - ssh-rsa AAAAB3NzaC1yc2E... admin@example.com
+        packages:
+          - gnupg
+          - curl
+          - certbot
+        runcmd:
+          - mkdir -p /etc/apt/keyrings
+          - curl -fsSL https://apt.envoyproxy.io/signing.key | gpg --dearmor -o /etc/apt/keyrings/envoy-keyring.gpg
+          - |
+            echo "deb [signed-by=/etc/apt/keyrings/envoy-keyring.gpg] https://apt.envoyproxy.io $(lsb_release -cs) main" > /etc/apt/sources.list.d/envoy.list
+          - apt-get update && apt-get install -y envoy
+          - systemctl enable envoy
+          - systemctl start envoy
+    labels:
+      app: web
+      tier: frontend
+      instance: "2"
+
+  - name: web-server-3
+    namespace: production
+    cpu:
+      cores: 4
+      sockets: 1
+      threads: 1
+    memory:
+      size: 8Gi
+    disks:
+      - name: rootdisk
+        size: 40Gi
+        boot_order: 1
+        source:
+          type: containerDisk
+          image: quay.io/containerdisks/ubuntu:22.04
+      - name: datadisk
+        size: 100Gi
+        boot_order: 2
+        source:
+          type: blank
+    interfaces:
+      - name: default
+        network: default
+        model: virtio
+        network_type: pod
+    cloud_init:
+      user_data: |
+        #cloud-config
+        hostname: web-server-3
+        fqdn: web-server-3.production.local
+        users:
+          - name: admin
+            sudo: ALL=(ALL) NOPASSWD:ALL
+            ssh_authorized_keys:
+              - ssh-rsa AAAAB3NzaC1yc2E... admin@example.com
+        packages:
+          - gnupg
+          - curl
+          - certbot
+        runcmd:
+          - mkdir -p /etc/apt/keyrings
+          - curl -fsSL https://apt.envoyproxy.io/signing.key | gpg --dearmor -o /etc/apt/keyrings/envoy-keyring.gpg
+          - |
+            echo "deb [signed-by=/etc/apt/keyrings/envoy-keyring.gpg] https://apt.envoyproxy.io $(lsb_release -cs) main" > /etc/apt/sources.list.d/envoy.list
+          - apt-get update && apt-get install -y envoy
+          - systemctl enable envoy
+          - systemctl start envoy
+    labels:
+      app: web
+      tier: frontend
+      instance: "3"

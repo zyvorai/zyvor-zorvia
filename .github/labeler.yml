@@ -1,0 +1,51 @@
+# https://github.com/actions/labeler
+api:
+  - changed-files:
+      - any-glob-to-any-file:
+          - src/api/**
+          - src/features/**
+
+rust:
+  - changed-files:
+      - any-glob-to-any-file:
+          - src/**
+          - Cargo.toml
+          - Cargo.lock
+          - tests/**
+
+web:
+  - changed-files:
+      - any-glob-to-any-file:
+          - web/**
+
+docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - docs/**
+          - "**/*.md"
+          - website/**
+
+helm:
+  - changed-files:
+      - any-glob-to-any-file:
+          - charts/**
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - .github/**
+
+security:
+  - changed-files:
+      - any-glob-to-any-file:
+          - src/api/auth/**
+          - tests/security_p0.rs
+          - SECURITY.md
+          - deny.toml
+
+deploy:
+  - changed-files:
+      - any-glob-to-any-file:
+          - deploy/**
+          - scripts/**
+          - Dockerfile

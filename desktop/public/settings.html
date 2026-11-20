@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Zorvia Settings</title>
+<style>
+:root{color-scheme:dark light;--bg:#161618;--fg:#e8e8ec;--muted:#9a9aa6;--line:#38383d;--accent:#2997ff}
+@media (prefers-color-scheme:light){:root{--bg:#f5f5f7;--fg:#1d1d1f;--muted:#6e6e73;--line:#d2d2d7;--accent:#0071e3}}
+body{margin:0;padding:22px;background:var(--bg);color:var(--fg);font:13px -apple-system,system-ui,sans-serif}
+label{display:block;margin:14px 0 4px;font-weight:600}small{display:block;color:var(--muted);margin-top:3px}
+input{width:100%;box-sizing:border-box;padding:7px 9px;border-radius:7px;border:1px solid var(--line);background:transparent;color:var(--fg);font:inherit}
+button{margin-top:18px;padding:7px 16px;border-radius:8px;border:0;background:var(--accent);color:#fff;font:inherit;cursor:pointer}
+#msg{margin-left:10px;color:var(--muted)}
+</style></head><body>
+<label for="remote">Remote Zorvia URL</label><input id="remote" placeholder="https://zorvia.example.com" autocomplete="off">
+<small>Leave empty to run the bundled server on this Mac.</small>
+<label for="kc">Kubeconfig path</label><input id="kc" placeholder="~/.kube/config" autocomplete="off">
+<label for="ns">Namespace</label><input id="ns" placeholder="default" autocomplete="off">
+<small>Changes apply the next time the app starts.</small>
+<button id="save">Save</button><span id="msg" role="status"></span>
+<script>
+const inv=(...a)=>window.__TAURI__.core.invoke(...a);const $=id=>document.getElementById(id);
+inv("get_settings").then(s=>{$("remote").value=s.remote_url||"";$("kc").value=s.kubeconfig||"";$("ns").value=s.namespace||""});
+$("save").onclick=async()=>{const v=x=>$(x).value.trim()||null;
+  try{await inv("set_settings",{settings:{remote_url:v("remote"),kubeconfig:v("kc"),namespace:v("ns")}});$("msg").textContent="Saved. Restart Zorvia to apply."}
+  catch(e){$("msg").textContent=String(e)}};
+</script></body></html>

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default capabilities for Zorvia Desktop",
+  "windows": ["main", "settings"],
+  "permissions": ["core:default", "notification:default", "clipboard-manager:allow-write-text"]
+}

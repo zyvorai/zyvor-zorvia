@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in · Zorvia</title>
+<link rel="stylesheet" href="/zyvor-premium-login.css">
+<style>
+  /* Minimal utilities (login shell; SPA uses the full Tailwind build) */
+  .min-h-screen{min-height:100vh}
+  .flex{display:flex}.flex-col{flex-direction:column}
+  .inline-flex{display:inline-flex}.items-center{align-items:center}.items-start{align-items:flex-start}
+  .gap-2{gap:.5rem}.gap-2\.5{gap:.625rem}.mb-4{margin-bottom:1rem}.mb-5{margin-bottom:1.25rem}.mb-6{margin-bottom:1.5rem}
+  .mt-0\.5{margin-top:.125rem}.mt-5{margin-top:1.25rem}.shrink-0{flex-shrink:0}
+  .relative{position:relative}.absolute{position:absolute}.right-3\.5{right:.875rem}
+  .top-1\/2{top:50%}.-translate-y-1\/2{transform:translateY(-50%)}
+  .text-left{text-align:left}.truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .text-sm{font-size:.875rem}.text-xs{font-size:.75rem}.font-medium{font-weight:500}.font-mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .block{display:block}.w-4{width:1rem}.h-4{height:1rem}
+  .text-zinc-400{color:#a1a1aa}.text-zinc-500{color:#71717a}.text-zinc-700{color:#3f3f46}
+  .text-red-600{color:#dc2626}.text-red-700{color:#b91c1c}.text-red-600\/90{color:rgba(220,38,38,.9)}
+  .bg-red-50{background:#fef2f2}.border{border-width:1px}.border-red-200{border-color:#fecaca}
+  .rounded-xl{border-radius:.75rem}.p-3{padding:.75rem}.pr-11{padding-right:2.75rem}
+  .cursor-pointer{cursor:pointer}.select-none{user-select:none}
+  .bg-white{background:#fff}
+  .login-field-icon{position:absolute;left:.875rem;top:50%;transform:translateY(-50%);width:1rem;height:1rem;color:#a1a1aa;pointer-events:none}
+  .login-input{padding-left:2.5rem}
+  .login-oidc-row{display:flex;flex-direction:column;gap:.5rem;margin-top:1rem}
+  .login-oidc-btn{display:block;width:100%;padding:.75rem 1rem;border:1px solid #e4e4e7;border-radius:.75rem;background:#fff;font-size:.875rem;font-weight:500;color:#18181b;cursor:pointer;text-align:center}
+  .login-oidc-btn:hover{background:#fafafa}
+  .login-2fa{margin-top:.75rem}
+  .hidden{display:none!important}
+  .spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="login-page login-store-page min-h-screen flex flex-col login-accent-orange" data-tone="orange" id="app">
+  <main class="login-store-scroll" aria-label="Sign in">
+    <section class="login-chapter login-chapter-hero" data-tone="orange" aria-label="Zorvia">
+      <div class="login-chapter-inner">
+        <div class="login-logo inline-flex mb-5">
+          <a href="https://zyvor.dev" target="_blank" rel="noopener noreferrer" class="login-zyvor-mark" aria-label="zyvor.dev">
+            <span class="inline-flex items-center gap-2">
+              <strong style="font-size:1.35rem;color:#1d1d1f;letter-spacing:-0.03em">Zyvor</strong>
+              <span style="font-size:1.15rem;font-weight:500;color:#6e6e73;letter-spacing:-0.02em">Zorvia</span>
+            </span>
+          </a>
+        </div>
+        <div class="login-instance-meta" id="instance-meta"></div>
+        <h1 class="login-hero-title">Craft VMs. One console.</h1>
+        <p class="login-tagline">KubeVirt VMs for private cloud — sign in to manage the fleet.</p>
+        <div class="login-pill-row">
+          <span data-tone="sky" class="login-pill"><span class="login-pill-dot" aria-hidden></span>Kubernetes</span>
+          <span data-tone="orange" class="login-pill"><span class="login-pill-dot" aria-hidden></span>Zyvor</span>
+          <span data-tone="emerald" class="login-pill"><span class="login-pill-dot" aria-hidden></span>KubeVirt</span>
+          <span data-tone="violet" class="login-pill"><span class="login-pill-dot" aria-hidden></span>CLI + Web</span>
+        </div>
+        <div class="login-cta">
+          <a href="#login-sign-in" class="login-cta-primary" id="cta-sign-in">Sign in</a>
+          <a href="https://zyvor.dev" class="login-cta-secondary" target="_blank" rel="noopener noreferrer">Learn more</a>
+        </div>
+        <p class="login-chapter-note" id="chapter-note">Zorvia · sign in to continue</p>
+      </div>
+    </section>
+
+    <section id="login-sign-in" class="login-chapter login-chapter-sign-in" aria-label="Credentials">
+      <div class="login-chapter-inner login-sign-in-inner">
+        <p class="login-form-heading" id="form-heading">Sign in to Zorvia</p>
+        <div class="login-card">
+          <form id="login-form" class="login-apple-step text-left" autocomplete="on" novalidate>
+            <button type="button" id="back-btn" class="login-apple-identity hidden" aria-label="Change account">
+              ← <span id="back-user"></span>
+            </button>
+            <div id="error-box" class="hidden flex items-start gap-2.5 bg-red-50 border border-red-200 rounded-xl p-3 mb-6" role="alert">
+              <div>
+                <p class="text-sm font-medium text-red-700">Unable to sign in</p>
+                <p class="text-sm text-red-600/90 mt-0.5" id="error-msg"></p>
+              </div>
+            </div>
+            <div class="login-apple-fields">
+              <div class="mb-4" id="user-field">
+                <label for="username" class="block text-xs font-medium text-zinc-500 mb-1.5">Username</label>
+                <div class="relative">
+                  <input id="username" name="username" type="text" class="login-input" placeholder="admin" autocomplete="username" required autofocus>
+                </div>
+              </div>
+              <div class="mb-4 hidden" id="pass-field">
+                <label for="password" class="block text-xs font-medium text-zinc-500 mb-1.5">Password</label>
+                <div class="relative">
+                  <input id="password" name="password" type="password" class="login-input pr-11" placeholder="Password" autocomplete="current-password">
+                </div>
+              </div>
+              <div class="mb-4 hidden login-2fa" id="totp-field">
+                <label for="totp" class="block text-xs font-medium text-zinc-500 mb-1.5">Authenticator code</label>
+                <div class="relative">
+                  <input id="totp" name="totp" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="8" class="login-input" placeholder="123456" autocomplete="one-time-code">
+                </div>
+              </div>
+            </div>
+            <div class="mt-5 hidden" id="remember-wrap">
+              <label class="flex items-center gap-2.5 cursor-pointer select-none">
+                <input type="checkbox" id="remember" class="w-4 h-4">
+                <span class="text-sm text-zinc-500">Remember me on this device</span>
+              </label>
+            </div>
+            <button type="submit" class="login-btn-primary" id="submit-btn"><span id="submit-label">Continue</span></button>
+            <div id="oidc-row" class="login-oidc-row hidden"></div>
+          </form>
+        </div>
+        <p class="login-hint">
+          Lab mode (<span class="font-mono">ZORVIA_LAB_MODE=1</span>):
+          <span class="font-mono">admin</span> / <span class="font-mono">Admin@321</span>
+          when seeded. Configure OIDC with <code>ZORVIA_OIDC_ENABLED=1</code>.
+        </p>
+      </div>
+    </section>
+  </main>
+  <p class="login-hint" style="margin:0 0 1.25rem;text-align:center">
+    © 2026 Zyvor · <a href="https://zyvor.dev" target="_blank" rel="noopener noreferrer" class="login-zyvor-link">zyvor.dev</a>
+  </p>
+</div>
+<script>
+(function () {
+  const SAVE_KEY = 'zorvia-saved-login';
+  const TOKEN_KEY = 'zorvia_token';
+  let step = 'identify'; // identify | password | totp
+  let needs2fa = false;
+
+  const $ = (id) => document.getElementById(id);
+  const params = new URLSearchParams(location.search);
+  const oidcToken = new URLSearchParams(location.hash.slice(1)).get('oidc_token');
+  if (oidcToken) {
+    localStorage.setItem(TOKEN_KEY, oidcToken);
+    history.replaceState({}, '', '/sign-in');
+    location.href = '/dashboard';
+    return;
+  }
+  if (localStorage.getItem(TOKEN_KEY)) {
+    location.href = '/dashboard';
+    return;
+  }
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
+    if (saved && saved.username) {
+      $('username').value = saved.username;
+      $('remember').checked = true;
+      showPasswordStep();
+    }
+  } catch (_) {}
+
+  $('chapter-note').textContent =
+    'Zorvia · Kubernetes · NodePort ' + (location.port || '443') + ' · ' + location.hostname;
+  $('instance-meta').innerHTML =
+    '<span class="login-instance-chip" data-kind="product"><strong>Zorvia</strong></span>' +
+    '<span class="login-instance-chip">' + location.hostname + '</span>' +
+    '<span class="login-instance-chip" data-kind="k8s">Kubernetes · :' + (location.port || '443') + '</span>';
+
+  fetch('/api/v1/auth/providers').then(r => r.json()).then(list => {
+    if (!Array.isArray(list) || !list.length) return;
+    const row = $('oidc-row');
+    row.classList.remove('hidden');
+    row.innerHTML = '<p class="text-xs text-zinc-400" style="text-align:center;margin:.5rem 0">or continue with</p>';
+    list.forEach(p => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'login-oidc-btn';
+      b.textContent = p.name || p.id;
+      b.onclick = async () => {
+        const r = await fetch('/api/v1/auth/oidc/' + encodeURIComponent(p.id));
+        const j = await r.json();
+        if (j.url) location.href = j.url;
+        else showError(j.error?.message || 'OIDC unavailable');
+      };
+      row.appendChild(b);
+    });
+  }).catch(() => {});
+
+  $('cta-sign-in').addEventListener('click', (e) => {
+    e.preventDefault();
+    $('login-sign-in').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  $('back-btn').addEventListener('click', () => {
+    step = 'identify';
+    needs2fa = false;
+    $('pass-field').classList.add('hidden');
+    $('totp-field').classList.add('hidden');
+    $('remember-wrap').classList.add('hidden');
+    $('back-btn').classList.add('hidden');
+    $('user-field').classList.remove('hidden');
+    $('password').value = '';
+    $('totp').value = '';
+    $('form-heading').textContent = 'Sign in to Zorvia';
+    $('submit-label').textContent = 'Continue';
+    hideError();
+  });
+
+  function showPasswordStep() {
+    step = 'password';
+    $('user-field').classList.add('hidden');
+    $('pass-field').classList.remove('hidden');
+    $('remember-wrap').classList.remove('hidden');
+    $('back-btn').classList.remove('hidden');
+    $('back-user').textContent = $('username').value.trim();
+    // Build heading with DOM APIs (no innerHTML) so the username cannot inject markup.
+    const heading = $('form-heading');
+    const host = document.createElement('span');
+    host.className = 'login-apple-host';
+    host.textContent = $('username').value.trim();
+    heading.replaceChildren(document.createTextNode('Enter the password for '), host);
+    $('submit-label').textContent = 'Sign In';
+    $('password').focus();
+  }
+
+  function showError(msg) {
+    $('error-msg').textContent = msg;
+    $('error-box').classList.remove('hidden');
+  }
+  function hideError() { $('error-box').classList.add('hidden'); }
+
+  $('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideError();
+    const username = $('username').value.trim();
+    if (step === 'identify') {
+      if (!username) return;
+      showPasswordStep();
+      return;
+    }
+    const password = $('password').value;
+    if (!password) return;
+    const body = { username, password };
+    if (needs2fa || $('totp').value) body.totp_code = $('totp').value.trim();
+    $('submit-btn').disabled = true;
+    $('submit-label').textContent = 'Signing in…';
+    try {
+      const r = await fetch('/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const j = await r.json();
+      if (r.status === 403 && (j.error?.code === 'requires_2fa' || j.error?.requires_2fa)) {
+        needs2fa = true;
+        $('totp-field').classList.remove('hidden');
+        $('form-heading').textContent = 'Two-factor authentication';
+        $('submit-label').textContent = 'Verify';
+        $('totp').focus();
+        return;
+      }
+      if (!r.ok || !j.token) {
+        showError(j.error?.message || 'Invalid credentials');
+        return;
+      }
+      localStorage.setItem(TOKEN_KEY, j.token);
+      if ($('remember').checked) {
+        localStorage.setItem(SAVE_KEY, JSON.stringify({ username }));
+      } else {
+        localStorage.removeItem(SAVE_KEY);
+      }
+      location.href = '/dashboard';
+    } catch (err) {
+      showError(err.message || 'Network error');
+    } finally {
+      $('submit-btn').disabled = false;
+      if (step === 'password' && !needs2fa) $('submit-label').textContent = 'Sign In';
+      else if (needs2fa) $('submit-label').textContent = 'Verify';
+    }
+  });
+})();
+</script>
+</body>
+</html>

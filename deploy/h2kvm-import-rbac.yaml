@@ -1,0 +1,52 @@
+# ServiceAccount + Role for Zorvia's h2kvm import Jobs (docs/VM_IMPORT.md).
+# Apply once per namespace you import VMs into, and label that namespace
+# pod-security.kubernetes.io/enforce=privileged (the h2kvm Job loads the nbd
+# module and runs qemu-nbd). This is a starting point: h2kvmctl's --deploy-k8s
+# uploads the converted disk (CDI) and creates the VirtualMachine, so verify the
+# verbs against your h2kvm version before relying on it.
+#
+#   kubectl create namespace vms
+#   kubectl label namespace vms pod-security.kubernetes.io/enforce=privileged
+#   kubectl -n vms create secret generic vcenter-creds \
+#     --from-literal=username='administrator@vsphere.local' --from-literal=password='...'
+#   kubectl apply -n vms -f deploy/h2kvm-import-rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: zorvia-h2kvm
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: zorvia-h2kvm
+rules:
+  - apiGroups: ["kubevirt.io"]
+    resources: ["virtualmachines", "virtualmachineinstances"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["cdi.kubevirt.io"]
+    resources: ["datavolumes"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["upload.cdi.kubevirt.io"]
+    resources: ["uploadtokenrequests"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims", "pods", "services"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/log", "pods/portforward"]
+    verbs: ["get", "create"]
+  - apiGroups: [""]
+    resources: ["secrets", "configmaps"]
+    verbs: ["get", "list", "create", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: zorvia-h2kvm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: zorvia-h2kvm
+subjects:
+  - kind: ServiceAccount
+    name: zorvia-h2kvm

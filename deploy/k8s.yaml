@@ -1,0 +1,387 @@
+# Zorvia Kubernetes Deployment (Veyron-style in-pod HTTPS)
+#
+# Lab URL: https://<HOST>:30152/  (30151 is Veyron on shared labs)
+# Health:  https://<HOST>:30152/api/v1/health
+#
+# TLS: self-signed via initContainer into emptyDir /certs (not Ingress/cert-manager).
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: zorvia-system
+  labels:
+    app.kubernetes.io/name: zorvia
+    app.kubernetes.io/part-of: zorvia
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: zorvia
+  namespace: zorvia-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: zorvia
+rules:
+  - apiGroups: ["kubevirt.io"]
+    resources: ["virtualmachines", "virtualmachineinstances", "virtualmachineinstancemigrations"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["subresources.kubevirt.io"]
+    resources:
+      - virtualmachineinstances/console
+      - virtualmachineinstances/vnc
+      - virtualmachineinstances/pause
+      - virtualmachineinstances/unpause
+      - virtualmachineinstances/freeze
+      - virtualmachineinstances/unfreeze
+      - virtualmachineinstances/guestosinfo
+      - virtualmachineinstances/filesystemlist
+      - virtualmachineinstances/userlist
+      - virtualmachineinstances/addvolume
+      - virtualmachineinstances/removevolume
+      - virtualmachineinstances/addinterface
+      - virtualmachineinstances/removeinterface
+    verbs: ["get", "update", "patch"]
+  - apiGroups: ["snapshot.kubevirt.io"]
+    resources: ["virtualmachinesnapshots", "virtualmachinesnapshotcontents", "virtualmachinerestores"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["cdi.kubevirt.io"]
+    resources: ["datavolumes", "datasources"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "events"]
+    verbs: ["get", "list", "watch"]
+  # Pods page (cluster.admin only in the API): streaming logs, interactive shell,
+  # and delete (also used for "restart" of controller-owned pods).
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["delete"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create", "get"]
+  # Rescue mode (cluster.admin only in the API): a privileged Job per
+  # request that mounts a VM's own PVC and runs GuestKit against it.
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Quotas feature (POST/DELETE /v1/quotas): real ResourceQuota objects.
+  - apiGroups: [""]
+    resources: ["resourcequotas"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  # Placement Advisor / Capacity Planning / Zones: real Node allocatable
+  # capacity, cluster-scoped, read-only.
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  # Network Policies feature (POST/DELETE /network-policies).
+  # Read-only: verify existing Multus target attachments before VM import, and list SR-IOV pools.
+  - apiGroups: ["k8s.cni.cncf.io"]
+    resources: ["network-attachment-definitions"]
+    verbs: ["get", "list"]
+  # Read-only: which host devices KubeVirt permits (passthrough preflight). Add "patch" here
+  # to let cluster admins permit/remove devices from Zorvia (POST/DELETE /api/v1/devices/permitted).
+  - apiGroups: ["kubevirt.io"]
+    resources: ["kubevirts"]
+    verbs: ["get", "list"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotclasses"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Read-only: Zorvia sizes a backup's temporary claims from each snapshot's restoreSize.
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots"]
+    verbs: ["get", "list", "watch"]
+  # Rook-Ceph: manage an existing CephCluster and pools/filesystems/object stores.
+  # Operator bootstrap (CRDs, ClusterRoles, Deployments) lives in the optional
+  # deploy/rook-bootstrap-rbac.yaml — never grant those to the core API SA.
+  - apiGroups: ["ceph.rook.io"]
+    resources: ["cephclusters", "cephblockpools", "cephfilesystems", "cephobjectstores"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["scheduling.k8s.io"]
+    resources: ["priorityclasses"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  # Scheduler leader election
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: zorvia
+subjects:
+  - kind: ServiceAccount
+    name: zorvia
+    namespace: zorvia-system
+roleRef:
+  kind: ClusterRole
+  name: zorvia
+  apiGroup: rbac.authorization.k8s.io
+---
+# Persists the sqlite user/role DB across pod restarts and redeploys.
+# storageClassName intentionally omitted -- binds to whatever the cluster's
+# default class is, same reasoning as ZORVIA_EXPOSE_HOST below: don't
+# hardcode a host-specific resource into a manifest meant to run anywhere.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zorvia-auth-data
+  namespace: zorvia-system
+  labels:
+    app.kubernetes.io/name: zorvia
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zorvia-api
+  namespace: zorvia-system
+  labels:
+    app.kubernetes.io/name: zorvia
+    app.kubernetes.io/component: api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: zorvia
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: zorvia
+        app.kubernetes.io/component: api
+    spec:
+      serviceAccountName: zorvia
+      # The zorvia container runs as non-root (uid 10001) and needs to
+      # create/open a SQLite file on the auth-data PVC at /data -- without
+      # fsGroup, a freshly-provisioned PVC's mount point is root-owned and
+      # the container gets "unable to open database file" (errno 14) on
+      # first boot against a brand new volume.
+      securityContext:
+        fsGroup: 10001
+      initContainers:
+        - name: gen-cert
+          image: alpine/openssl:3.5.8
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              openssl req -x509 -nodes -days 3650 \
+                -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 \
+                -keyout /certs/tls.key -out /certs/tls.crt \
+                -subj "/CN=zorvia/O=ZyvorAI Labs Private Limited" \
+                -addext "subjectAltName=DNS:zorvia-api,DNS:zorvia-api.zorvia-system.svc,DNS:localhost,IP:127.0.0.1"
+              chown 10001:10001 /certs/tls.key /certs/tls.crt
+              chmod 600 /certs/tls.key && chmod 644 /certs/tls.crt
+          securityContext:
+            runAsUser: 0
+            runAsNonRoot: false
+          volumeMounts:
+            - name: tls-certs
+              mountPath: /certs
+      containers:
+        - name: zorvia
+          image: zorvia:local
+          imagePullPolicy: Never
+          command: ["/usr/local/bin/zorvia"]
+          args:
+            - api
+            - api-serve
+            - --port
+            - "5151"
+            - --host
+            - "0.0.0.0"
+            - --tls
+            - --tls-cert
+            - /certs/tls.crt
+            - --tls-key
+            - /certs/tls.key
+          ports:
+            - containerPort: 5151
+              name: https
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: https
+              scheme: HTTPS
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/readyz
+              port: https
+              scheme: HTTPS
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          env:
+            - name: ZORVIA_WEB_DIR
+              value: /usr/share/zorvia/web
+            - name: ZORVIA_AUTH_DB
+              value: /data/auth.db
+            - name: ZORVIA_AUDIT_DB
+              value: /data/audit.db
+            - name: ZORVIA_OPS_DB
+              value: /data/ops.db
+            # JSON stores (backup/power schedules, warm pools, alerts, ...) use
+            # the per-user data dir; keep it on the persistent volume so a pod
+            # restart does not discard them.
+            - name: XDG_DATA_HOME
+              value: /data
+            # Atlas storage integration (docs/ATLAS_INTEGRATION.md). Set ATLAS_URL to enable
+            # (empty = off); the service-account token comes from an optional Secret with key
+            # `token` (kubectl -n zorvia-system create secret generic zorvia-atlas --from-literal=token=...).
+            - name: ATLAS_URL
+              value: ""
+            - name: ATLAS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: zorvia-atlas
+                  key: token
+                  optional: true
+            - name: ZORVIA_LEADER_ELECTION
+              value: "1"
+            - name: ZORVIA_LEADER_LEASE
+              value: zorvia-schedulers
+            - name: ZORVIA_LEADER_NAMESPACE
+              value: zorvia-system
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: ZORVIA_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: zorvia-auth
+                  key: admin-user
+            - name: ZORVIA_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: zorvia-auth
+                  key: admin-password
+            - name: ZORVIA_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: zorvia-auth
+                  key: jwt-secret
+            - name: ZORVIA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: zorvia-auth
+                  key: api-key
+                  optional: true
+            - name: KRYTON_URL
+              valueFrom:
+                secretKeyRef:
+                  name: zorvia-kryton
+                  key: url
+                  optional: true
+            - name: KRYTON_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: zorvia-kryton
+                  key: token
+                  optional: true
+            - name: KRYTON_PROJECT
+              valueFrom:
+                secretKeyRef:
+                  name: zorvia-kryton
+                  key: project
+                  optional: true
+            # remote-deploy.sh substitutes this at apply time (sed on the
+            # remote copy, never committed) with the actual deploy target so
+            # every host gets its own correct value here. A hardcoded IP
+            # left over from one host silently carried into every later
+            # deploy to a different host, producing wrong NodePort
+            # expose_host values (e.g. in RDP .rdp launcher files) until
+            # caught. If applying this manifest directly (not via
+            # remote-deploy.sh), replace the placeholder yourself first.
+            - name: ZORVIA_EXPOSE_HOST
+              value: "__ZORVIA_EXPOSE_HOST__"
+            - name: HOST
+              value: "__ZORVIA_EXPOSE_HOST__"
+          volumeMounts:
+            - name: tls-certs
+              mountPath: /certs
+              readOnly: true
+            - name: auth-data
+              mountPath: /data
+      volumes:
+        - name: tls-certs
+          emptyDir: {}
+        - name: auth-data
+          persistentVolumeClaim:
+            claimName: zorvia-auth-data
+---
+# Auth Secret is NOT committed. Create it before apply:
+#   ./scripts/create-auth-secret.sh
+# or:
+#   kubectl -n zorvia-system create secret generic zorvia-auth \
+#     --from-literal=admin-user=admin \
+#     --from-literal=admin-password="$(openssl rand -base64 24)" \
+#     --from-literal=jwt-secret="$(openssl rand -hex 32)"
+# Lab mode (ZORVIA_LAB_MODE=1) is NOT set here: it permits known default
+# credentials and a shared API key with full admin. Set it only on a throwaway
+# loopback-only lab. The API refuses known lab defaults otherwise.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zorvia-api
+  namespace: zorvia-system
+  labels:
+    app.kubernetes.io/name: zorvia
+    app.kubernetes.io/component: api
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: zorvia
+    app.kubernetes.io/component: api
+  ports:
+    - port: 443
+      targetPort: https
+      protocol: TCP
+      name: https
+      nodePort: 30152

@@ -1,0 +1,90 @@
+labMode: false
+# One replica: state is SQLite on a ReadWriteOnce volume. HA is fast
+# rescheduling after node loss (see docs/HA.md); raise this only with an RWX
+# storage class (the chart refuses replicaCount > 1 on RWO).
+replicaCount: 1
+
+image:
+  repository: ghcr.io/zyvorai/zorvia
+  tag: "0.7.4"
+  # Prefer digest pinning in real prod:
+  # digest: sha256:...
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  nodePort: null
+
+tls:
+  inPod: false
+
+# Exposed through Envoy Gateway (Gateway API). Requires the Gateway API CRDs, Envoy Gateway
+# and cert-manager with Gateway API support enabled; see README.
+ingress:
+  enabled: false
+
+httpRoute:
+  enabled: true
+  hostnames:
+    - zorvia.example.com
+  gateway:
+    create: true
+    className: eg
+    tlsSecretName: zorvia-tls
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+# Off for a single replica: minAvailable 1 would block every node drain.
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+networkPolicy:
+  enabled: true
+
+# Pod-level hardening (container securityContext already drops ALL caps).
+podSecurityContext:
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: zorvia
+              app.kubernetes.io/component: api
+          topologyKey: kubernetes.io/hostname
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: zorvia
+        app.kubernetes.io/component: api
+
+api:
+  leaderElection: true
+  jwtTtlMinutes: "60"
+  # Optional append-only JSONL for SIEM shippers (alongside SQLite).
+  # auditJsonlPath: /data/audit.jsonl
+
+rbac:
+  rookBootstrap: false
+
+# Production must supply auth.existingSecret (never lab defaults).
+auth:
+  existingSecret: zorvia-auth

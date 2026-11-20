@@ -1,0 +1,28 @@
+# Example only. Apply after Kryton is installed and replace token/project.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: zorvia-kryton
+  namespace: zorvia-system
+type: Opaque
+stringData:
+  url: http://kryton.kryton.svc.cluster.local:8080
+  token: REPLACE_WITH_KRYTON_TOKEN
+  project: default
+---
+# Add these env entries to the zorvia container in deploy/k8s.yaml or your Helm values:
+# - name: KRYTON_URL
+#   valueFrom:
+#     secretKeyRef:
+#       name: zorvia-kryton
+#       key: url
+# - name: KRYTON_TOKEN
+#   valueFrom:
+#     secretKeyRef:
+#       name: zorvia-kryton
+#       key: token
+# - name: KRYTON_PROJECT
+#   valueFrom:
+#     secretKeyRef:
+#       name: zorvia-kryton
+#       key: project

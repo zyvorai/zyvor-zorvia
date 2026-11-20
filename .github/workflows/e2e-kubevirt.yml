@@ -1,0 +1,69 @@
+# Kind + KubeVirt smoke E2E (Phase 3)
+# Heavy: run on demand or nightly — not on every PR by default.
+name: E2E KubeVirt
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * 0"
+
+permissions:
+  contents: read
+
+jobs:
+  kind-kubevirt:
+    name: kind + KubeVirt smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # stable
+        with:
+          toolchain: stable
+      - name: Install kind
+        run: |
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.27.0/kind-linux-amd64
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+      - name: Create cluster
+        run: kind create cluster --name zorvia-e2e --wait 120s
+      - name: Install KubeVirt (operator + CR)
+        run: |
+          export VERSION=$(curl -s https://api.github.com/repos/kubevirt/kubevirt/releases/latest | grep tag_name | cut -d '"' -f 4)
+          echo "KubeVirt $VERSION"
+          kubectl apply -f "https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/kubevirt-operator.yaml"
+          kubectl apply -f "https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/kubevirt-cr.yaml"
+          kubectl -n kubevirt wait kv kubevirt --for condition=Available --timeout=600s || \
+            kubectl -n kubevirt get pods -o wide
+      - name: Build zorvia
+        run: cargo build --release --features web
+      - name: Unit + security regression (no cluster)
+        run: |
+          cargo test --features web --test security_p0
+          cargo test --features web --lib features::
+      - name: Smoke — list nodes via kube client path
+        run: |
+          kubectl get nodes
+          kubectl get crd | grep -i kubevirt || true
+      - name: Tear down
+        if: always()
+        run: kind delete cluster --name zorvia-e2e || true
+
+  # Boots a real guest and drives it through the API. Needs a KVM-capable
+  # cluster with Zorvia deployed, so it runs only on demand on a self-hosted
+  # runner labelled `zorvia-lab` (secrets: ZORVIA_LAB_HOST, ZORVIA_E2E_PASSWORD).
+  guest-lab:
+    name: real-guest E2E (lab)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: [self-hosted, zorvia-lab]
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Run guest scenarios
+        env:
+          ZORVIA_LAB_HOST: ${{ secrets.ZORVIA_LAB_HOST }}
+          ZORVIA_E2E_PASSWORD: ${{ secrets.ZORVIA_E2E_PASSWORD }}
+        run: tests/e2e/guest.sh | tee guest-e2e.md
+      - name: Publish results
+        if: always()
+        run: cat guest-e2e.md >> "$GITHUB_STEP_SUMMARY"
