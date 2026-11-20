@@ -1,11 +1,11 @@
 # Pricing
 
 > **Note:** Zyvor is moving to an enterprise subscription model for new quotes: an annual subscription that includes updates and the stated support level, with open-source and non-production terms unchanged. See `docs/SUBSCRIPTION-MODEL.md` in this repository. Rates below apply to existing agreements; contact [sales@zyvor.dev](mailto:sales@zyvor.dev) for current rates.
-
-
-> **Approved launch prices.** The India and International tables below are the approved launch prices for Zorvia services. Final terms are in your signed order form.
 >
-> **Draft, not approved:** the section "Relationship to Zyvor Platform editions (proposal v1.2)" is a proposal pending commercial approval. It does not change the approved prices above it. No billing, payment collection or entitlement enforcement exists in the product yet.
+> **Prices: INR incl. 18% GST in India; US dollars excl. tax elsewhere (VAT, GST or sales tax added where applicable). Pay online by UPI, card or netbanking where a buy page exists; international cards work (charged in rupees); or request a US-dollar invoice by bank transfer. Custom pricing: contact [sales@zyvor.dev](mailto:sales@zyvor.dev).** Buy / get a quote: <https://zyvor.dev/buy>.
+
+
+> **Approved prices.** The India and International tables below are the approved prices for Zorvia support, and the "Relationship to Zyvor Platform editions" section carries the approved Zyvor price book (2026-11-20). Final terms are in your signed order form. No billing, payment collection or entitlement enforcement exists in the product itself.
 
 ## The software stays free
 
@@ -13,46 +13,46 @@ Zorvia is Apache-2.0. You may use, modify and run it in production, commercially
 
 An expired or missing contract never stops VMs or disables existing community functionality ([COMMERCIAL_OFFERINGS.md](COMMERCIAL_OFFERINGS.md)).
 
-## India (INR; Supported and Supported Plus include 18% GST, other rows exclude taxes)
+## India (INR, including 18% GST)
 
 | Offering | Price | Billing period | Included services |
 |---|---:|---|---|
 | Community | Free | n/a | Software, documentation, community support |
 | Supported | ₹59,999 per worker node including GST; minimum 5 nodes (₹299,995) | Per year | Business-hours Zorvia troubleshooting and upgrade guidance |
 | Supported Plus | ₹119,999 per worker node including GST; minimum 5 nodes (₹599,995) | Per year | Supported, plus 24×7 response for Severity 1 and 2, priority handling, quarterly health reviews, planned Zorvia upgrade assistance |
-| Managed | From ₹50,000 per cluster | Per month | Support, monitoring, maintenance and operational tasks defined in the contract |
-| Deployment | ₹1–3 lakh per project | One-time | Installation, agreed integrations, validation, handover |
-| Migration | From ₹2 lakh per project | Per project | Assessment, pilot, migration waves, validation |
-| Training | ₹40,000 per workshop | Per workshop | One remote administrator workshop and operational runbooks |
+| Managed | From ₹148,680 per cluster (USD 1,500 x 99.12) | Per month | Support, monitoring, maintenance and operational tasks defined in the contract |
+| Deployment | Custom quote: [sales@zyvor.dev](mailto:sales@zyvor.dev) | One-time | Installation, agreed integrations, validation, handover |
+| Migration | Per VM, one ladder: ₹7,434 (1–99 VMs), ₹5,947 (100–499), ₹4,956 (500+); project minimum ₹247,800 | One-time | Assessment, pilot, migration waves, validation |
+| Training | Custom quote: [sales@zyvor.dev](mailto:sales@zyvor.dev) | Per workshop | One remote administrator workshop and operational runbooks |
 
 ## International (USD, excluding taxes)
 
-Supported and Supported Plus are the GST-free equivalent of the India price (INR / 1.18 / 84, rounded). The other rows are independently set regional prices, **not currency conversions** of the India table.
+Supported and Supported Plus are the GST-free equivalent of the India price (INR / 1.18 / 84, rounded). Managed and Migration are USD-native; their India figures above are USD x 99.12 including 18% GST. Pay online or by US-dollar invoice (bank transfer); VAT, GST or sales tax is added where applicable.
 
 | Offering | Starting price | Billing period |
 |---|---:|---|
 | Supported | $600 per worker node; $3,000 annual minimum | Per year |
 | Supported Plus | $1,200 per worker node; $6,000 annual minimum | Per year |
-| Managed | $1,500 per cluster | Per month |
-| Deployment | $3,000 per project | One-time |
-| Migration | $5,000 per project | Per project |
+| Managed | From $1,500 per cluster | Per month |
+| Deployment | Custom quote | One-time |
+| Migration | $75 / $60 / $50 per VM (1–99 / 100–499 / 500+ VMs); $2,500 project minimum | One-time |
 | Training | Custom quote | n/a |
 
-## Relationship to Zyvor Platform editions (proposal v1.2)
+## Relationship to Zyvor Platform editions
 
-Zorvia's per-node support prices above are the **open-source support meter** in the Zyvor pricing proposal v1.2 and apply to Zorvia alone.
+Zorvia's per-node support prices above are the **open-source support meter** (Zyvor Support) in the Zyvor price book and apply to every Apache-2.0 Zyvor infrastructure product on the node.
 
-- **Zyvor Platform Enterprise and above** ($8,500 per node per year; founding price $7,350 in year 1 for the first 25 customers) include Zorvia **Supported Plus** on the covered hosts. Do not add a second Zorvia subscription for those nodes.
-- **Zyvor Platform Professional** ($4,500 per node per year) does not include Zorvia support; Zorvia **Supported** ($600 / worker node) can be added.
+- **Zyvor Platform Enterprise and above** ($8,500 per node per year, about ₹842,520 including GST in India; founding price $7,350 / ₹728,532 in year 1 for the first 25 customers) include Zorvia **Supported Plus** on the covered hosts. Do not add a second Zorvia subscription for those nodes.
+- **Zyvor Platform Professional** ($4,500 per node per year, about ₹446,040 including GST in India) does not include Zorvia support; Zorvia **Supported** (₹59,999 / $600 per worker node) can be added.
 - One support subscription per covered node covers all Apache-2.0 Zyvor infrastructure products on that node, not one subscription per product.
-- A node is one physical server with up to 2 CPU sockets and 64 cores. The minimum for every platform edition is one node. The USD Supported Plus minimum is $6,000 (it was $8,000).
-- Volume bands (4–7 nodes −10%, 8–15 −15%, 16+ −20%) and term discounts (2-year −5%, 3-year −10%, combined cap −25%) need commercial approval; annual minimums apply after discounts.
-- VM migration is priced per VM on one ladder: $75 (1–99 VMs), $60 (100–499), $50 (500+), project minimum $2,500. This replaces the $5,000 per-project starting price only where a per-VM quote is used.
-- **Getting started:** the software is free (Community: up to 4 nodes with 64 cores in total). A free two-week migration assessment, a 30-day proof of concept (extendable by agreement), a capped 90-day migration promotion and a startup program are available by agreement. Program discounts never stack and total at most 50%.
+- A node is one physical server with up to 2 CPU sockets and 64 cores. The minimum for every platform edition is one node. The Supported Plus minimum is $6,000 (₹599,995 in India).
+- Volume bands (256–499 nodes −10%, 500–999 −15%, 1,000+ −20%) and term discounts (2-year −5%, 3-year −10%, combined cap −25%) apply to per-node list prices; annual minimums apply after discounts.
+- VM migration (Transiva) is priced per VM on one ladder: $75 / ₹7,434 (1–99 VMs), $60 / ₹5,947 (100–499), $50 / ₹4,956 (500+), project minimum $2,500 / ₹247,800 (India figures are USD x 99.12 including 18% GST). The h2kvm engine is included at no extra charge in a Transiva project.
+- **Getting started:** the software is free (Community: up to 4 nodes with 64 cores in total). A free two-week migration assessment, a 30-day proof of concept and 30-day trial key for production licences (extendable to 60 days by agreement), a capped 90-day migration promotion and a startup program are available by agreement. Edu, nonprofit and design-partner discounts are a percentage, never stack and total at most 50%.
 - The founding price cannot be combined with the proof-of-concept or any program discount; volume and term bands are capped at 25% in total, measured against list price.
 - Renewal increases are capped at 7%. Counts use a fixed measurement date; true-ups are prospective only, with a 90-day grace period.
 
-Draft status: the v1.2 platform and bundle rates are proposals pending approval and are not binding until a written quotation or order form. Contact [sales@zyvor.dev](mailto:sales@zyvor.dev).
+Rates are binding only through a written quotation or order form. Buy / get a quote: <https://zyvor.dev/buy>. Custom pricing: [sales@zyvor.dev](mailto:sales@zyvor.dev).
 
 ## What is not included
 
@@ -80,16 +80,15 @@ Hardware, infrastructure hosting, third-party subscriptions, travel and applicab
 
 The minimum is 5 nodes, so the node-based price exceeds the minimum above 5 nodes for both tiers.
 
-## Example: three-node deployment (India)
+## Example: three-node cluster (India)
 
 | Item | Amount |
 |---|---:|
-| Deployment | ₹1 lakh |
 | Supported annual subscription (3 × ₹59,999 = ₹179,997, below the minimum) | ₹299,995 |
-| **First-year total** | **₹399,995** |
+| **First-year total** | **₹299,995** |
 | Annual support renewal | ₹299,995 |
 
-Applicable taxes and separately scoped services are additional. Renewal assumes unchanged scope and pricing.
+Deployment and other separately scoped services are quoted on top (sales@zyvor.dev). Renewal assumes unchanged scope and pricing.
 
 ## Maturity
 

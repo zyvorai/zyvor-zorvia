@@ -268,7 +268,7 @@ Everything in this repository stays Apache-2.0, free for commercial use, and wor
 
 | Topic | Doc |
 |---|---|
-| Launch pricing, billing rules, examples | [docs/PRICING.md](docs/PRICING.md) · [docs/COMMERCIAL_FAQ.md](docs/COMMERCIAL_FAQ.md) |
+| Pricing (INR incl. GST in India, USD elsewhere), billing rules, examples | [docs/PRICING.md](docs/PRICING.md) · [docs/COMMERCIAL_FAQ.md](docs/COMMERCIAL_FAQ.md) · Buy / get a quote: [zyvor.dev/buy](https://zyvor.dev/buy) · sales@zyvor.dev |
 | Positioning against OpenShift Virtualization Engine | [docs/OPENSHIFT_COMPARISON.md](docs/OPENSHIFT_COMPARISON.md) |
 | Offerings, quote → contract flow, API and maturity | [docs/COMMERCIAL_OFFERINGS.md](docs/COMMERCIAL_OFFERINGS.md) |
 | What support covers, response targets and timers | [docs/SUPPORT_SCOPE.md](docs/SUPPORT_SCOPE.md) |
