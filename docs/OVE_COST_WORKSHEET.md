@@ -32,8 +32,11 @@ Annual support is the **greater of** (nodes × per-node) and the annual minimum.
 | Supported (USD) | $600 | $3,000 |
 | Supported Plus (USD) | $1,200 | $6,000 |
 
-Optional one-time (not support): Deployment ₹1–3 lakh / from $3,000;
-Migration from ₹2 lakh / $5,000. Managed is quoted separately.
+Optional one-time (not support): Deployment is a custom quote; Migration (Transiva)
+is $75 / $60 / $50 per VM (1–99 / 100–499 / 500+ VMs), minimum $2,500 (₹7,434 / ₹5,947 /
+₹4,956 per VM, minimum ₹247,800, in India). Managed is from $1,500 per cluster per month
+(₹148,680 in India). Prices: INR incl. 18% GST in India; US dollars excl. tax elsewhere (VAT, GST or sales tax added where applicable). Pay online by UPI, card or netbanking where a buy page exists; international cards work (charged in rupees); or request a US-dollar invoice by bank transfer. Custom pricing: contact sales@zyvor.dev.
+Buy / get a quote: <https://zyvor.dev/buy>.
 
 ### Quick compute
 

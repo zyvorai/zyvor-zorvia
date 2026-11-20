@@ -36,10 +36,13 @@ Not unless your contract says so in writing. See [FEATURE_MATURITY.md](FEATURE_M
 Hardware, hosting, third-party subscriptions, travel and applicable taxes, plus anything "separately scoped" in [SUPPORT_SCOPE.md](SUPPORT_SCOPE.md).
 
 **Are international prices converted from India prices?**
-No. They are independently set regional prices.
+Supported and Supported Plus: yes, the USD price is the India price excluding 18% GST (INR / 1.18 / 84, rounded). Managed and Migration are set in USD, and the India figure is USD x 99.12 including GST. In short: INR including 18% GST in India; US dollars excluding tax elsewhere (VAT, GST or sales tax added where applicable).
 
 **How does this compare with OpenShift Virtualization?**
 See [OPENSHIFT_COMPARISON.md](OPENSHIFT_COMPARISON.md). Comparisons are made on customer-specific quotes, not list-price claims.
+
+**How do I pay?**
+Online by UPI, card or netbanking where a buy page exists at [zyvor.dev/buy](https://zyvor.dev/buy); international cards work (charged in rupees); or request a US-dollar invoice by bank transfer. Custom pricing: sales@zyvor.dev.
 
 **How do I get a quote?**
 [Book a demo](https://zyvor.dev/schedule?utm_source=github&utm_medium=zorvia&utm_campaign=docs_commercial_faq) or write to sales@zyvor.dev with your cluster and worker-node counts.
