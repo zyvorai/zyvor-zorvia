@@ -27,10 +27,10 @@ Annual support is the **greater of** (nodes × per-node) and the annual minimum.
 
 | Tier | Per worker node / year | Annual minimum |
 |------|------------------------:|---------------:|
-| Supported (INR) | ₹30,000 | ₹1.5 lakh |
-| Supported Plus (INR) | ₹60,000 | ₹4 lakh |
+| Supported (INR, incl. 18% GST) | ₹59,999 | ₹299,995 (5 nodes) |
+| Supported Plus (INR, incl. 18% GST) | ₹119,999 | ₹599,995 (5 nodes) |
 | Supported (USD) | $600 | $3,000 |
-| Supported Plus (USD) | $1,200 | $8,000 |
+| Supported Plus (USD) | $1,200 | $6,000 |
 
 Optional one-time (not support): Deployment ₹1–3 lakh / from $3,000;
 Migration from ₹2 lakh / $5,000. Managed is quoted separately.
