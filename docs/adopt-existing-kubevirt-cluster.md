@@ -66,4 +66,3 @@ non-critical VM first.
   rehearsal only). For multi-site or commercial migration help,
   [talk to sales](https://zyvor.dev/contact?intent=sales&utm_source=github&utm_medium=zorvia&utm_campaign=docs_adopt).
 
-Back to [Leaving OpenShift](leave-openshift.md).

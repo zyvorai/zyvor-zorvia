@@ -16,13 +16,10 @@ Start here: root [README.md](../README.md) (hero, gallery, quick start) · live 
 | [config-and-library.md](config-and-library.md) | VM config files and the Rust library |
 | [develop.md](develop.md) | The make-first dev loop |
 | [roadmap.md](roadmap.md) | Feature maturity and what is not shipped yet |
-| [leave-openshift.md](leave-openshift.md) | Zorvia vs OpenShift Virtualization vs Zorvia with commercial support, honestly |
 | [adopt-existing-kubevirt-cluster.md](adopt-existing-kubevirt-cluster.md) | Point Zorvia at an existing KubeVirt cluster, read-only first |
 | [PRICING.md](PRICING.md) | Launch pricing, billing rules and examples |
 | [SUPPORT_SCOPE.md](SUPPORT_SCOPE.md) | What paid support covers and excludes |
 | [COMMERCIAL_FAQ.md](COMMERCIAL_FAQ.md) | Licensing, contracts and expiry questions |
-| [OPENSHIFT_COMPARISON.md](OPENSHIFT_COMPARISON.md) | How to compare against OpenShift Virtualization Engine |
-| [OVE_COST_WORKSHEET.md](OVE_COST_WORKSHEET.md) | Paste-your-OVE-quote worksheet + `scripts/ove-cost-worksheet.sh` |
 | [COMMERCIAL_OFFERINGS.md](COMMERCIAL_OFFERINGS.md) | Offerings, quote → contract flow and API |
 
 ## Core

@@ -166,9 +166,7 @@ function TrustBand() {
               Read the full README →
             </Link>
             <p>
-              Coming from OpenShift Virtualization?{' '}
-              <Link to="/docs/leave-openshift">Read the honest comparison →</Link>
-              {' · '}
+              Running Zorvia in production?{' '}
               <Link to="mailto:sales@zyvor.dev">Get Zorvia Enterprise →</Link>
             </p>
           </div>

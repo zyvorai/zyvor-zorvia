@@ -10,18 +10,6 @@ import styles from './styles.module.css';
 
 const CARDS = [
   {
-    title: 'Leaving OpenShift Virtualization',
-    body: 'An honest comparison: what maps cleanly, what does not, and how to move.',
-    to: '/docs/leave-openshift',
-    cta: 'Read the comparison',
-  },
-  {
-    title: 'Leaving Nutanix',
-    body: 'Export from Transiva, convert with h2kvm, land on KubeVirt — with an honest status.',
-    to: '/docs/leave-nutanix',
-    cta: 'See the path',
-  },
-  {
     title: 'Drive it from your AI assistant',
     body: 'Zorvia ships an MCP server so assistants can inspect and operate VMs under the same RBAC.',
     to: '/docs/MCP',
@@ -35,7 +23,7 @@ export default function Migrate(): ReactNode {
       <div className="container">
         <Reveal>
           <Heading as="h2" className={styles.heading}>
-            Coming from somewhere else?
+            Works with your tools
           </Heading>
         </Reveal>
         <div className={styles.grid}>

@@ -25,10 +25,4 @@ export const WHATS_NEW: WhatsNewEntry[] = [
     body: 'Search the template catalog and filter by OS family, with a live match count.',
     to: '/app/templates',
   },
-  {
-    id: 1,
-    date: '2026-10-17',
-    title: 'Leaving Nutanix, documented',
-    body: 'Export, convert and land a Nutanix VM on KubeVirt, with an honest status of what works.',
-  },
 ]

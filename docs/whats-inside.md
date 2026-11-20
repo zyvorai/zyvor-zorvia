@@ -90,8 +90,7 @@ Two dozen capabilities, grouped by the job they do — not one wall of a table.
 - GitOps: a Terraform scaffold and module over the Fabric API.
 
 Same `VirtualMachine` objects, whether you're at a terminal or in a
-browser. Coming from OpenShift Virtualization? See
-[leave-openshift.md](leave-openshift.md).
+browser.
 
 ```mermaid
 flowchart LR

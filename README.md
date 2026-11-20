@@ -12,7 +12,7 @@
 [![30-day PoC](https://img.shields.io/badge/30--day_PoC-000000?style=for-the-badge)](https://zyvor.dev/poc?utm_source=github&utm_medium=zorvia&utm_campaign=readme_hero)
 [![Deploy](https://img.shields.io/badge/Deploy_with_one_Helm_chart-0a84ff?style=for-the-badge)](#quickstart)
 
-[**Quickstart**](#quickstart) · [**Console**](#see-it-live) · [**Docs**](docs/README.md) · [**Leaving OpenShift?**](docs/leave-openshift.md) · [**Star on GitHub**](https://github.com/zyvorai/zyvor-zorvia)
+[**Quickstart**](#quickstart) · [**Console**](#see-it-live) · [**Docs**](docs/README.md) · [**Star on GitHub**](https://github.com/zyvorai/zyvor-zorvia)
 
 <img src="docs/social/zorvia-hero-dark.jpg" alt="Zorvia - Kubernetes VMs, run like a platform, not YAML." width="100%">
 
@@ -23,8 +23,6 @@
 **43 OS templates** · **8 profiles, 5 blueprints** · **CLI · TUI · web, one API** · **Any KubeVirt cluster** · **Zyvor Production License**
 
 </div>
-
-[Client overview (PDF)](docs/Zorvia-Client-Overview.pdf)
 
 ---
 
@@ -63,7 +61,6 @@ longer stall the API, and the Golden Images page adds Windows golden builds thro
 | Reaching the guest means handing out cluster credentials | Serial, VNC and in-browser SSH over authenticated, permission-checked WebSockets |
 | Access control lives only in the UI | Server-side roles, per-user [namespace allow-lists](docs/TENANCY.md), `ResourceQuota` and `NetworkPolicy` — not client-only checks |
 | The auditor asks who did what | A persistent audit DB and `GET /api/audit/export` (JSONL) for SIEM shippers |
-| You're paying for OpenShift just to run KubeVirt VMs | A source-available control plane (free for non-production use) for any KubeVirt cluster, adopted read-only first |
 
 | Step | Surface | What it does |
 |------|---------|--------------|
@@ -116,64 +113,13 @@ Placement Advisor and Capacity Planning against real Node capacity, a Resource O
 
 ---
 
-## Zorvia vs OpenShift Virtualization
+## Adopting Zorvia
 
-![Zorvia vs OpenShift Virtualization: same KubeVirt VMs, pick your control plane](docs/ux/readme-vs.jpg)
+Zorvia is opinionated about one thing: VMs on KubeVirt, run like a platform. It works with any KubeVirt cluster, so your VMs stay ordinary `VirtualMachine` objects.
 
-| | **Zorvia** | **OpenShift Virtualization** (Red Hat) |
-|---|---|---|
-| VM engine | KubeVirt | KubeVirt |
-| Where it runs | Any KubeVirt cluster | OpenShift only |
-| Licence | Zyvor Production 1.0 (free non-production), no subscription to run it | Red Hat subscription |
-| Front ends | CLI, interactive TUI and web console on one Fabric API | OpenShift web console and `virtctl`; no TUI |
-| Change gating | `zorvia change drift` and `zorvia change plan` built in | Not built in |
-| VMware migration | No importer of its own in production; pairs with Transiva → h2kvm → GuestKit (in-product h2kvm import is Experimental) | Integrated migration tooling |
-| Support | Production support and SLAs by contract, on top of the free code | Red Hat support contract |
-| **Choose OpenShift Virtualization when** | | You want one vendor support contract for the whole platform, multi-cluster management and integrated VMware migration |
-
-### How it stacks up
-
-|  | Hand-rolled `kubectl`/`virtctl` | Generic K8s dashboards | OpenShift Virtualization | **Zorvia** |
-|---|---|---|---|---|
-| VM create/day-2 without hand-written YAML | No | Partial: view-only for VMs | Yes | Yes |
-| Same capability from CLI, TUI, *and* web | No | No (web only) | Partial: web + `virtctl`, no TUI | Yes |
-| Cost/right-sizing, compliance, HA built in | No | No | Partial: add-ons | Yes: real, on by default |
-| Drift detection + change-plan gating | No | No | No | Yes (`zorvia change drift` / `zorvia change plan`) |
-| Runs on any KubeVirt cluster | Yes | Yes | No: OpenShift only | Yes |
-| Source-available, free non-production use | Yes | Varies | No | Yes |
-
-Zorvia isn't a general Kubernetes dashboard — it's opinionated about one thing: VMs on KubeVirt, done like a platform.
-
-### Leaving OpenShift?
-
-<div align="center">
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/social/compare/lanes-1200x630-dark.png">
-  <img src="docs/social/compare/lanes-1200x630.png" alt="Same KubeVirt VMs, pick your control plane: OpenShift (Red Hat subscription), Zorvia (source-available, Zyvor Production License) and ZeusOS (proprietary, commercial) compared side by side." width="820">
-</picture>
-
-</div>
-
-OpenShift Virtualization runs KubeVirt, so your VMs are already `VirtualMachine` objects. Leaving means changing the control plane around them, not rewriting them.
-
-- **Zorvia** — free for non-production use under the Zyvor Production License v1.0, no subscription; production use needs a commercial license. Point it at your KubeVirt cluster, read-only first: [adoption runbook](docs/adopt-existing-kubevirt-cluster.md).
-- **Coming from VMware?** Zorvia has no production importer of its own. Use the Zyvor suite: [Transiva](https://github.com/zyvorai/zyvor-transiva) (export) → [h2kvm](https://github.com/zyvorai/zyvor-h2kvm) (convert, deploy) → [GuestKit](https://github.com/zyvorai/zyvor-guestkit) (assure) → Zorvia (operate). Community tiers are free; h2kvm needs a paid licence for production.
-- **Commercial support** — production support and SLAs by contract, on top of the source-available code. Scope and terms are agreed with sales: [talk to sales](https://zyvor.dev/contact?intent=sales&utm_source=github&utm_medium=zorvia&utm_campaign=readme_edition), or [book a demo](https://zyvor.dev/schedule?utm_source=github&utm_medium=zorvia&utm_campaign=readme_edition).
-
-<div align="center">
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/social/compare/scorecard-1200x630-dark.png">
-  <img src="docs/social/compare/scorecard-1200x630.png" alt="Scorecard comparing OpenShift, Zorvia and ZeusOS across nine rows. OpenShift leads on support contract, multi-cluster and integrated VMware migration; Zorvia leads on licence cost, running on any KubeVirt cluster, TUI and built-in drift gating." width="820">
-</picture>
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/social/compare/migration-1200x630-dark.png">
-  <img src="docs/social/compare/migration-1200x630.png" alt="VMware to KubeVirt, four tools one path: Transiva exports, h2kvm converts and deploys, GuestKit assures, Zorvia operates, each with Community and Enterprise tiers." width="820">
-</picture>
-
-</div>
+- **Existing KubeVirt cluster** — point Zorvia at it, read-only first: [adoption runbook](docs/adopt-existing-kubevirt-cluster.md). Free for non-production use under the Zyvor Production License v1.0; production use needs a commercial license.
+- **Coming from VMware** — Zorvia has no production importer of its own. Use the Zyvor suite: [Transiva](https://github.com/zyvorai/zyvor-transiva) (export) → [h2kvm](https://github.com/zyvorai/zyvor-h2kvm) (convert, deploy) → [GuestKit](https://github.com/zyvorai/zyvor-guestkit) (assure) → Zorvia (operate).
+- **Commercial support** — production support and SLAs by contract. Scope and terms are agreed with sales: [talk to sales](https://zyvor.dev/contact?intent=sales&utm_source=github&utm_medium=zorvia&utm_campaign=readme_edition), or [book a demo](https://zyvor.dev/schedule?utm_source=github&utm_medium=zorvia&utm_campaign=readme_edition).
 
 > **Running this for a business?** Commercial support gives you support and SLAs you can put in a contract. [Book a demo](https://zyvor.dev/schedule?utm_source=github&utm_medium=zorvia&utm_campaign=readme_edition) or start a [30-day PoC](https://zyvor.dev/poc?utm_source=github&utm_medium=zorvia&utm_campaign=readme_edition) on a real cluster, then follow the [adoption runbook](docs/adopt-existing-kubevirt-cluster.md).
 
@@ -269,7 +215,6 @@ Everything in this repository is under the Zyvor Production License v1.0: free f
 | Topic | Doc |
 |---|---|
 | Pricing (INR incl. GST in India, USD elsewhere), billing rules, examples | [docs/PRICING.md](docs/PRICING.md) · [docs/COMMERCIAL_FAQ.md](docs/COMMERCIAL_FAQ.md) · Buy / get a quote: [zyvor.dev/buy](https://zyvor.dev/buy) · sales@zyvor.dev |
-| Positioning against OpenShift Virtualization Engine | [docs/OPENSHIFT_COMPARISON.md](docs/OPENSHIFT_COMPARISON.md) |
 | Offerings, quote → contract flow, API and maturity | [docs/COMMERCIAL_OFFERINGS.md](docs/COMMERCIAL_OFFERINGS.md) |
 | What support covers, response targets and timers | [docs/SUPPORT_SCOPE.md](docs/SUPPORT_SCOPE.md) |
 | Managed operations, access and remediation rules | [docs/MANAGED_OPERATIONS.md](docs/MANAGED_OPERATIONS.md) |
@@ -296,7 +241,7 @@ Delivery is phased. Catalog, quote requests, contracts and coverage are implemen
 | Verified off-cluster backup, restore, recovery drills | [docs/OFFCLUSTER_BACKUP.md](docs/OFFCLUSTER_BACKUP.md) |
 | VMware import (h2kvm) and Atlas storage | [docs/VM_IMPORT.md](docs/VM_IMPORT.md) · [docs/ATLAS_INTEGRATION.md](docs/ATLAS_INTEGRATION.md) |
 | Config file and the Rust library | [docs/config-and-library.md](docs/config-and-library.md) |
-| Leaving OpenShift: comparison and adoption | [docs/leave-openshift.md](docs/leave-openshift.md) · [docs/adopt-existing-kubevirt-cluster.md](docs/adopt-existing-kubevirt-cluster.md) |
+| Adopting an existing KubeVirt cluster | [docs/adopt-existing-kubevirt-cluster.md](docs/adopt-existing-kubevirt-cluster.md) |
 | Feature maturity and roadmap | [docs/roadmap.md](docs/roadmap.md) · [docs/FEATURE_MATURITY.md](docs/FEATURE_MATURITY.md) |
 | Lab deploy, pods, OIDC | [docs/LAB.md](docs/LAB.md) · [docs/PODS.md](docs/PODS.md) · [docs/OIDC_LAB.md](docs/OIDC_LAB.md) |
 | Development | [docs/develop.md](docs/develop.md) · [DEVELOPMENT.md](DEVELOPMENT.md) · [QUICK_REFERENCE.md](QUICK_REFERENCE.md) |

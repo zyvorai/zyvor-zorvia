@@ -28,17 +28,3 @@ render() {
 render "$HERE/zorvia-share-card.html" 1200 630 "$HERE/zorvia-share-card.png" png
 render "$HERE/zorvia-share-card-dark.html" 1200 630 "$HERE/zorvia-share-card-dark.png" png
 render "$HERE/zorvia-social-card.html" 1600 900 "$HERE/zorvia-social-card.jpg" jpeg
-
-# OpenShift vs Zorvia vs ZeusOS comparison cards: 4 concepts x 3 sizes x light/dark.
-mkdir -p "$HERE/compare"
-for concept in lanes scorecard poster migration; do
-  for size in 1600x900 1200x630 1080x1080; do
-    w="${size%x*}"; h="${size#*x}"
-    for theme in light dark; do
-      suffix=""; hash="#${size}"
-      if [[ "$theme" == dark ]]; then suffix="-dark"; hash="#${size}-dark"; fi
-      if [[ "$size" == 1600x900 ]]; then ext=jpg; fmt=jpeg; else ext=png; fmt=png; fi
-      render "$HERE/compare-${concept}.html" "$w" "$h" "$HERE/compare/${concept}-${size}${suffix}.${ext}" "$fmt" "$hash"
-    done
-  done
-done

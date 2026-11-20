@@ -173,7 +173,7 @@ dependency gated behind the `rescue-agent` Cargo feature, and `cargo build`
 **Pinned to a `git` revision, not a crates.io version**, deliberately: the
 `guestkit` crate published on crates.io (0.3.x) is stale, comes from a
 different (personal) repository, and is licensed **LGPL-3.0-or-later** —
-not the **Apache-2.0** code in the current `zyvorai/guestkit` source this
+not the **Zyvor Production License v1.0** code in the current `zyvorai/guestkit` source this
 is pinned to. Repin to a real crates.io release once one exists under the
 current license and org. See `Cargo.toml`'s comment on the `guestkit`
 dependency line for the exact pinned commit.
