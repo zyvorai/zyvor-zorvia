@@ -17,10 +17,10 @@ OVE="${4:-}"
 [[ "$NODES" =~ ^[0-9]+$ ]] && [[ "$NODES" -gt 0 ]] || { echo "nodes must be a positive integer" >&2; exit 1; }
 
 case "$CUR:$TIER" in
-  inr:supported) PER=30000; MIN=150000; SYM=₹ ;;
-  inr:supported-plus) PER=60000; MIN=400000; SYM=₹ ;;
+  inr:supported) PER=59999; MIN=299995; SYM=₹ ;;
+  inr:supported-plus) PER=119999; MIN=599995; SYM=₹ ;;
   usd:supported) PER=600; MIN=3000; SYM=\$ ;;
-  usd:supported-plus) PER=1200; MIN=8000; SYM=\$ ;;
+  usd:supported-plus) PER=1200; MIN=6000; SYM=\$ ;;
   *) echo "currency must be inr|usd and tier supported|supported-plus" >&2; exit 1 ;;
 esac
 
@@ -38,7 +38,7 @@ echo "  per-node: ${SYM}${PER}"
 echo "  nodes×rate: ${SYM}${NODE_TOTAL}"
 echo "  annual minimum: ${SYM}${MIN}"
 echo "  => annual support estimate: ${SYM}${ZORVIA}  (${HOW})"
-echo "  (excludes taxes, Managed, Deployment/Migration one-time; see docs/PRICING.md)"
+echo "  (INR includes 18% GST; excludes Managed, Deployment/Migration one-time; see docs/PRICING.md)"
 
 if [[ -n "$OVE" ]]; then
   [[ "$OVE" =~ ^[0-9]+$ ]] || { echo "ove_year1_amount must be an integer in the same currency units" >&2; exit 1; }

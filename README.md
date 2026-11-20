@@ -218,7 +218,7 @@ One Fabric API sits behind the CLI, the interactive TUI and the web console, and
 One binary, one Helm chart — bring your own KubeVirt cluster. Requires Rust **1.89+**, a kubeconfig, and a cluster with **KubeVirt** (CDI optional for golden images / CDI clone).
 
 ```bash
-git clone https://github.com/zyvorai/zyvor-zorvia.git && cd zorvia
+git clone https://github.com/zyvorai/zyvor-zorvia.git && cd zyvor-zorvia
 cargo install --path . --features web   # `web` is the default feature
 
 # cluster install
@@ -238,7 +238,7 @@ From a checkout, with SSH access (and passwordless `sudo`) to a fresh Linux host
 
 # host that already has a KubeVirt cluster: just (re)deploy the published image, ~1 minute
 ./deploy/remote-deploy.sh <host> <user> --image          # ghcr.io/zyvorai/zorvia:latest
-./deploy/remote-deploy.sh <host> <user> --image=ghcr.io/zyvorai/zorvia:0.6.0   # pin a release
+./deploy/remote-deploy.sh <host> <user> --image=ghcr.io/zyvorai/zorvia:0.7.4   # pin a release
 ```
 
 Nothing is compiled on the host. The script prints the console URL (`https://<host>:30152`) and the generated
