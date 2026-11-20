@@ -2,11 +2,11 @@
 
 Prices referenced here are the launch prices in [PRICING.md](PRICING.md).
 
-**Is Zorvia free for commercial use?**
-Yes. It is Apache-2.0. You may use, modify and run it in production commercially at no charge, subject to the licence terms ([LICENSE](../LICENSE), [NOTICE](../NOTICE)).
+**Is Zorvia free?**
+Non-production use (evaluation, development, testing, research, education) is free under the Zyvor Production License v1.0 ([LICENSE](../LICENSE), [NOTICE](../NOTICE)). Production Use requires a commercial license from Zyvor AI Labs Private Limited (sales@zyvor.dev); a 30-day trial key is available for production evaluation.
 
 **What do I pay for, then?**
-Services around the software: production support, deployment, migration, training and managed operations. Support is a paid service contract, not a software licence.
+The commercial license for Production Use, and services around the software: production support, deployment, migration, training and managed operations. Support is a paid service contract.
 
 **Will Zorvia stop working if my contract lapses?**
 No. Expiry only ends the paid service. It never stops VMs, disables VM APIs or existing community functionality, or blocks access to your data.

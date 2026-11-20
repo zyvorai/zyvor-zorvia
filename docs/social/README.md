@@ -30,7 +30,7 @@ outputs above and the comparison cards below.
 The repository's **Social preview** image (Settings → Social preview) cannot be set through the API or `gh`;
 upload `zorvia-share-card.png` there by hand after it changes.
 
-Licence wording follows `LICENSE` (Apache-2.0). The version chip tracks `Cargo.toml` (currently 0.7.4) and the
+Licence wording follows `LICENSE` (Zyvor Production License v1.0). The version chip tracks `Cargo.toml` (currently 0.7.4) and the
 CHANGELOG.
 
 ## OpenShift vs Zorvia vs ZeusOS cards
@@ -53,7 +53,7 @@ ZeusOS is a separate proprietary product, not Zorvia commercial support.
 >
 > If you are weighing a Red Hat subscription against your VMs, the workloads do not have to change, only the control plane around them. We wrote the honest comparison, including where OpenShift is the better choice (support contract, certified operators, multi-cluster today).
 >
-> Zorvia: open source, Apache-2.0, CLI + TUI + web on any KubeVirt cluster. ZeusOS: our separate, proprietary visual workspace. Book a demo or start a 30-day PoC: zyvor.dev/schedule.
+> Zorvia: source-available (Zyvor Production License), CLI + TUI + web on any KubeVirt cluster. ZeusOS: our separate, proprietary visual workspace. Book a demo or start a 30-day PoC: zyvor.dev/schedule.
 >
 > github.com/zyvorai/zorvia
 >
@@ -62,13 +62,13 @@ ZeusOS is a separate proprietary product, not Zorvia commercial support.
 **X** (use `compare/poster-1600x900.jpg`)
 
 > Leave the subscription. Keep the VMs.
-> OpenShift Virtualization VMs are already KubeVirt objects. Zorvia (Apache-2.0) runs the control plane on any KubeVirt cluster. Honest comparison, OpenShift's wins included: github.com/zyvorai/zorvia #KubeVirt
+> OpenShift Virtualization VMs are already KubeVirt objects. Zorvia (Zyvor Production License) runs the control plane on any KubeVirt cluster. Honest comparison, OpenShift's wins included: github.com/zyvorai/zorvia #KubeVirt
 
 ### Alt text
 
-- **lanes**: Three columns comparing OpenShift (Red Hat subscription, OpenShift only, Red Hat support, Advanced Cluster Management), Zorvia (open source Apache-2.0, any KubeVirt cluster, CLI, TUI and web, multi-cluster Experimental, VMware migration through the separate Transiva and h2kvm suite) and ZeusOS (proprietary commercial, web and TUI, approval-gated changes, Migration Factory, multi-cluster in paid editions). Headline: Same KubeVirt VMs. Pick your control plane.
+- **lanes**: Three columns comparing OpenShift (Red Hat subscription, OpenShift only, Red Hat support, Advanced Cluster Management), Zorvia (source-available, Zyvor Production License, any KubeVirt cluster, CLI, TUI and web, multi-cluster Experimental, VMware migration through the separate Transiva and h2kvm suite) and ZeusOS (proprietary commercial, web and TUI, approval-gated changes, Migration Factory, multi-cluster in paid editions). Headline: Same KubeVirt VMs. Pick your control plane.
 - **scorecard**: A table with nine rows comparing OpenShift, Zorvia and ZeusOS, marked yes, partial or no. OpenShift leads on support contract, multi-cluster and integrated VMware migration; Zorvia leads on licence cost, running on any KubeVirt cluster, TUI and built-in drift gating, with multi-cluster still Experimental.
-- **poster**: Leave the subscription. Keep the VMs. Three cards: OpenShift for Red Hat contract and certified operators, Zorvia open source, ZeusOS proprietary commercial.
+- **poster**: Leave the subscription. Keep the VMs. Three cards: OpenShift for Red Hat contract and certified operators, Zorvia source-available, ZeusOS proprietary commercial.
 - **migration**: Leaving VMware, four tools one path. Transiva exports (Apache-2.0; Enterprise adds CBT, waves and 10+ providers), h2kvm converts and deploys to KubeVirt (production licence; Enterprise adds HA operator, Windows and SAN/Ceph runbooks), GuestKit scores boot readiness (Apache-2.0), Zorvia operates day 2. Zorvia's own importer is Experimental.
 
 **LinkedIn, migration** (use `compare/migration-1600x900.jpg`)

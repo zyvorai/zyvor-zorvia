@@ -117,7 +117,7 @@ const config: Config = {
             {label: 'Support', to: '/support'},
             {label: 'GitHub', href: 'https://github.com/zyvorai/zyvor-zorvia'},
             {label: 'Changelog', href: 'https://github.com/zyvorai/zyvor-zorvia/blob/main/CHANGELOG.md'},
-            {label: 'License (Apache-2.0)', href: 'https://github.com/zyvorai/zyvor-zorvia/blob/main/LICENSE'},
+            {label: 'License (Zyvor Production)', href: 'https://github.com/zyvorai/zyvor-zorvia/blob/main/LICENSE'},
           ],
         },
         {
@@ -128,7 +128,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Zyvor. Zorvia is Apache-2.0 licensed.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Zyvor. Zorvia is under the Zyvor Production License v1.0.`,
     },
     prism: {
       theme: prismThemes.github,

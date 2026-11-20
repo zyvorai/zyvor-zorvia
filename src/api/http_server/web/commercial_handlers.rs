@@ -81,7 +81,7 @@ pub async fn commercial_catalog_handler() -> impl IntoResponse {
     Json(json!({
         "offerings": catalog::OFFERINGS,
         "pricing": "Prices are set per quote by authorized commercial administrators; none are published here.",
-        "community_note": "All existing Apache-2.0 functionality remains available without a subscription. Contracts describe purchased services and support coverage only.",
+        "community_note": "All existing functionality remains available without a subscription under the Zyvor Production License v1.0. Contracts describe purchased services and support coverage only.",
         "integrations": {
             "notifications": { "available": false, "reason": "No notification integration is configured; requests are recorded but nothing is sent." },
             "payments": { "available": false, "reason": "No payment provider is configured; no charges are made." },

@@ -1,4 +1,4 @@
-// Copyright 2026 Zyvor AI Labs · Apache-2.0
+// Copyright 2026 Zyvor AI Labs · Zyvor Production License v1.0
 import { defineConfig, devices } from '@playwright/test'
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:4173'

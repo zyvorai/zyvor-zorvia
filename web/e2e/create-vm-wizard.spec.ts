@@ -1,4 +1,4 @@
-// Copyright 2026 Zyvor AI Labs · Apache-2.0
+// Copyright 2026 Zyvor AI Labs · Zyvor Production License v1.0
 import { test, expect } from '@playwright/test'
 
 // Regression: the wizard's "Next" and "Create" buttons share one DOM slot. Without

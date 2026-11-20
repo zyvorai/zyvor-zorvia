@@ -1,6 +1,6 @@
 # Support scope
 
-Prices are in [PRICING.md](PRICING.md). Support is a paid service contract around the Apache-2.0 software. It is not a software licence, and nothing in the product enforces it.
+Prices are in [PRICING.md](PRICING.md). Support is a paid service contract around the source-available software. It is not a software licence, and nothing in the product enforces it.
 
 The tier structure (business-hours and 24×7 tiers, severity-based response targets, named contacts, a published lifecycle) follows the familiar enterprise-support model. It is Zyvor's own policy. It does not claim the same terms, certifications or coverage as any other vendor's subscription.
 

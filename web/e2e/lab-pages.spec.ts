@@ -1,4 +1,4 @@
-// Copyright 2026 Zyvor AI Labs · Apache-2.0
+// Copyright 2026 Zyvor AI Labs · Zyvor Production License v1.0
 import { test, expect, type Page } from '@playwright/test'
 
 const liveBase = process.env.ZORVIA_E2E_BASE_URL || process.env.PLAYWRIGHT_BASE_URL

@@ -29,7 +29,7 @@ pub static OFFERINGS: &[Offering] = &[
     Offering {
         id: "community",
         name: "Community",
-        summary: "The Apache-2.0 software, documentation and community issue tracker.",
+        summary: "The source-available software (free for non-production use), documentation and community issue tracker.",
         billing_model: "Free",
         requestable: false,
         grants_coverage: false,

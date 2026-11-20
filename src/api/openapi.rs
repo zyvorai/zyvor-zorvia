@@ -154,8 +154,8 @@ impl OpenApiSpec {
                     email: None,
                 }),
                 license: Some(LicenseInfo {
-                    name: "Apache-2.0".to_string(),
-                    url: Some("https://www.apache.org/licenses/LICENSE-2.0".to_string()),
+                    name: "LicenseRef-Zyvor-Production-1.0".to_string(),
+                    url: Some("https://github.com/zyvorai/zyvor-zorvia/blob/main/LICENSE".to_string()),
                 }),
             },
             servers: vec![ServerInfo {

@@ -1,6 +1,6 @@
 # Pricing
 
-> **Note:** Zyvor is moving to an enterprise subscription model for new quotes: an annual subscription that includes updates and the stated support level, with open-source and non-production terms unchanged. See `docs/SUBSCRIPTION-MODEL.md` in this repository. Rates below apply to existing agreements; contact [sales@zyvor.dev](mailto:sales@zyvor.dev) for current rates.
+> **Note:** Zyvor is moving to an enterprise subscription model for new quotes: an annual subscription that includes updates and the stated support level, with non-production terms unchanged. See `docs/SUBSCRIPTION-MODEL.md` in this repository. Rates below apply to existing agreements; contact [sales@zyvor.dev](mailto:sales@zyvor.dev) for current rates.
 >
 > **Prices: INR incl. 18% GST in India; US dollars excl. tax elsewhere (VAT, GST or sales tax added where applicable). Pay online by UPI, card or netbanking where a buy page exists; international cards work (charged in rupees); or request a US-dollar invoice by bank transfer. Custom pricing: contact [sales@zyvor.dev](mailto:sales@zyvor.dev).** Buy / get a quote: <https://zyvor.dev/buy>.
 
@@ -9,7 +9,7 @@
 
 ## The software stays free
 
-Zorvia is Apache-2.0. You may use, modify and run it in production, commercially, at no charge. Paying customers pay for **services around the software**: production support, deployment, migration, training and managed operations. Support is a paid service contract, not a software licence, and nothing in the product checks for one.
+Zorvia is source-available under the Zyvor Production License v1.0. Non-production use is free; Production Use requires a commercial license (sales@zyvor.dev). Paying customers pay for the commercial license and **services around the software**: production support, deployment, migration, training and managed operations. Support is a paid service contract, not a software licence, and nothing in the product checks for one.
 
 An expired or missing contract never stops VMs or disables existing community functionality ([COMMERCIAL_OFFERINGS.md](COMMERCIAL_OFFERINGS.md)).
 
@@ -40,11 +40,11 @@ Supported and Supported Plus are the GST-free equivalent of the India price (INR
 
 ## Relationship to Zyvor Platform editions
 
-Zorvia's per-node support prices above are the **open-source support meter** (Zyvor Support) in the Zyvor price book and apply to every Apache-2.0 Zyvor infrastructure product on the node.
+Zorvia's per-node support prices above are the **Zyvor Support meter** in the Zyvor price book and apply to every Zyvor infrastructure software product on the node.
 
 - **Zyvor Platform Enterprise and above** ($8,500 per node per year, about ₹842,520 including GST in India; founding price $7,350 / ₹728,532 in year 1 for the first 25 customers) include Zorvia **Supported Plus** on the covered hosts. Do not add a second Zorvia subscription for those nodes.
 - **Zyvor Platform Professional** ($4,500 per node per year, about ₹446,040 including GST in India) does not include Zorvia support; Zorvia **Supported** (₹59,999 / $600 per worker node) can be added.
-- One support subscription per covered node covers all Apache-2.0 Zyvor infrastructure products on that node, not one subscription per product.
+- One support subscription per covered node covers all Zyvor infrastructure software on that node, not one subscription per product.
 - A node is one physical server with up to 2 CPU sockets and 64 cores. The minimum for every platform edition is one node. The Supported Plus minimum is $6,000 (₹599,995 in India).
 - Volume bands (256–499 nodes −10%, 500–999 −15%, 1,000+ −20%) and term discounts (2-year −5%, 3-year −10%, combined cap −25%) apply to per-node list prices; annual minimums apply after discounts.
 - VM migration (Transiva) is priced per VM on one ladder: $75 / ₹7,434 (1–99 VMs), $60 / ₹5,947 (100–499), $50 / ₹4,956 (500+), project minimum $2,500 / ₹247,800 (India figures are USD x 99.12 including 18% GST). The h2kvm engine is included at no extra charge in a Transiva project.

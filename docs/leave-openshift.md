@@ -10,7 +10,7 @@ Zorvia, with optional commercial support, is one way to do that. This page compa
 
 | | **Zorvia** | **Commercial support** |
 |---|---|---|
-| Licence | Apache-2.0, free for production | Same Apache-2.0 code, plus a support contract |
+| Licence | Zyvor Production 1.0 (free non-production) | Same code under a commercial license, plus a support contract |
 | Best for | Teams that run KubeVirt themselves and want a real control plane without a subscription | Teams that need production support and SLAs they can put in a contract |
 | Surfaces | CLI, TUI, web console, one Fabric API | Same |
 | Support | Community (GitHub issues) | Production support and SLAs |
@@ -18,7 +18,7 @@ Zorvia, with optional commercial support, is one way to do that. This page compa
 
 **Start with Zorvia** to prove the model against your own cluster at no cost. **Add commercial support** when you need support you can put in a contract. Tell sales your cluster size and what you need, and they will say what is included today.
 
-ZeusOS is a separate Zyvor product. It is proprietary (not open source) and is not the enterprise edition of Zorvia. See [zyvor.dev/zeus-os](https://zyvor.dev/zeus-os) if you want to look at it.
+ZeusOS is a separate Zyvor product. It is proprietary (not source-available under the Zyvor Production License) and is not the enterprise edition of Zorvia. See [zyvor.dev/zeus-os](https://zyvor.dev/zeus-os) if you want to look at it.
 
 ## Honest comparison
 
@@ -33,7 +33,7 @@ ZeusOS is a separate Zyvor product. It is proprietary (not open source) and is n
 | SSO | Built-in OAuth server | OIDC (`oidc`, Beta) | Same as Zorvia |
 | Drift detection and change-plan gating | No | Yes (`zorvia change drift` / `zorvia change plan`) | Same as Zorvia |
 | Runs on any KubeVirt cluster | No, OpenShift only | Yes | Same as Zorvia |
-| Software cost | Red Hat subscription | $0 (Apache-2.0) | $0 for the software; a paid service contract for support ([pricing](PRICING.md)) |
+| Software cost | Red Hat subscription | $0 for non-production use (Zyvor Production License v1.0) | $0 for the software; a paid service contract for support ([pricing](PRICING.md)) |
 | Vendor support contract | Yes (Red Hat) | No, community | Yes (production support and SLAs) |
 | Multi-cluster management | Yes (Advanced Cluster Management) | Experimental (`fleet-multicluster`, live read-only inventory; lab dual-enrollment supported) | Ask sales |
 | VM migration from VMware | Yes (Migration Toolkit for Virtualization) | Experimental in-product importer (`vm-import-h2kvm`, plus lab `mode=stub`); production path is still Transiva → h2kvm → GuestKit (separate tools). `transiva-migration` plan API is superseded | Migration Factory (Transiva, h2kvm); ask sales |
@@ -90,7 +90,7 @@ This page compares control planes over the same KubeVirt objects. It is not a li
 
 - Zorvia runs on **KubeVirt infrastructure you operate**. Unless a Managed contract says otherwise, you own Kubernetes, KubeVirt, storage, networking, hardware and guest operations. Commercial support gives diagnostic guidance for those, not ownership ([SUPPORT_SCOPE.md](SUPPORT_SCOPE.md)).
 - OpenShift bundles a supported platform stack; Zorvia does not replace that stack, and does not claim equivalent certification or support coverage.
-- Commercial support is a paid service contract around the Apache-2.0 software, not a software licence. Nothing in the product enforces it.
+- Commercial support is a paid service contract around the source-available software, not a software licence. Nothing in the product enforces it.
 
 ## Talk to us
 

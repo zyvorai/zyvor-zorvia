@@ -310,9 +310,9 @@ RUST_LOG=debug cargo run -- command
 
 ## License
 
-Zorvia is licensed under the **Apache License, Version 2.0 only** (see [LICENSE](LICENSE)). There is no MIT dual-license.
+Zorvia is licensed under the **Zyvor Production License v1.0** (see [LICENSE](LICENSE)). There is no MIT or Apache dual-license.
 
-By contributing, you agree that your contributions are submitted under Apache-2.0 and that you have the right to license them under those terms.
+By contributing, you agree that your contributions are submitted under the Zyvor Production License v1.0 and that you have the right to license them under those terms.
 
 ## Questions?
 

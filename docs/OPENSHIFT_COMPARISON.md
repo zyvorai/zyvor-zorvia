@@ -4,7 +4,7 @@
 
 ## Positioning
 
-> Zorvia provides a focused VM operations platform for compatible KubeVirt infrastructure, with free Apache-2.0 software and optional commercial services.
+> Zorvia provides a focused VM operations platform for compatible KubeVirt infrastructure, with source-available software (free for non-production use) and optional commercial services.
 
 The primary comparator is OpenShift Virtualization Engine. Zorvia does not imply equivalent certification, feature maturity or support coverage. Where OpenShift is the better fit, [leave-openshift.md](leave-openshift.md) says so.
 

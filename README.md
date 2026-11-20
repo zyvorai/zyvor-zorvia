@@ -3,7 +3,7 @@
 # Zorvia
 
 [![CI](https://img.shields.io/github/actions/workflow/status/zyvorai/zyvor-zorvia/ci.yml?branch=main&style=flat-square&labelColor=1d1d1f&label=CI)](https://github.com/zyvorai/zyvor-zorvia/actions)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-0071e3?style=flat-square&labelColor=1d1d1f)](LICENSE)
+[![License: Zyvor Production](https://img.shields.io/badge/License-Zyvor%20Production-0071e3?style=flat-square&labelColor=1d1d1f)](LICENSE)
 [![Version](https://img.shields.io/github/v/release/zyvorai/zyvor-zorvia?label=version&style=flat-square&color=0071e3&labelColor=1d1d1f)](CHANGELOG.md)
 [![KubeVirt-native](https://img.shields.io/badge/KubeVirt-native-0071e3?style=flat-square&labelColor=1d1d1f)](https://kubevirt.io/)
 [![Rust 1.89+](https://img.shields.io/badge/rust-1.89%2B-0071e3?style=flat-square&labelColor=1d1d1f&logo=rust&logoColor=white)](https://www.rust-lang.org/)
@@ -20,7 +20,7 @@
 
 **KubeVirt gives you `VirtualMachine` objects. Zorvia gives you the control plane around them.** CLI, interactive TUI and a signed-in web console — one API, live cluster objects, not a parallel mock store.
 
-**43 OS templates** · **8 profiles, 5 blueprints** · **CLI · TUI · web, one API** · **Any KubeVirt cluster** · **Apache-2.0**
+**43 OS templates** · **8 profiles, 5 blueprints** · **CLI · TUI · web, one API** · **Any KubeVirt cluster** · **Zyvor Production License**
 
 </div>
 
@@ -63,7 +63,7 @@ longer stall the API, and the Golden Images page adds Windows golden builds thro
 | Reaching the guest means handing out cluster credentials | Serial, VNC and in-browser SSH over authenticated, permission-checked WebSockets |
 | Access control lives only in the UI | Server-side roles, per-user [namespace allow-lists](docs/TENANCY.md), `ResourceQuota` and `NetworkPolicy` — not client-only checks |
 | The auditor asks who did what | A persistent audit DB and `GET /api/audit/export` (JSONL) for SIEM shippers |
-| You're paying for OpenShift just to run KubeVirt VMs | An Apache-2.0 control plane for any KubeVirt cluster, adopted read-only first |
+| You're paying for OpenShift just to run KubeVirt VMs | A source-available control plane (free for non-production use) for any KubeVirt cluster, adopted read-only first |
 
 | Step | Surface | What it does |
 |------|---------|--------------|
@@ -124,7 +124,7 @@ Placement Advisor and Capacity Planning against real Node capacity, a Resource O
 |---|---|---|
 | VM engine | KubeVirt | KubeVirt |
 | Where it runs | Any KubeVirt cluster | OpenShift only |
-| Licence | Apache-2.0, no subscription to run it | Red Hat subscription |
+| Licence | Zyvor Production 1.0 (free non-production), no subscription to run it | Red Hat subscription |
 | Front ends | CLI, interactive TUI and web console on one Fabric API | OpenShift web console and `virtctl`; no TUI |
 | Change gating | `zorvia change drift` and `zorvia change plan` built in | Not built in |
 | VMware migration | No importer of its own in production; pairs with Transiva → h2kvm → GuestKit (in-product h2kvm import is Experimental) | Integrated migration tooling |
@@ -140,7 +140,7 @@ Placement Advisor and Capacity Planning against real Node capacity, a Resource O
 | Cost/right-sizing, compliance, HA built in | No | No | Partial: add-ons | Yes: real, on by default |
 | Drift detection + change-plan gating | No | No | No | Yes (`zorvia change drift` / `zorvia change plan`) |
 | Runs on any KubeVirt cluster | Yes | Yes | No: OpenShift only | Yes |
-| Open source, Apache-2.0 | Yes | Varies | No | Yes |
+| Source-available, free non-production use | Yes | Varies | No | Yes |
 
 Zorvia isn't a general Kubernetes dashboard — it's opinionated about one thing: VMs on KubeVirt, done like a platform.
 
@@ -150,16 +150,16 @@ Zorvia isn't a general Kubernetes dashboard — it's opinionated about one thing
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/social/compare/lanes-1200x630-dark.png">
-  <img src="docs/social/compare/lanes-1200x630.png" alt="Same KubeVirt VMs, pick your control plane: OpenShift (Red Hat subscription), Zorvia (open source, Apache-2.0) and ZeusOS (proprietary, commercial) compared side by side." width="820">
+  <img src="docs/social/compare/lanes-1200x630.png" alt="Same KubeVirt VMs, pick your control plane: OpenShift (Red Hat subscription), Zorvia (source-available, Zyvor Production License) and ZeusOS (proprietary, commercial) compared side by side." width="820">
 </picture>
 
 </div>
 
 OpenShift Virtualization runs KubeVirt, so your VMs are already `VirtualMachine` objects. Leaving means changing the control plane around them, not rewriting them.
 
-- **Zorvia** — free, Apache-2.0, no subscription. Point it at your KubeVirt cluster, read-only first: [adoption runbook](docs/adopt-existing-kubevirt-cluster.md).
+- **Zorvia** — free for non-production use under the Zyvor Production License v1.0, no subscription; production use needs a commercial license. Point it at your KubeVirt cluster, read-only first: [adoption runbook](docs/adopt-existing-kubevirt-cluster.md).
 - **Coming from VMware?** Zorvia has no production importer of its own. Use the Zyvor suite: [Transiva](https://github.com/zyvorai/zyvor-transiva) (export) → [h2kvm](https://github.com/zyvorai/zyvor-h2kvm) (convert, deploy) → [GuestKit](https://github.com/zyvorai/zyvor-guestkit) (assure) → Zorvia (operate). Community tiers are free; h2kvm needs a paid licence for production.
-- **Commercial support** — production support and SLAs by contract, on top of the free Apache-2.0 code. Scope and terms are agreed with sales: [talk to sales](https://zyvor.dev/contact?intent=sales&utm_source=github&utm_medium=zorvia&utm_campaign=readme_edition), or [book a demo](https://zyvor.dev/schedule?utm_source=github&utm_medium=zorvia&utm_campaign=readme_edition).
+- **Commercial support** — production support and SLAs by contract, on top of the source-available code. Scope and terms are agreed with sales: [talk to sales](https://zyvor.dev/contact?intent=sales&utm_source=github&utm_medium=zorvia&utm_campaign=readme_edition), or [book a demo](https://zyvor.dev/schedule?utm_source=github&utm_medium=zorvia&utm_campaign=readme_edition).
 
 <div align="center">
 
@@ -264,7 +264,7 @@ The web console is served on HTTPS NodePort **30152** (self-signed): `open https
 
 ## Production support and services
 
-Everything in this repository stays Apache-2.0, free for commercial use, and works without a subscription. Paid service contracts add support coverage and services (deployment, migration, training, managed operations) around it. They are not a software licence. A contract records what was purchased. It never stops VMs, disables APIs or blocks access to your data.
+Everything in this repository is under the Zyvor Production License v1.0: free for non-production use, with a commercial license for Production Use, and it works without a subscription. Paid service contracts add support coverage and services (deployment, migration, training, managed operations) around it. They are not a software licence. A contract records what was purchased. It never stops VMs, disables APIs or blocks access to your data.
 
 | Topic | Doc |
 |---|---|
@@ -344,11 +344,11 @@ No `unsafe` on the product path. CORS off unless configured. TLS verification en
 
 ## Support
 
-Free under Apache-2.0. If it helps you, you can donate any amount you like: <https://rzp.io/rzp/utwdYh3>. A donation is voluntary and supports development and maintenance. It is not a purchase: it buys no support, SLA, features, priority or license, and it is not tax-deductible (Zyvor AI Labs Private Limited is a company, not a charity). Zyvor Enterprise (supported releases, SLAs, a named contact and enterprise features) is separate: sales@zyvor.dev.
+Non-production use is free under the Zyvor Production License v1.0; production use requires a commercial license (sales@zyvor.dev). If it helps you, you can donate any amount you like: <https://rzp.io/rzp/utwdYh3>. A donation is voluntary and supports development and maintenance. It is not a purchase: it buys no support, SLA, features, priority or license, and it is not tax-deductible (Zyvor AI Labs Private Limited is a company, not a charity). Zyvor Enterprise (supported releases, SLAs, a named contact and enterprise features) is separate: sales@zyvor.dev.
 
 ## License
 
-Zorvia is **free and open source** under the [Apache License, Version 2.0](LICENSE). You may use, modify, and run it for personal, lab, and commercial production use at no charge, subject to Apache-2.0 (preserve notices / NOTICE where required). See [NOTICE](NOTICE) — Apache-2.0 only (not dual-licensed with MIT).
+Zorvia is source-available under the [Zyvor Production License v1.0](LICENSE). Non-production use (evaluation, development, testing, research, education) is free; Production Use requires a commercial license from Zyvor AI Labs Private Limited ([sales@zyvor.dev](mailto:sales@zyvor.dev), [zyvor.dev/buy](https://zyvor.dev/buy)); a 30-day trial key is available for production evaluation. See [NOTICE](NOTICE).
 
 **Zyvor Enterprise** adds what production teams ask for: supported releases, deployment and upgrade guidance, priority incident triage, a named technical contact and 24x7 critical intake. Plans and terms: [docs/SUBSCRIPTION-MODEL.md](docs/SUBSCRIPTION-MODEL.md) · [Pricing](https://zyvor.dev/pricing?utm_source=github&utm_medium=zorvia&utm_campaign=readme_license) · [sales@zyvor.dev](mailto:sales@zyvor.dev).
 

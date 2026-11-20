@@ -150,10 +150,10 @@ function TrustBand() {
         <div className={styles.trustGrid}>
           <div>
             <Heading as="h3" className={styles.sectionHeading}>
-              Apache-2.0, KubeVirt-native
+              Source-available, KubeVirt-native
             </Heading>
             <p>
-              Apache-2.0 licensed, written in Rust. Zorvia doesn't
+              Zyvor Production License, written in Rust. Zorvia doesn't
               reimplement VM execution — it's a real backend and UX layer
               on top of KubeVirt's own CRDs, so what you see in the CLI,
               TUI, or web console is what's actually running in the
@@ -175,8 +175,8 @@ function TrustBand() {
               alt="CI status"
             />
             <img
-              src="https://img.shields.io/badge/License-Apache%202.0-blue.svg"
-              alt="Apache 2.0 license"
+              src="https://img.shields.io/badge/License-Zyvor%20Production-blue.svg"
+              alt="Zyvor Production License"
             />
           </div>
         </div>
@@ -193,7 +193,7 @@ function EnterpriseCTA() {
           Want to talk it through?
         </Heading>
         <p className={styles.enterpriseCopy}>
-          Zorvia is Apache-2.0 and free to run in production. Reach out if
+          Zorvia is free for non-production use; production use needs a commercial license. Reach out if
           you want to talk through a KubeVirt rollout or what Zorvia looks
           like at fleet scale.
         </p>
