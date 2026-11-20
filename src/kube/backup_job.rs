@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
 
 //! Builds the Kubernetes Job that runs `backup-agent` against a VM's disks:
 //! each source PVC (restored from the VM snapshot) is mounted read-only under

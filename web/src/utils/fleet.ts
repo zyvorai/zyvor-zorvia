@@ -1,4 +1,4 @@
-// Copyright 2026 Zyvor AI Labs · SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Zyvor AI Labs · SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
 import type { FleetCluster, FleetVm } from '../api/fleet'
 export const FLEET_STALE_MS = 60_000
 export function fleetIsStale(observedAt: string, now = Date.now()): boolean {
