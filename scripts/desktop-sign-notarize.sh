@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+# SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 # Sign (inside-out, hardened runtime), package, notarize and staple a macOS app.
 # Run on the Mac mini. The notary API key stays in the keychain profile
 # (Macora-Notary); this script never reads or copies the .p8.

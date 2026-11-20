@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 use crate::config::VMConfig;
 use crate::gitops::drift::{DriftEngine, DriftOptions, DriftReport, DriftSeverity};
 use crate::kube::{vm_config_to_kubevirt, KubeClient};

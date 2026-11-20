@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Locations of the bundled backend, the web UI and the app's data dir.
 
 use serde::{Deserialize, Serialize};

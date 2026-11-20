@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+# SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 # Render docs/social HTML cards to PNG/JPEG for README, OG, LinkedIn, and X.
 # Needs Google Chrome and macOS `sips` (both already on a Mac); nothing is installed.
 #   ./docs/social/build-social-cards.sh

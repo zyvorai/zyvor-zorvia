@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! A deliberately small SQL interface: statements with `?1`-style placeholders,
 //! parameters that are NULL, 64-bit integers or text, and rows of the same three.
 //! That is all the stores need, and it keeps both backends honest about types:

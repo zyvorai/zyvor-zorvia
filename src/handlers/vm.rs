@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 use crate::config::{validate_vm_config, InterfaceConfig, NetworkType, VMConfig, VMConfigBuilder};
 use crate::kube::types::VirtualMachine;
 use crate::output::{format_output, OutputFormat};

@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Minimal S3-compatible object client for off-cluster backups: single and
 //! multipart uploads, ranged/streamed reads, HEAD, and S3 Object Lock
 //! retention headers. Path-style addressing (works with AWS S3, MinIO and

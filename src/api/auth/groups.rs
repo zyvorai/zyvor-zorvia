@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! OIDC group -> Zorvia role (and namespace) mapping.
 //!
 //! Without `ZORVIA_OIDC_GROUP_ROLES` nothing changes: every OIDC user is created

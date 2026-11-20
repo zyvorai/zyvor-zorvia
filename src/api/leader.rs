@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Kubernetes Lease-based leader election for background schedulers.
 //!
 //! Enabled when `ZORVIA_LEADER_ELECTION=1`. Enabled election fails closed:

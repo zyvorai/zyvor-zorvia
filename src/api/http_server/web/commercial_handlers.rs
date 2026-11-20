@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Commercial catalog, quote requests, contracts and coverage.
 //!
 //! Backed by `crate::commercial` (its own SQLite file). Organization

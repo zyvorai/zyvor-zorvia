@@ -1,4 +1,7 @@
 #!/bin/bash
+# Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+# SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 # Test Zorvia theme colors in terminal
 
 echo "Zorvia Theme Color Test"

@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Right-sizing and idle-VM recommendations, backed by the real
 //! `crate::cost::optimization::OptimizationEngine` -- pure functions (like
 //! Phase 5's `PlacementAdvisor`) fed real VM specs and real usage numbers

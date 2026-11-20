@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 // Node Evacuation - Drain nodes for maintenance
 
 use chrono::{DateTime, Utc};

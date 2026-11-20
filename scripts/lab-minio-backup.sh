@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+# SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 # Lab-only: deploy an in-cluster S3-compatible store (adobe/s3mock — pulls on
 # restricted networks where MinIO/Quay do not), create credential Secrets, and
 # print ZORVIA_BACKUP_S3_* env for the API Deployment.

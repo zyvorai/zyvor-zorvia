@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Durable backup operations: a scheduled (or API-queued) backup is an
 //! `operations` row that survives restarts. The handler creates the
 //! VirtualMachineSnapshot -- reusing it if a previous attempt already did --

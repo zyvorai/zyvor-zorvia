@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! In-memory cloud-image download / CDI import jobs used by the SPA.
 
 use crate::golden_images::{GoldenImageBundle, GoldenImageSpec, ImageSourceType};

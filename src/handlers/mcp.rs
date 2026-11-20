@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! `zorvia mcp`: stdio bridge for MCP clients that launch a local command (Claude Desktop, Claude
 //! Code, IDE plugins). It forwards each JSON-RPC line from stdin to `POST <url>/api/mcp` with the
 //! token as `x-api-key` and writes the reply to stdout. All authorization happens on the server, so

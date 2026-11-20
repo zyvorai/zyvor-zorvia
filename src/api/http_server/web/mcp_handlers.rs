@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! `POST /api/mcp`: the Model Context Protocol endpoint.
 //!
 //! Tool calls are replayed through the REST router in-process with the caller's own credential,

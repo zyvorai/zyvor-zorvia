@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Backup agent core: streams VM disk images to S3-compatible storage in
 //! fixed-size multipart parts (optionally AES-256-GCM encrypted per part),
 //! records per-part and whole-disk SHA-256 in a manifest, applies Object

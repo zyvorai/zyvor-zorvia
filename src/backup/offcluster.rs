@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Off-cluster stage of a backup operation: once a VirtualMachineSnapshot has
 //! succeeded, restore each of its volume snapshots into a temporary PVC, run
 //! the `backup-agent` Job against them, follow its JSON progress lines from

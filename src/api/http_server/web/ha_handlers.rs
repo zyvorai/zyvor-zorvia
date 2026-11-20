@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Real HA/eviction-policy control for a VM -- KubeVirt's actual
 //! `spec.template.spec.evictionStrategy` field on the `VirtualMachine`
 //! object, not a simulated "Fault Tolerance" concept. vSphere-style

@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Phase 5 enterprise capability plans (gated by `ZORVIA_EXPERIMENTAL` + feature flags).
 //!
 //! These produce actionable plans / dry-runs. They do not call AWS, vSphere, or

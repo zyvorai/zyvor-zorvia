@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! MCP (Model Context Protocol) server core.
 //!
 //! A deliberately small, dependency-free implementation of the request/response subset of MCP

@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Hot reload of the API server's TLS certificate.
 //!
 //! cert-manager, a rotated mounted Secret or an operator replacing the files

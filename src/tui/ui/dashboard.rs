@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 // Enhanced Dashboard View - Comprehensive system overview with charts and monitoring
 use crate::tui::{
     colors::gradient,

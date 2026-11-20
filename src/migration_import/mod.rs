@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! VMware -> KubeVirt import driven from Zorvia by running `h2kvmctl` as a
 //! Kubernetes Job (h2kvm is an external, separately licensed tool: Zorvia only
 //! invokes its container image, it never links it).

@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 // Disk Conversion - Disk format conversion utilities
 
 use serde::{Deserialize, Serialize};

@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! `GET /api/v1/adopt/report` — the same read-only adoption report as
 //! `zorvia adopt`, built from the shared logic in `crate::adopt`.
 

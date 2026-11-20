@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Talking to the GuestKit (Zyvor) guest agent from the control plane.
 //!
 //! The agent answers QEMU-guest-agent commands on the virtio channel KubeVirt already

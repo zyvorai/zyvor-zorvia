@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Terraform provider schema for a future `hashicorp/zorvia` publish.
 //!
 //! This is the contract the HTTP API already implements. A Go/Rust provider

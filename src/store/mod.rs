@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Shared state storage: one small SQL layer with two backends.
 //!
 //! The control plane keeps users, tokens, operations and the audit trail in SQLite

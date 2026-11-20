@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Secure OIDC (Authorization Code + PKCE + token exchange + JWKS).
 //!
 //! Opt-in via `ZORVIA_OIDC_ENABLED=1` plus issuer/client/secret/redirect.

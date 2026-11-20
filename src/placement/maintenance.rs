@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Pre-drain maintenance planner.
 //!
 //! Answers "what happens to my VMs if I drain this node?" before anyone drains

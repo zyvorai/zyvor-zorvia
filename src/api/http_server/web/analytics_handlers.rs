@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Real fleet-wide usage ranking, built from the same real per-VM usage
 //! numbers `fabric_vm_metrics` already reports for one VM at a time
 //! (`quick_vm_usage`, shared with `fabric_vm_handlers.rs`) -- no new metrics

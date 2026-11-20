@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 // Disk Management System - Expansion, health checks, and automation
 // This feature provides comprehensive disk management for VMs
 

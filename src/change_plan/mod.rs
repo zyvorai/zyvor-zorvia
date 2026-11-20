@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Operational change planning built on top of Drift Guard.
 //!
 //! Drift Guard answers "what changed?". Change Planner answers the next

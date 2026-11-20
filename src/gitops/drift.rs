@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Semantic drift detection for KubeVirt `VirtualMachine` resources.
 //!
 //! This module turns the lightweight drift data model in `reconciliation` into

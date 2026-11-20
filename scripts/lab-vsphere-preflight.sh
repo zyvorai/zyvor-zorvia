@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+# SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 # Lab/operator checklist before a real vCenter vm-import (mode=vsphere).
 # Does not contact vCenter unless GOVC_* / VCENTER_* tools are present.
 set -euo pipefail

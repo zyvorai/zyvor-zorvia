@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+# SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 # Stage the backend binary + web UI into desktop/src-tauri/stage/ for bundling.
 # Usage: scripts/desktop-stage.sh [rust-target]   (default: host)
 set -euo pipefail

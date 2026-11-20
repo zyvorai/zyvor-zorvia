@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Golden-image capture: clone a VM's persistent disk into a standalone CDI
 //! DataVolume. Each capture is a durable operation (`operations` module):
 //! the job stays `Running` with CDI's own progress until the DataVolume

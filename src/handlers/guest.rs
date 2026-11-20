@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 use crate::guest_insight::{GuestAgentState, GuestInsightReport};
 use crate::kube::KubeClient;
 use crate::tui::colors::cli as color;

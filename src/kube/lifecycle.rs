@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Production lifecycle helpers that do not require a live cluster to test.
 //!
 //! Path builders and validation for KubeVirt VMI subresources used by

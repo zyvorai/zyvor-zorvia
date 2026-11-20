@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+# SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 # Real-guest E2E against a running Zorvia API on a KVM-capable cluster.
 #
 # Unlike the kind smoke job this boots a guest and drives it through the API:

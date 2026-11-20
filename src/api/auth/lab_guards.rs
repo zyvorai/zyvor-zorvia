@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Lab-mode and known-default credential guards.
 
 /// Previously committed lab defaults — refuse outside explicit lab mode.

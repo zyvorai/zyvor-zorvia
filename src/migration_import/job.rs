@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Kubernetes Job that runs `h2kvmctl` for one VM import.
 //!
 //! h2kvm converts disks with `qemu-nbd`/`losetup`, which need real host

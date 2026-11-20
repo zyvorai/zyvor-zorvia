@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Real audit-log query/stats routes backed by `crate::audit_trail::AuditTrail`
 //! (in-memory, reset on restart), fed by `record_audit()` calls in the VM
 //! lifecycle handlers. Fixes a live bug: `web/src/api/audit.ts` and

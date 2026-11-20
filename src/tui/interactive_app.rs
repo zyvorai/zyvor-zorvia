@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 // Interactive TUI Application - Enhanced with dialogs, menus, and notifications
 
 use super::config::TuiConfig;

@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! "Is my encryption key still good?" as a durable operation.
 //!
 //! A backup is only as recoverable as its key. This runs the backup agent in

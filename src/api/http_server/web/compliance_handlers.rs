@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Real compliance scanning, backed by `crate::security::compliance::ComplianceChecker`
 //! -- pure functions that inspect an actual fetched `VirtualMachine` spec
 //! for PCI-DSS/HIPAA/SOC2 controls (resource limits, eviction strategy,

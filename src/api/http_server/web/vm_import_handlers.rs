@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! VMware -> KubeVirt import API (see `crate::migration_import`). Every route
 //! is cluster.admin: it creates privileged Jobs and consumes vCenter
 //! credentials. Progress and cancellation use `/operations/{id}`.

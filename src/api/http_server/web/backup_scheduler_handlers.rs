@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Real, disk-persisted backup scheduling, backed by
 //! `crate::backup::schedule::ScheduleManager` -- a fully real, tested
 //! struct (JSON-persisted to `$XDG_DATA_HOME/zorvia/backup_schedules.json`,

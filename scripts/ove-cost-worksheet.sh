@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+# SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 # Honest OVE vs Zorvia worksheet helper. Never invents OpenShift list prices.
 # Usage: ./scripts/ove-cost-worksheet.sh <nodes> <inr|usd> <supported|supported-plus> [ove_year1]
 set -euo pipefail

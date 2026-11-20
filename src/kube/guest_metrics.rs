@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Parse KubeVirt guest-agent subresource payloads into Fabric metrics.
 
 use serde::{Deserialize, Serialize};

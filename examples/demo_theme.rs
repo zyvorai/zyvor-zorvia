@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 // Demo program to showcase Zorvia CLI theme colors
 // Run with: cargo run --example demo_theme
 

@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 // Bar Chart Widget - Distribution visualization with gradient coloring
 use crate::tui::colors::gradient;
 use crate::tui::colors::tui as colors;

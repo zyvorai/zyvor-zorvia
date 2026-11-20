@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 // VM Placement Engine - Optimized VM placement across cluster nodes
 
 use serde::{Deserialize, Serialize};

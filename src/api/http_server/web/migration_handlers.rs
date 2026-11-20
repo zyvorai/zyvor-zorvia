@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Fabric-compat live migration API, backed by real KubeVirt
 //! `VirtualMachineInstanceMigration` CRDs. KubeVirt's scheduler selects the
 //! target node itself; there is no user-supplied host/URI, unlike a raw

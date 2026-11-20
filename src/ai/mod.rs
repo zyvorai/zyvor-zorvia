@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Provider-agnostic LLM client for AI-assisted features.
 //!
 //! Off unless `ZORVIA_AI_ENABLED=1` (same posture as MCP). The model only

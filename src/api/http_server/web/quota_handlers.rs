@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Kubernetes ResourceQuota management. Lists, creates, and deletes the
 //! native K8s ResourceQuota object per namespace, so limits actually
 //! constrain VM/pod creation rather than being tracked only in the UI

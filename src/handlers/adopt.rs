@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 use crate::adopt::{build_report, render_table, VmSummary};
 use crate::kube::KubeClient;
 use anyhow::{anyhow, Context, Result};

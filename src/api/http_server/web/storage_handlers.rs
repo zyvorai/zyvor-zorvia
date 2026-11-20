@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Namespace-wide PersistentVolumeClaim inventory -- real k8s objects,
 //! filling the one genuine gap left after resize (`fabric_resize_disk`) and
 //! attach/detach (VM hotplug-disk routes) already covered per-VM disk

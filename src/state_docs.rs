@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Small JSON documents (schedules, warm pools, alerts, webhooks, migration history).
 //!
 //! Each manager loads its document on every request and saves it back, so keeping the

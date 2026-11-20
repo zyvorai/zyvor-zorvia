@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 // HTTP Server - Real web server using axum for serving API and dashboard
 //
 // This module is only compiled when the "web" feature is enabled.

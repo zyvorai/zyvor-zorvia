@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 // VM Details View - Tabbed detail view with Overview, Network, and Events tabs
 
 use crate::tui::colors::tui as colors;

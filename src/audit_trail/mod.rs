@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Audit Trail - Comprehensive audit event tracking with optional SQLite persistence,
 //! or PostgreSQL (`ZORVIA_DATABASE_URL`) so every replica writes to and reads from one trail.
 

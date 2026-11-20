@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Explainable placement and rebalance advisor. This is intentionally recommendation-first:
 //! it does not silently move workloads. Operators can review a plan and then invoke the
 //! existing Zorvia/KubeVirt migration path.

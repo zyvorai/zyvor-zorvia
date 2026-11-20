@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 // Scheduled VM snapshots -- cron-like recurring snapshots with per-schedule retention.
 //
 // Reuses the backup scheduler's `ScheduleType` / `VMSelector` and the shared next-run

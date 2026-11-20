@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Real VM backup API backed by `crate::snapshots::SnapshotManager` -- the
 //! same live VolumeSnapshot infrastructure `Snapshots.tsx` already uses,
 //! reframed fleet-wide as "backups" instead of one VM at a time.

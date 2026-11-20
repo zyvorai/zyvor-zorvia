@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Security dashboard, assembled entirely from real data this project has
 //! already shipped -- no new subsystem invented for it:
 //! - "listening ports" reuses the same real NodePort/ClusterIP Services

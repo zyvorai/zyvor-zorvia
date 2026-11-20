@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Scheduled per-VM snapshots, backed by `crate::snapshots::schedule`.
 //!
 //! `spawn_snapshot_scheduler_loop` ticks every 60s (same cadence and leader gating as the

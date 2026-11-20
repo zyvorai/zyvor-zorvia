@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Pure Rook/Ceph CRD manifest builders. No cluster access — these just
 //! construct the JSON objects `RookClient` applies, following the same
 //! raw-manifest pattern as `crate::kube::cdi` for CDI DataVolumes.

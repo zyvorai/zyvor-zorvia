@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Passthrough-device inventory and preflight (see `crate::devices`).
 //!
 //! `GET  /api/v1/devices`            what each node advertises, what KubeVirt permits (cluster.admin)

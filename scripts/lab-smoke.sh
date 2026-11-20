@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+# SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 # Lab smoke against a running Zorvia API (default NodePort lab).
 set -euo pipefail
 HOST="${ZORVIA_LAB_HOST:-175.110.122.71}"

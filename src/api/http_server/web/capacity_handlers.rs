@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Cluster capacity, built from the exact same real `NodeSnapshot`/
 //! `WorkloadRequirements` data Phase 5's Placement Advisor already computes
 //! (`super::placement_handlers::build_snapshot`) -- real `Node` allocatable

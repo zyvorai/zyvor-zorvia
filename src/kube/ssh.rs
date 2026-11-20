@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! In-browser SSH helpers: command construction and input validation.
 //!
 //! The web console proxies a local `ssh` or `virtctl ssh` process over

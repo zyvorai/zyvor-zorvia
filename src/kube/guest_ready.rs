@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Guest-ready signals after start / cloud-init.
 //!
 //! KubeVirt does not expose cloud-init's status file directly. Operators wait

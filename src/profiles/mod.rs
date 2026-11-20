@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 // VM Profiles System - Pre-configured resource profiles for different workloads
 // This is an innovative feature that makes VM creation easier and optimized
 

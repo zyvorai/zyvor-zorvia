@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 

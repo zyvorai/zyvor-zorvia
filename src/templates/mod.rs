@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 use crate::config::*;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;

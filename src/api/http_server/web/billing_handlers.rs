@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Capacity reconciliation and invoice records. Records only: there is no
 //! payment provider, nothing is charged, and no card data is handled.
 //!

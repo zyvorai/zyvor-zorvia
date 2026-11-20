@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 // Size + theme from the URL hash: "#1600x900", "#1200x630-dark", "#1080x1080".
 // 1200x630 is laid out at 1600x840 and zoomed 0.75 so all three landscape/square cards share one layout.
 (function () {

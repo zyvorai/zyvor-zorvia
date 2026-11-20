@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Zones grouped by the real, standard Kubernetes node label
 //! `topology.kubernetes.io/zone` -- the same label Phase 5's Placement
 //! Advisor already treats as real (`PlacementAdvisor::zone_label`). No

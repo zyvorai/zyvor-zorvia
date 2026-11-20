@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Drift detection and change planning, exposed as REST for the first time —
 //! `zorvia drift`/`zorvia plan` are real, well-tested logic (`DriftEngine`,
 //! `ChangePlanner`) that DEVELOPMENT.md names as core day-2 surface, but were

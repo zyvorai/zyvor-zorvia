@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 // Snapshot Manager - Create, list, delete, and manage VM snapshots
 // Real KubeVirt CRD integration
 

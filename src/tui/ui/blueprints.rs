@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 // Blueprints View - Browse and view multi-VM blueprints
 
 use crate::tui::colors::tui as colors;

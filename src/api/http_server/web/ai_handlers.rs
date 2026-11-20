@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! AI-assisted VM diagnosis. Gathers real evidence (VM/VMI status, guest
 //! insight, Kubernetes events, recent launcher logs), redacts it, and asks the
 //! configured model for a diagnosis. Read-only: the model has no tools and the

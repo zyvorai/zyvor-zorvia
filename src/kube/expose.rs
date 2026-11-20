@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 // Port-forward / expose helpers for KubeVirt VMs (NodePort Services).
 
 use anyhow::{Context, Result};

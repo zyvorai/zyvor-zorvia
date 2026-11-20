@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 // VM Performance Monitoring & Analytics - Real-time resource tracking
 // This feature provides operational insights and capacity planning
 

@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Passthrough devices (GPUs, SR-IOV virtual functions, other host devices): what
 //! the cluster offers, and whether a VM that asks for some can actually start.
 //!

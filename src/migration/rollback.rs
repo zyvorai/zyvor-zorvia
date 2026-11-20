@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 // Migration Rollback - Rollback operations for failed migrations
 
 use chrono::{DateTime, Utc};

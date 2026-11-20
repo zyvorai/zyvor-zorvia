@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Off-cluster backup manifest: what was uploaded, where, and the checksums
 //! a restore (or a recovery drill) verifies against. Stored next to the disk
 //! objects as `manifest.json`, uploaded last so a manifest's presence means

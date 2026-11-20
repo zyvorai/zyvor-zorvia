@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Off-cluster backup catalog, restore and recovery-drill API. All routes are
 //! cluster.admin (see `permissions.rs`). Restores and drills are durable
 //! operations; the response carries the operation id to poll on

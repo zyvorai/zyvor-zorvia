@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Feature maturity registry and experimental gates.
 //!
 //! Levels match docs/FEATURE_MATURITY.md. Model-only and experimental

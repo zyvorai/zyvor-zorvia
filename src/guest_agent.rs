@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Installing an in-guest agent at VM creation, through cloud-init.
 //!
 //! Two agents are supported: the **Zyvor guest agent** (GuestKit's `guestkitd`,

@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 // Cost Management & Optimization - Track and optimize VM resource costs
 
 use chrono::{DateTime, TimeDelta as Duration, Utc};

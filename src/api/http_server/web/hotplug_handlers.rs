@@ -1,3 +1,6 @@
+// Copyright 2026 Zyvor AI Labs · https://zyvor.dev
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+
 //! Fabric-compat CPU/memory/disk/NIC hotplug for running VMs.
 //!
 //! The request field names (`count`, `size_mb`, `path`, `bus`, `bridge`,
