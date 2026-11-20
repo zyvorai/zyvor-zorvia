@@ -158,7 +158,9 @@ impl OpenApiSpec {
                 }),
                 license: Some(LicenseInfo {
                     name: "LicenseRef-Zyvor-Production-1.0".to_string(),
-                    url: Some("https://github.com/zyvorai/zyvor-zorvia/blob/main/LICENSE".to_string()),
+                    url: Some(
+                        "https://github.com/zyvorai/zyvor-zorvia/blob/main/LICENSE".to_string(),
+                    ),
                 }),
             },
             servers: vec![ServerInfo {
