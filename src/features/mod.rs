@@ -170,6 +170,12 @@ pub const FEATURES: &[Feature] = &[
         notes: "Requires ZORVIA_EXPERIMENTAL=1; mode=stub Job-only; mode=local Job+stopped emptyDisk VM; vsphere needs ZORVIA_H2KVM_IMAGE; not yet exercised against a real vCenter",
     },
     Feature {
+        id: "volume-encryption",
+        name: "Volume envelope encryption (per-VM data keys wrapped by local key / Vault Transit)",
+        maturity: Maturity::Experimental,
+        notes: "Wrapped data keys in a Secret, re-wrap rotation, plan/apply of an encrypted DataVolume via StorageClass parameters, audited; cloud KMS is a stub; unit-tested only, not run against a live cluster or CSI driver; the CSI driver does not consume the Zorvia key — docs/VOLUME_ENCRYPTION.md",
+    },
+    Feature {
         id: "golden-image-pipeline",
         name: "Golden-image build/scan/sign/promote",
         maturity: Maturity::Experimental,

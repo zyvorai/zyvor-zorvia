@@ -99,6 +99,13 @@ pub mod web {
         create_import_handler, get_wave_handler, list_imports_handler, preflight_import_handler,
     };
 
+    #[path = "volume_encryption_handlers.rs"]
+    mod volume_encryption_handlers;
+    use volume_encryption_handlers::{
+        apply_handler as ve_apply_handler, plan_handler as ve_plan_handler,
+        rotate_handler as ve_rotate_handler, status_handler as ve_status_handler,
+    };
+
     #[path = "backup_offcluster_handlers.rs"]
     mod backup_offcluster_handlers;
     use backup_offcluster_handlers::{
@@ -698,6 +705,11 @@ pub mod web {
             )
             .route("/vm-imports/preflight", post(preflight_import_handler))
             .route("/vm-imports/waves/{wave_id}", get(get_wave_handler))
+            // Volume envelope encryption (Experimental)
+            .route("/volume-encryption/status", get(ve_status_handler))
+            .route("/volume-encryption/plan", post(ve_plan_handler))
+            .route("/volume-encryption/apply", post(ve_apply_handler))
+            .route("/volume-encryption/rotate", post(ve_rotate_handler))
             // Off-cluster backups: catalog, restore, recovery drills
             .route(
                 "/backups/offcluster",

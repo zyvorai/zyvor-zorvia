@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Experimental volume envelope encryption: per-VM data keys wrapped by the local key or Vault Transit, stored only wrapped in a Secret, re-wrap rotation, and an audited plan/apply flow for an encrypted DataVolume (`/volume-encryption/*`, `ZORVIA_EXPERIMENTAL=1`). Cloud KMS is a stub. See docs/VOLUME_ENCRYPTION.md.
 - Scheduled per-VM snapshots with per-schedule retention: `/snapshot-schedules` API, a leader-gated runner, and idempotent per-slot snapshot names. See docs/SNAPSHOTS.md.
 
 ## [0.7.4] - 2026-10-17
