@@ -164,6 +164,9 @@ pub mod web {
     #[path = "snapshot_scheduler_handlers.rs"]
     mod snapshot_scheduler_handlers;
     use snapshot_scheduler_handlers::*;
+    #[path = "autoscaler_loop_handlers.rs"]
+    mod autoscaler_loop_handlers;
+    use autoscaler_loop_handlers::*;
 
     #[path = "storage_handlers.rs"]
     mod storage_handlers;
@@ -1638,6 +1641,7 @@ pub mod web {
         spawn_operations_reconciler(state.clone());
         spawn_backup_scheduler_loop(state.clone());
         spawn_snapshot_scheduler_loop(state.clone());
+        spawn_autoscaler_loop(state.clone());
         spawn_power_schedule_loop(state.clone());
         spawn_alert_evaluation_loop(state.clone());
         spawn_warm_pool_loop(state.clone());

@@ -7,6 +7,9 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+pub mod live;
+pub mod reconcile;
+
 /// Auto-scaling engine that monitors VMs and scales resources automatically
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AutoScaler {

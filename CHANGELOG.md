@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Opt-in autoscaler reconcile loop (Experimental, `ZORVIA_AUTOSCALER_LOOP=1`): hysteresis, cooldown, min/max bounds, recommendation-only default, leader-gated, audited. Not live-verified; the existing monitoring load source is simulated so nothing is applied from it. See docs/AUTOSCALER_LOOP.md.
 - Scheduled per-VM snapshots with per-schedule retention: `/snapshot-schedules` API, a leader-gated runner, and idempotent per-slot snapshot names. See docs/SNAPSHOTS.md.
 
 ## [0.7.4] - 2026-10-17
