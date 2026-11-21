@@ -17,6 +17,12 @@
 //! | `ZORVIA_GOLDEN_SIGN_KEY_SECRET` | Secret holding `cosign.pub` (and `cosign.key`, optional `cosign.password`) for key mode. |
 //! | `ZORVIA_GOLDEN_SIGN_KEYLESS_IDENTITY` / `_ISSUER` | Keyless verification identity and OIDC issuer. |
 //! | `ZORVIA_GOLDEN_SIGN_SIGN` | `1` also signs (key mode only) before verifying. |
+//! | `ZORVIA_GOLDEN_PULL_SECRET` | Name of a `kubernetes.io/dockerconfigjson` Secret: used as `imagePullSecrets` and mounted as `DOCKER_CONFIG` in scan/sign/verify Jobs. |
+//! | `ZORVIA_GOLDEN_CDI_SECRET` | Name of a CDI-format Secret (`accessKeyId`, `secretKey`) set as `secretRef` on the DataVolume registry/HTTP source. |
+//! | `ZORVIA_GOLDEN_FETCH_IMAGE` | Image with `sh`, `curl` and `sha256sum` (for example a curl image). Needed for HTTP(S) checksum and blob-signature checks. |
+//! | `ZORVIA_GOLDEN_BLOB_MAX_SIZE` | Ephemeral-storage limit for the downloaded blob in the verify-blob Job (default `50Gi`). |
+//! | `ZORVIA_GOLDEN_HTTP_ALLOW_UNSCANNED` | `1` lets an HTTP(S) source pass when a scan gate is configured (disk blobs cannot be scanned). |
+//! | `ZORVIA_GOLDEN_KEEP_ON_BLOCK` | `1` keeps the imported DataVolume when a gate blocks; default is to remove it. |
 //!
 //! Both gates fail closed: a failed Job, unparseable scanner output, findings
 //! over the threshold or a failed verification all block promotion.
@@ -24,9 +30,10 @@
 use k8s_openapi::api::batch::v1::{Job, JobSpec};
 use k8s_openapi::api::core::v1::{
     Capabilities, Container, EmptyDirVolumeSource, EnvVar, EnvVarSource, KeyToPath,
-    PodSecurityContext, PodSpec, PodTemplateSpec, SecretKeySelector, SecretVolumeSource,
-    SecurityContext, Volume, VolumeMount,
+    LocalObjectReference, PodSecurityContext, PodSpec, PodTemplateSpec, SecretKeySelector,
+    SecretVolumeSource, SecurityContext, Volume, VolumeMount,
 };
+use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -73,6 +80,8 @@ pub struct ScanConfig {
     pub command: Vec<String>,
     pub threshold: Severity,
     pub ignore_unfixed: bool,
+    /// Secret (dockerconfigjson) for pulling the scanner image and the scanned image.
+    pub pull_secret: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -87,6 +96,8 @@ pub enum SignMode {
 pub struct SignConfig {
     pub image: String,
     pub mode: SignMode,
+    /// Secret (dockerconfigjson) for pulling the cosign image and the signed image.
+    pub pull_secret: Option<String>,
 }
 
 /// Operator configuration of the two gates. `None` means "not configured".
@@ -94,6 +105,78 @@ pub struct SignConfig {
 pub struct GateConfig {
     pub scan: Option<ScanConfig>,
     pub sign: Option<SignConfig>,
+    /// Image used by HTTP(S) checksum and blob-signature Jobs.
+    pub fetch_image: Option<String>,
+    /// Ephemeral-storage limit for the blob download (Kubernetes quantity).
+    pub blob_max_size: String,
+    /// dockerconfigjson Secret name (never its contents).
+    pub pull_secret: Option<String>,
+    /// CDI-format Secret name for the DataVolume source `secretRef`.
+    pub cdi_secret: Option<String>,
+    pub keep_on_block: bool,
+    pub allow_unscanned_http: bool,
+}
+
+/// Per-run checks for HTTP(S) disk sources. Not credentials: the signature is
+/// verified against the operator's key Secret.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SourceChecks {
+    /// Expected SHA-256 (64 hex characters, optional `sha256:` prefix).
+    pub checksum_sha256: Option<String>,
+    /// URL of a detached cosign signature for the blob.
+    pub signature_url: Option<String>,
+}
+
+impl SourceChecks {
+    pub fn is_empty(&self) -> bool {
+        self.checksum_sha256.is_none() && self.signature_url.is_none()
+    }
+
+    /// Validates and normalises (lowercase hex digest without prefix).
+    pub fn validated(&self) -> Result<Self, String> {
+        let checksum_sha256 = match &self.checksum_sha256 {
+            None => None,
+            Some(c) => Some(normalize_sha256(c)?),
+        };
+        if let Some(u) = &self.signature_url {
+            validate_http_url("signature URL", u)?;
+        }
+        Ok(Self {
+            checksum_sha256,
+            signature_url: self.signature_url.clone(),
+        })
+    }
+}
+
+/// Returns the lowercase 64-hex digest, accepting an optional `sha256:` prefix.
+pub fn normalize_sha256(s: &str) -> Result<String, String> {
+    let t = s.trim();
+    let t = t.strip_prefix("sha256:").unwrap_or(t);
+    if t.len() == 64 && t.bytes().all(|b| b.is_ascii_hexdigit()) {
+        Ok(t.to_ascii_lowercase())
+    } else {
+        Err("checksum must be a SHA-256 hex digest (64 hex characters)".into())
+    }
+}
+
+/// Validates an http(s) URL: bounded, no whitespace/control characters and no
+/// embedded credentials (`user:pass@host`).
+pub fn validate_http_url(kind: &str, url: &str) -> Result<(), String> {
+    let rest = url
+        .strip_prefix("https://")
+        .or_else(|| url.strip_prefix("http://"))
+        .ok_or_else(|| format!("{kind} must start with http:// or https://"))?;
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
+    if url.len() > 2048
+        || authority.is_empty()
+        || url.chars().any(|c| c.is_control() || c.is_whitespace())
+    {
+        return Err(format!("invalid {kind}"));
+    }
+    if authority.contains('@') {
+        return Err(format!("{kind} must not embed credentials"));
+    }
+    Ok(())
 }
 
 /// Validates a container image reference (no whitespace, no option-looking
@@ -170,6 +253,34 @@ impl GateConfig {
 
     /// Builds and validates the configuration from a variable lookup.
     pub fn from_lookup(get: impl Fn(&str) -> Option<String>) -> Result<Self, String> {
+        let name_var = |var: &str, kind: &str| -> Result<Option<String>, String> {
+            match get(var) {
+                None => Ok(None),
+                Some(v) => {
+                    let v = v.trim().to_string();
+                    validate_dns_name(kind, &v)?;
+                    Ok(Some(v))
+                }
+            }
+        };
+        let pull_secret = name_var("ZORVIA_GOLDEN_PULL_SECRET", "pull Secret name")?;
+        let cdi_secret = name_var("ZORVIA_GOLDEN_CDI_SECRET", "CDI Secret name")?;
+        let fetch_image = match get("ZORVIA_GOLDEN_FETCH_IMAGE") {
+            None => None,
+            Some(i) => {
+                let i = i.trim().to_string();
+                validate_image_ref(&i)?;
+                Some(i)
+            }
+        };
+        let blob_max_size = get("ZORVIA_GOLDEN_BLOB_MAX_SIZE")
+            .map(|v| v.trim().to_string())
+            .unwrap_or_else(|| "50Gi".into());
+        if !matches!(crate::storage::parse_size_to_bytes(&blob_max_size), Some(b) if b > 0) {
+            return Err(format!(
+                "invalid ZORVIA_GOLDEN_BLOB_MAX_SIZE '{blob_max_size}'"
+            ));
+        }
         let scan = match get("ZORVIA_GOLDEN_SCAN_IMAGE") {
             None => None,
             Some(image) => {
@@ -191,6 +302,7 @@ impl GateConfig {
                     command,
                     threshold,
                     ignore_unfixed: truthy(get("ZORVIA_GOLDEN_SCAN_IGNORE_UNFIXED")),
+                    pull_secret: pull_secret.clone(),
                 })
             }
         };
@@ -222,10 +334,23 @@ impl GateConfig {
                         return Err("sign step needs either ZORVIA_GOLDEN_SIGN_KEY_SECRET or both ZORVIA_GOLDEN_SIGN_KEYLESS_IDENTITY and ZORVIA_GOLDEN_SIGN_KEYLESS_ISSUER".into())
                     }
                 };
-                Some(SignConfig { image, mode })
+                Some(SignConfig {
+                    image,
+                    mode,
+                    pull_secret: pull_secret.clone(),
+                })
             }
         };
-        Ok(Self { scan, sign })
+        Ok(Self {
+            scan,
+            sign,
+            fetch_image,
+            blob_max_size,
+            pull_secret,
+            cdi_secret,
+            keep_on_block: truthy(get("ZORVIA_GOLDEN_KEEP_ON_BLOCK")),
+            allow_unscanned_http: truthy(get("ZORVIA_GOLDEN_HTTP_ALLOW_UNSCANNED")),
+        })
     }
 
     pub fn any(&self) -> bool {
@@ -233,17 +358,56 @@ impl GateConfig {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-fn job(
-    name: &str,
-    namespace: &str,
-    kind: &str,
-    image: &str,
+/// Inputs for [`job`]; everything beyond the main container is optional.
+#[derive(Default)]
+struct JobBuild<'a> {
+    name: &'a str,
+    namespace: &'a str,
+    kind: &'a str,
+    image: &'a str,
     command: Option<Vec<String>>,
     args: Option<Vec<String>>,
     env: Vec<EnvVar>,
     secret_vol: Option<Volume>,
-) -> Job {
+    /// dockerconfigjson Secret name: imagePullSecrets plus `DOCKER_CONFIG`.
+    pull_secret: Option<&'a str>,
+    /// Init container that downloads a blob to `/blob/disk` (image, URL, size limit).
+    blob_fetch: Option<(&'a str, &'a str, &'a str)>,
+}
+
+fn hardened() -> SecurityContext {
+    SecurityContext {
+        privileged: Some(false),
+        allow_privilege_escalation: Some(false),
+        read_only_root_filesystem: Some(true),
+        capabilities: Some(Capabilities {
+            drop: Some(vec!["ALL".into()]),
+            ..Default::default()
+        }),
+        ..Default::default()
+    }
+}
+
+/// Shell snippets run by the fetch image. The URL and digest are positional
+/// parameters, never interpolated into the script text.
+const CHECKSUM_SCRIPT: &str =
+    "set -eu; curl -fsSL --proto '=http,https' --max-time 3600 -- \"$1\" | sha256sum | cut -d' ' -f1";
+const FETCH_SCRIPT: &str =
+    "set -eu; exec curl -fsSL --proto '=http,https' --max-time 3600 -o /blob/disk -- \"$1\"";
+
+fn job(b: JobBuild) -> Job {
+    let JobBuild {
+        name,
+        namespace,
+        kind,
+        image,
+        command,
+        args,
+        env,
+        secret_vol,
+        pull_secret,
+        blob_fetch,
+    } = b;
     let mut labels = BTreeMap::new();
     labels.insert(
         "app.kubernetes.io/name".to_string(),
@@ -259,11 +423,12 @@ fn job(
         empty_dir: Some(EmptyDirVolumeSource::default()),
         ..Default::default()
     }];
-    let mut mounts = vec![VolumeMount {
+    let tmp_mount = VolumeMount {
         name: "tmp".into(),
         mount_path: "/tmp".into(),
         ..Default::default()
-    }];
+    };
+    let mut mounts = vec![tmp_mount.clone()];
     if let Some(v) = secret_vol {
         mounts.push(VolumeMount {
             name: v.name.clone(),
@@ -285,7 +450,77 @@ fn job(
             ..Default::default()
         },
     ];
+    if let Some(ps) = pull_secret {
+        // Only the registry auth file is mounted; the Secret is referenced by name.
+        volumes.push(Volume {
+            name: "registry-auth".into(),
+            secret: Some(SecretVolumeSource {
+                secret_name: Some(ps.to_string()),
+                items: Some(vec![KeyToPath {
+                    key: ".dockerconfigjson".into(),
+                    path: "config.json".into(),
+                    mode: None,
+                }]),
+                default_mode: Some(0o400),
+                ..Default::default()
+            }),
+            ..Default::default()
+        });
+        mounts.push(VolumeMount {
+            name: "registry-auth".into(),
+            mount_path: "/docker".into(),
+            read_only: Some(true),
+            ..Default::default()
+        });
+        all_env.push(EnvVar {
+            name: "DOCKER_CONFIG".into(),
+            value: Some("/docker".into()),
+            ..Default::default()
+        });
+    }
     all_env.extend(env);
+
+    let mut init_containers = None;
+    if let Some((fetch_image, url, max_size)) = blob_fetch {
+        volumes.push(Volume {
+            name: "blob".into(),
+            empty_dir: Some(EmptyDirVolumeSource {
+                size_limit: Some(Quantity(max_size.to_string())),
+                ..Default::default()
+            }),
+            ..Default::default()
+        });
+        init_containers = Some(vec![Container {
+            name: "fetch".into(),
+            image: Some(fetch_image.to_string()),
+            command: Some(
+                ["sh", "-c", FETCH_SCRIPT, "sh", url]
+                    .map(String::from)
+                    .to_vec(),
+            ),
+            env: Some(vec![EnvVar {
+                name: "HOME".into(),
+                value: Some("/tmp".into()),
+                ..Default::default()
+            }]),
+            volume_mounts: Some(vec![
+                tmp_mount,
+                VolumeMount {
+                    name: "blob".into(),
+                    mount_path: "/blob".into(),
+                    ..Default::default()
+                },
+            ]),
+            security_context: Some(hardened()),
+            ..Default::default()
+        }]);
+        mounts.push(VolumeMount {
+            name: "blob".into(),
+            mount_path: "/blob".into(),
+            read_only: Some(true),
+            ..Default::default()
+        });
+    }
 
     Job {
         metadata: ObjectMeta {
@@ -306,11 +541,17 @@ fn job(
                 spec: Some(PodSpec {
                     restart_policy: Some("Never".into()),
                     automount_service_account_token: Some(false),
+                    image_pull_secrets: pull_secret.map(|n| {
+                        vec![LocalObjectReference {
+                            name: n.to_string(),
+                        }]
+                    }),
                     security_context: Some(PodSecurityContext {
                         run_as_non_root: Some(true),
                         run_as_user: Some(65532),
                         ..Default::default()
                     }),
+                    init_containers,
                     containers: vec![Container {
                         name: kind.to_string(),
                         image: Some(image.to_string()),
@@ -318,16 +559,7 @@ fn job(
                         args,
                         env: Some(all_env),
                         volume_mounts: Some(mounts),
-                        security_context: Some(SecurityContext {
-                            privileged: Some(false),
-                            allow_privilege_escalation: Some(false),
-                            read_only_root_filesystem: Some(true),
-                            capabilities: Some(Capabilities {
-                                drop: Some(vec!["ALL".into()]),
-                                ..Default::default()
-                            }),
-                            ..Default::default()
-                        }),
+                        security_context: Some(hardened()),
                         ..Default::default()
                     }],
                     volumes: Some(volumes),
@@ -354,16 +586,15 @@ pub fn build_scan_job(
         .iter()
         .map(|a| a.replace("{image}", image_ref))
         .collect();
-    Ok(job(
+    Ok(job(JobBuild {
         name,
         namespace,
-        "scan",
-        &cfg.image,
-        Some(argv),
-        None,
-        vec![],
-        None,
-    ))
+        kind: "scan",
+        image: &cfg.image,
+        command: Some(argv),
+        pull_secret: cfg.pull_secret.as_deref(),
+        ..Default::default()
+    }))
 }
 
 /// What a cosign Job does.
@@ -432,16 +663,86 @@ pub fn build_cosign_job(
     } else {
         "verify"
     };
-    Ok(job(
+    Ok(job(JobBuild {
         name,
         namespace,
         kind,
-        &cfg.image,
-        None,
-        Some(args),
+        image: &cfg.image,
+        args: Some(args),
         env,
-        vol,
-    ))
+        secret_vol: vol,
+        pull_secret: cfg.pull_secret.as_deref(),
+        ..Default::default()
+    }))
+}
+
+/// Builds the Job that streams an HTTP(S) blob through `sha256sum` and prints
+/// the digest as its last log line (compared by the gate, not in the shell).
+pub fn build_checksum_job(
+    name: &str,
+    namespace: &str,
+    fetch_image: &str,
+    pull_secret: Option<&str>,
+    url: &str,
+) -> Result<Job, String> {
+    validate_image_ref(fetch_image)?;
+    validate_http_url("source URL", url)?;
+    Ok(job(JobBuild {
+        name,
+        namespace,
+        kind: "checksum",
+        image: fetch_image,
+        command: Some(
+            ["sh", "-c", CHECKSUM_SCRIPT, "sh", url]
+                .map(String::from)
+                .to_vec(),
+        ),
+        pull_secret,
+        ..Default::default()
+    }))
+}
+
+/// Builds a `cosign verify-blob` Job: an init container downloads the blob,
+/// the cosign container verifies it against the detached signature URL with
+/// the public key from the Secret. Key mode only.
+pub fn build_blob_verify_job(
+    name: &str,
+    namespace: &str,
+    cfg: &SignConfig,
+    fetch_image: &str,
+    max_size: &str,
+    url: &str,
+    signature_url: &str,
+) -> Result<Job, String> {
+    validate_image_ref(fetch_image)?;
+    validate_http_url("source URL", url)?;
+    validate_http_url("signature URL", signature_url)?;
+    let SignMode::Key { secret, .. } = &cfg.mode else {
+        return Err(
+            "blob signature verification needs key mode (ZORVIA_GOLDEN_SIGN_KEY_SECRET)".into(),
+        );
+    };
+    let args = [
+        "verify-blob",
+        "--key",
+        "/cosign/cosign.pub",
+        "--signature",
+        signature_url,
+        "/blob/disk",
+    ]
+    .map(String::from)
+    .to_vec();
+    Ok(job(JobBuild {
+        name,
+        namespace,
+        kind: "verify-blob",
+        image: &cfg.image,
+        args: Some(args),
+        secret_vol: Some(secret_volume(secret, &["cosign.pub"])),
+        pull_secret: cfg.pull_secret.as_deref(),
+        blob_fetch: Some((fetch_image, url, max_size)),
+        ..Default::default()
+    }))
 }
 
 fn secret_volume(secret: &str, keys: &[&str]) -> Volume {
@@ -664,15 +965,220 @@ fn block(report: &mut GateReport, step: &str, detail: String) {
     });
 }
 
+/// Runs a Job; blocks the report (and returns `None`) on a runner error or a failed Job.
+async fn exec_step<R: JobRunner>(
+    runner: &R,
+    namespace: &str,
+    job: Job,
+    step: &str,
+    failed: &str,
+    report: &mut GateReport,
+) -> Option<JobOutcome> {
+    match runner.run_job(namespace, job).await {
+        Err(e) => {
+            block(report, step, e);
+            None
+        }
+        Ok(o) if !o.succeeded => {
+            block(report, step, failed.into());
+            None
+        }
+        Ok(o) => Some(o),
+    }
+}
+
+/// Gates for an HTTP(S) disk source: checksum (SHA-256) and detached cosign
+/// blob signature, both run as Jobs. Vulnerability scanning does not apply to
+/// disk blobs; it blocks unless the operator accepted that.
+async fn run_http_gates<R: JobRunner>(
+    cfg: &GateConfig,
+    runner: &R,
+    namespace: &str,
+    job_prefix: &str,
+    url: &str,
+    checks: &SourceChecks,
+) -> GateReport {
+    let mut report = GateReport::default();
+    if let Err(e) = validate_http_url("source URL", url) {
+        block(&mut report, "source", e);
+        return report;
+    }
+    let checks = match checks.validated() {
+        Ok(c) => c,
+        Err(e) => {
+            block(&mut report, "source", e);
+            return report;
+        }
+    };
+    if cfg.scan.is_some() {
+        if cfg.allow_unscanned_http {
+            report.steps.push(StepReport {
+                step: "scan:skipped".into(),
+                passed: true,
+                detail: "HTTP(S) disk sources cannot be scanned; accepted by ZORVIA_GOLDEN_HTTP_ALLOW_UNSCANNED".into(),
+                summary: None,
+            });
+        } else {
+            block(
+                &mut report,
+                "scan",
+                "HTTP(S) disk sources cannot be vulnerability-scanned (set ZORVIA_GOLDEN_HTTP_ALLOW_UNSCANNED=1 to accept)".into(),
+            );
+            return report;
+        }
+    }
+    if checks.signature_url.is_some() && cfg.sign.is_none() {
+        block(
+            &mut report,
+            "verify-blob",
+            "a signature URL was given but no sign gate is configured".into(),
+        );
+        return report;
+    }
+    if cfg.sign.is_some() && checks.signature_url.is_none() {
+        block(
+            &mut report,
+            "verify-blob",
+            "sign gate is configured but no signature URL was supplied for the HTTP(S) source"
+                .into(),
+        );
+        return report;
+    }
+    let fetch_image = match (&cfg.fetch_image, checks.is_empty()) {
+        (_, true) => return report,
+        (None, false) => {
+            block(
+                &mut report,
+                "checksum",
+                "ZORVIA_GOLDEN_FETCH_IMAGE is required for HTTP(S) checksum/signature checks"
+                    .into(),
+            );
+            return report;
+        }
+        (Some(i), false) => i.clone(),
+    };
+
+    if let Some(expected) = &checks.checksum_sha256 {
+        let name = crate::utils::generate_id(&format!("{job_prefix}-sum"), "g");
+        let job = match build_checksum_job(
+            &name,
+            namespace,
+            &fetch_image,
+            cfg.pull_secret.as_deref(),
+            url,
+        ) {
+            Ok(j) => j,
+            Err(e) => {
+                block(&mut report, "checksum", e);
+                return report;
+            }
+        };
+        let Some(o) = exec_step(
+            runner,
+            namespace,
+            job,
+            "checksum",
+            "checksum Job failed (download error)",
+            &mut report,
+        )
+        .await
+        else {
+            return report;
+        };
+        let actual = o
+            .logs
+            .lines()
+            .rev()
+            .find(|l| !l.trim().is_empty())
+            .and_then(|l| l.split_whitespace().next())
+            .map(|d| d.to_ascii_lowercase())
+            .unwrap_or_default();
+        if actual.len() != 64 || !actual.bytes().all(|b| b.is_ascii_hexdigit()) {
+            block(
+                &mut report,
+                "checksum",
+                "checksum Job produced no SHA-256 digest".into(),
+            );
+            return report;
+        }
+        if &actual != expected {
+            block(
+                &mut report,
+                "checksum",
+                format!("checksum mismatch (expected {expected}, got {actual})"),
+            );
+            return report;
+        }
+        report.steps.push(StepReport {
+            step: "checksum".into(),
+            passed: true,
+            detail: "SHA-256 matches the expected value".into(),
+            summary: None,
+        });
+    }
+
+    if let (Some(sign), Some(sig_url)) = (&cfg.sign, &checks.signature_url) {
+        let name = crate::utils::generate_id(&format!("{job_prefix}-vb"), "g");
+        let job = match build_blob_verify_job(
+            &name,
+            namespace,
+            sign,
+            &fetch_image,
+            &cfg.blob_max_size,
+            url,
+            sig_url,
+        ) {
+            Ok(j) => j,
+            Err(e) => {
+                block(&mut report, "verify-blob", e);
+                return report;
+            }
+        };
+        if exec_step(
+            runner,
+            namespace,
+            job,
+            "verify-blob",
+            "cosign verify-blob failed (signature missing, invalid or download error)",
+            &mut report,
+        )
+        .await
+        .is_none()
+        {
+            return report;
+        }
+        report.steps.push(StepReport {
+            step: "verify-blob".into(),
+            passed: true,
+            detail: "cosign verify-blob succeeded".into(),
+            summary: None,
+        });
+    }
+    report
+}
+
 /// Runs the configured gates in order (scan, sign, verify) and stops at the first failure.
+/// HTTP(S) sources run the checksum and blob-signature gates instead.
 pub async fn run_gates<R: JobRunner>(
     cfg: &GateConfig,
     runner: &R,
     namespace: &str,
     job_prefix: &str,
     source: &str,
+    checks: &SourceChecks,
 ) -> GateReport {
+    if source.starts_with("http://") || source.starts_with("https://") {
+        return run_http_gates(cfg, runner, namespace, job_prefix, source, checks).await;
+    }
     let mut report = GateReport::default();
+    if !checks.is_empty() {
+        block(
+            &mut report,
+            "source",
+            "checksum and signature URL only apply to HTTP(S) sources".into(),
+        );
+        return report;
+    }
     if !cfg.any() {
         return report;
     }
@@ -788,6 +1294,78 @@ pub async fn run_gates<R: JobRunner>(
     report
 }
 
+/// Label Zorvia puts on the DataVolume it creates in a pipeline run. Cleanup
+/// only ever deletes an object whose label equals the run id.
+pub const RUN_LABEL: &str = "zorvia.io/golden-run";
+
+/// Minimal DataVolume access needed for cleanup (mocked in tests).
+#[allow(async_fn_in_trait)]
+pub trait DataVolumeStore {
+    /// Labels of the DataVolume, or `None` when it does not exist.
+    async fn labels(
+        &self,
+        namespace: &str,
+        name: &str,
+    ) -> Result<Option<BTreeMap<String, String>>, String>;
+    async fn delete(&self, namespace: &str, name: &str) -> Result<(), String>;
+}
+
+impl DataVolumeStore for crate::kube::KubeClient {
+    async fn labels(
+        &self,
+        namespace: &str,
+        name: &str,
+    ) -> Result<Option<BTreeMap<String, String>>, String> {
+        let dv = self
+            .find_data_volume(namespace, name)
+            .await
+            .map_err(|e| e.to_string())?;
+        Ok(dv.map(|v| {
+            v["metadata"]["labels"]
+                .as_object()
+                .map(|m| {
+                    m.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|v| (k.clone(), v.to_string())))
+                        .collect()
+                })
+                .unwrap_or_default()
+        }))
+    }
+    async fn delete(&self, namespace: &str, name: &str) -> Result<(), String> {
+        self.delete_data_volume(namespace, name)
+            .await
+            .map_err(|e| e.to_string())
+    }
+}
+
+/// Removes the DataVolume imported by a blocked run, but only when it carries
+/// this run's label. Returns whether it was removed and a note.
+pub async fn cleanup_blocked_import<S: DataVolumeStore>(
+    store: &S,
+    namespace: &str,
+    name: &str,
+    run_id: &str,
+) -> (bool, String) {
+    match store.labels(namespace, name).await {
+        Err(e) => (
+            false,
+            format!("cleanup skipped: could not read DataVolume ({e})"),
+        ),
+        Ok(None) => (false, "imported DataVolume already gone".into()),
+        Ok(Some(l)) if l.get(RUN_LABEL).map(String::as_str) != Some(run_id) => (
+            false,
+            "DataVolume not removed: it does not carry this run's label".into(),
+        ),
+        Ok(Some(_)) => match store.delete(namespace, name).await {
+            Ok(()) => (true, "imported DataVolume removed after the block".into()),
+            Err(e) => (
+                false,
+                format!("cleanup failed: could not delete DataVolume ({e})"),
+            ),
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -828,6 +1406,10 @@ mod tests {
             succeeded: true,
             logs: logs.into(),
         })
+    }
+
+    fn none() -> SourceChecks {
+        SourceChecks::default()
     }
 
     #[test]
@@ -923,6 +1505,7 @@ mod tests {
                 secret: "ck".into(),
                 sign: true,
             },
+            pull_secret: None,
         };
         let v = build_cosign_job("v", "ns", &key, CosignAction::Verify, "r.io/a:1").unwrap();
         let pod = v.spec.unwrap().template.spec.unwrap();
@@ -958,6 +1541,7 @@ mod tests {
                 identity: "me@x".into(),
                 issuer: "https://i".into(),
             },
+            pull_secret: None,
         };
         let k = build_cosign_job("k", "ns", &keyless, CosignAction::Verify, "r.io/a:1").unwrap();
         let args = k.spec.unwrap().template.spec.unwrap().containers[0]
@@ -972,6 +1556,7 @@ mod tests {
                 secret: "ck".into(),
                 sign: false,
             },
+            pull_secret: None,
         };
         assert!(build_cosign_job("s", "ns", &nosign, CosignAction::Sign, "r.io/a:1").is_err());
     }
@@ -1002,7 +1587,15 @@ mod tests {
     #[tokio::test]
     async fn unconfigured_runs_nothing() {
         let r = Mock::new(vec![]);
-        let rep = run_gates(&GateConfig::default(), &r, "ns", "p", "docker://r.io/a:1").await;
+        let rep = run_gates(
+            &GateConfig::default(),
+            &r,
+            "ns",
+            "p",
+            "docker://r.io/a:1",
+            &none(),
+        )
+        .await;
         assert!(rep.promote_allowed() && rep.steps.is_empty());
         assert!(r.jobs.lock().unwrap().is_empty());
     }
@@ -1020,7 +1613,15 @@ mod tests {
     #[tokio::test]
     async fn gate_allows_clean_scan_and_good_signature() {
         let r = Mock::new(vec![ok(CLEAN), ok(""), ok("")]);
-        let rep = run_gates(&scan_sign_cfg(), &r, "ns", "p", "docker://r.io/a:1").await;
+        let rep = run_gates(
+            &scan_sign_cfg(),
+            &r,
+            "ns",
+            "p",
+            "docker://r.io/a:1",
+            &none(),
+        )
+        .await;
         assert!(rep.promote_allowed(), "{rep:?}");
         let names: Vec<_> = rep.steps.iter().map(|s| s.step.as_str()).collect();
         assert_eq!(names, ["scan", "sign", "verify"]);
@@ -1030,7 +1631,7 @@ mod tests {
     #[tokio::test]
     async fn gate_blocks_on_findings_over_threshold() {
         let r = Mock::new(vec![ok(MIXED)]);
-        let rep = run_gates(&scan_sign_cfg(), &r, "ns", "p", "r.io/a:1").await;
+        let rep = run_gates(&scan_sign_cfg(), &r, "ns", "p", "r.io/a:1", &none()).await;
         assert!(!rep.promote_allowed());
         assert!(rep
             .blocked_reason
@@ -1051,7 +1652,7 @@ mod tests {
             ok("not json"),
         ] {
             let r = Mock::new(vec![outcome]);
-            let rep = run_gates(&scan_sign_cfg(), &r, "ns", "p", "r.io/a:1").await;
+            let rep = run_gates(&scan_sign_cfg(), &r, "ns", "p", "r.io/a:1", &none()).await;
             assert!(!rep.promote_allowed());
             assert!(rep
                 .blocked_reason
@@ -1070,7 +1671,7 @@ mod tests {
                 logs: String::new(),
             }),
         ]);
-        let rep = run_gates(&scan_sign_cfg(), &r, "ns", "p", "r.io/a:1").await;
+        let rep = run_gates(&scan_sign_cfg(), &r, "ns", "p", "r.io/a:1", &none()).await;
         assert!(rep
             .blocked_reason
             .unwrap()
@@ -1080,8 +1681,348 @@ mod tests {
     #[tokio::test]
     async fn http_source_blocks_when_gates_configured() {
         let r = Mock::new(vec![]);
-        let rep = run_gates(&scan_sign_cfg(), &r, "ns", "p", "https://x/y.qcow2").await;
+        let rep = run_gates(
+            &scan_sign_cfg(),
+            &r,
+            "ns",
+            "p",
+            "https://x/y.qcow2",
+            &none(),
+        )
+        .await;
         assert!(!rep.promote_allowed());
         assert!(r.jobs.lock().unwrap().is_empty());
+    }
+
+    const URL: &str = "https://images.example.com/disk.qcow2";
+    const SIG: &str = "https://images.example.com/disk.qcow2.sig";
+    const DIGEST: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+    fn http_cfg(extra: &[(&str, &str)]) -> GateConfig {
+        let mut v = vec![
+            ("ZORVIA_GOLDEN_FETCH_IMAGE", "curl:8"),
+            ("ZORVIA_GOLDEN_SIGN_IMAGE", "cosign:2"),
+            ("ZORVIA_GOLDEN_SIGN_KEY_SECRET", "ck"),
+        ];
+        v.extend_from_slice(extra);
+        cfg(&v).unwrap()
+    }
+
+    fn checks(sum: Option<&str>, sig: Option<&str>) -> SourceChecks {
+        SourceChecks {
+            checksum_sha256: sum.map(String::from),
+            signature_url: sig.map(String::from),
+        }
+    }
+
+    #[test]
+    fn credentials_config_and_job_wiring() {
+        let c = cfg(&[
+            ("ZORVIA_GOLDEN_SCAN_IMAGE", "trivy:1"),
+            ("ZORVIA_GOLDEN_PULL_SECRET", "regcred"),
+            ("ZORVIA_GOLDEN_CDI_SECRET", "cdi-reg"),
+            ("ZORVIA_GOLDEN_KEEP_ON_BLOCK", "1"),
+        ])
+        .unwrap();
+        assert_eq!(c.cdi_secret.as_deref(), Some("cdi-reg"));
+        assert!(c.keep_on_block);
+        let j = build_scan_job("s", "ns", c.scan.as_ref().unwrap(), "r.io/a:1").unwrap();
+        let pod = j.spec.unwrap().template.spec.unwrap();
+        assert_eq!(pod.image_pull_secrets.unwrap()[0].name, "regcred");
+        let vol = pod
+            .volumes
+            .unwrap()
+            .into_iter()
+            .find(|v| v.name == "registry-auth")
+            .unwrap();
+        let items = vol.secret.unwrap().items.unwrap();
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].key, ".dockerconfigjson");
+        let env = pod.containers[0].env.clone().unwrap();
+        assert!(env
+            .iter()
+            .any(|e| e.name == "DOCKER_CONFIG" && e.value.as_deref() == Some("/docker")));
+        // no secret content anywhere in the spec, only names
+        assert!(!serde_json::to_string(&pod.containers[0])
+            .unwrap()
+            .contains("auth\":"));
+        // invalid names rejected; unset means no pull secret
+        assert!(cfg(&[("ZORVIA_GOLDEN_PULL_SECRET", "Bad_Name")]).is_err());
+        assert!(cfg(&[("ZORVIA_GOLDEN_CDI_SECRET", "a b")]).is_err());
+        let plain = cfg(&[("ZORVIA_GOLDEN_SCAN_IMAGE", "trivy:1")]).unwrap();
+        let j = build_scan_job("s", "ns", plain.scan.as_ref().unwrap(), "r.io/a:1").unwrap();
+        assert!(j
+            .spec
+            .unwrap()
+            .template
+            .spec
+            .unwrap()
+            .image_pull_secrets
+            .is_none());
+    }
+
+    #[test]
+    fn url_and_checksum_validation() {
+        assert!(validate_http_url("u", URL).is_ok());
+        assert!(validate_http_url("u", "ftp://x/y").is_err());
+        assert!(validate_http_url("u", "https://user:pw@host/y").is_err());
+        assert!(validate_http_url("u", "https://host/a b").is_err());
+        assert!(validate_http_url("u", "https:///y").is_err());
+        assert_eq!(
+            normalize_sha256(&format!("sha256:{}", DIGEST.to_uppercase())).unwrap(),
+            DIGEST
+        );
+        assert!(normalize_sha256("abc").is_err());
+        assert!(normalize_sha256(&"g".repeat(64)).is_err());
+        assert!(cfg(&[("ZORVIA_GOLDEN_FETCH_IMAGE", "-x")]).is_err());
+        assert!(cfg(&[("ZORVIA_GOLDEN_BLOB_MAX_SIZE", "lots")]).is_err());
+    }
+
+    #[test]
+    fn blob_job_specs() {
+        let c = http_cfg(&[]);
+        let sign = c.sign.as_ref().unwrap();
+        let j = build_blob_verify_job("v", "ns", sign, "curl:8", "50Gi", URL, SIG).unwrap();
+        let pod = j.spec.unwrap().template.spec.unwrap();
+        let init = &pod.init_containers.unwrap()[0];
+        assert_eq!(init.image.as_deref(), Some("curl:8"));
+        let cmd = init.command.clone().unwrap();
+        // URL is a positional parameter, not part of the script text
+        assert_eq!(cmd.last().unwrap(), URL);
+        assert!(!cmd[2].contains("example.com"));
+        let args = pod.containers[0].args.clone().unwrap();
+        assert_eq!(
+            args,
+            [
+                "verify-blob",
+                "--key",
+                "/cosign/cosign.pub",
+                "--signature",
+                SIG,
+                "/blob/disk"
+            ]
+        );
+        let blob = pod
+            .volumes
+            .unwrap()
+            .into_iter()
+            .find(|v| v.name == "blob")
+            .unwrap();
+        assert_eq!(blob.empty_dir.unwrap().size_limit.unwrap().0, "50Gi");
+        let sum = build_checksum_job("c", "ns", "curl:8", None, URL).unwrap();
+        let ct = &sum.spec.unwrap().template.spec.unwrap().containers[0];
+        assert_eq!(ct.command.as_ref().unwrap().last().unwrap(), URL);
+        assert!(build_checksum_job("c", "ns", "curl:8", None, "https://u:p@h/x").is_err());
+        let keyless = SignConfig {
+            image: "c".into(),
+            mode: SignMode::Keyless {
+                identity: "a".into(),
+                issuer: "b".into(),
+            },
+            pull_secret: None,
+        };
+        assert!(build_blob_verify_job("v", "ns", &keyless, "curl:8", "1Gi", URL, SIG).is_err());
+    }
+
+    #[tokio::test]
+    async fn http_checksum_and_signature_pass() {
+        let r = Mock::new(vec![ok(&format!("{DIGEST}\n")), ok("")]);
+        let rep = run_gates(
+            &http_cfg(&[]),
+            &r,
+            "ns",
+            "p",
+            URL,
+            &checks(Some(&format!("sha256:{DIGEST}")), Some(SIG)),
+        )
+        .await;
+        assert!(rep.promote_allowed(), "{rep:?}");
+        let names: Vec<_> = rep.steps.iter().map(|s| s.step.as_str()).collect();
+        assert_eq!(names, ["checksum", "verify-blob"]);
+    }
+
+    #[tokio::test]
+    async fn http_blocks_on_mismatch_garbage_and_failures() {
+        let other = "f".repeat(64);
+        for (outcome, want) in [
+            (ok(&other), "checksum mismatch"),
+            (ok("curl: (22) error"), "no SHA-256 digest"),
+            (ok(""), "no SHA-256 digest"),
+            (Err("boom".to_string()), "boom"),
+            (
+                Ok(JobOutcome {
+                    succeeded: false,
+                    logs: String::new(),
+                }),
+                "checksum Job failed",
+            ),
+        ] {
+            let r = Mock::new(vec![outcome]);
+            let rep = run_gates(
+                &http_cfg(&[]),
+                &r,
+                "ns",
+                "p",
+                URL,
+                &checks(Some(DIGEST), Some(SIG)),
+            )
+            .await;
+            let reason = rep.blocked_reason.unwrap();
+            assert!(
+                reason.starts_with("checksum blocked promotion") && reason.contains(want),
+                "{reason}"
+            );
+            assert_eq!(r.jobs.lock().unwrap().len(), 1);
+        }
+        // bad signature
+        let r = Mock::new(vec![
+            ok(DIGEST),
+            Ok(JobOutcome {
+                succeeded: false,
+                logs: String::new(),
+            }),
+        ]);
+        let rep = run_gates(
+            &http_cfg(&[]),
+            &r,
+            "ns",
+            "p",
+            URL,
+            &checks(Some(DIGEST), Some(SIG)),
+        )
+        .await;
+        assert!(rep
+            .blocked_reason
+            .unwrap()
+            .starts_with("verify-blob blocked promotion"));
+    }
+
+    #[tokio::test]
+    async fn http_fails_closed_on_missing_inputs() {
+        let r = Mock::new(vec![]);
+        // sign configured but no signature URL
+        let rep = run_gates(
+            &http_cfg(&[]),
+            &r,
+            "ns",
+            "p",
+            URL,
+            &checks(Some(DIGEST), None),
+        )
+        .await;
+        assert!(!rep.promote_allowed());
+        // signature URL with no sign gate
+        let only_fetch = cfg(&[("ZORVIA_GOLDEN_FETCH_IMAGE", "curl:8")]).unwrap();
+        let rep = run_gates(&only_fetch, &r, "ns", "p", URL, &checks(None, Some(SIG))).await;
+        assert!(!rep.promote_allowed());
+        // checksum without a fetch image
+        let rep = run_gates(
+            &GateConfig::default(),
+            &r,
+            "ns",
+            "p",
+            URL,
+            &checks(Some(DIGEST), None),
+        )
+        .await;
+        assert!(rep
+            .blocked_reason
+            .unwrap()
+            .contains("ZORVIA_GOLDEN_FETCH_IMAGE"));
+        // malformed checksum, URL with credentials
+        let rep = run_gates(&only_fetch, &r, "ns", "p", URL, &checks(Some("zz"), None)).await;
+        assert!(!rep.promote_allowed());
+        let rep = run_gates(
+            &only_fetch,
+            &r,
+            "ns",
+            "p",
+            "https://u:p@h/x",
+            &checks(Some(DIGEST), None),
+        )
+        .await;
+        assert!(!rep.promote_allowed());
+        // checks on a registry source
+        let rep = run_gates(
+            &only_fetch,
+            &r,
+            "ns",
+            "p",
+            "r.io/a:1",
+            &checks(Some(DIGEST), None),
+        )
+        .await;
+        assert!(!rep.promote_allowed());
+        assert!(r.jobs.lock().unwrap().is_empty());
+        // nothing configured, nothing supplied: allowed as before
+        let rep = run_gates(&GateConfig::default(), &r, "ns", "p", URL, &none()).await;
+        assert!(rep.promote_allowed() && rep.steps.is_empty());
+    }
+
+    #[tokio::test]
+    async fn http_scan_gate_needs_operator_opt_in() {
+        let r = Mock::new(vec![ok(DIGEST)]);
+        let base = [
+            ("ZORVIA_GOLDEN_SCAN_IMAGE", "trivy:1"),
+            ("ZORVIA_GOLDEN_FETCH_IMAGE", "curl:8"),
+        ];
+        let blocked = cfg(&base).unwrap();
+        let rep = run_gates(&blocked, &r, "ns", "p", URL, &checks(Some(DIGEST), None)).await;
+        assert!(rep
+            .blocked_reason
+            .unwrap()
+            .starts_with("scan blocked promotion"));
+        let mut allowed = base.to_vec();
+        allowed.push(("ZORVIA_GOLDEN_HTTP_ALLOW_UNSCANNED", "1"));
+        let allowed = cfg(&allowed).unwrap();
+        let rep = run_gates(&allowed, &r, "ns", "p", URL, &checks(Some(DIGEST), None)).await;
+        assert!(rep.promote_allowed());
+        assert_eq!(rep.steps[0].step, "scan:skipped");
+    }
+
+    struct FakeStore {
+        labels: Option<BTreeMap<String, String>>,
+        deleted: Mutex<Vec<String>>,
+        fail_delete: bool,
+    }
+    impl DataVolumeStore for FakeStore {
+        async fn labels(
+            &self,
+            _: &str,
+            _: &str,
+        ) -> Result<Option<BTreeMap<String, String>>, String> {
+            Ok(self.labels.clone())
+        }
+        async fn delete(&self, _: &str, name: &str) -> Result<(), String> {
+            if self.fail_delete {
+                return Err("denied".into());
+            }
+            self.deleted.lock().unwrap().push(name.into());
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn cleanup_only_removes_this_runs_datavolume() {
+        let lab = |v: &str| Some(BTreeMap::from([(RUN_LABEL.to_string(), v.to_string())]));
+        let mk = |labels, fail_delete| FakeStore {
+            labels,
+            deleted: Mutex::new(vec![]),
+            fail_delete,
+        };
+        let s = mk(lab("run-1"), false);
+        let (gone, _) = cleanup_blocked_import(&s, "ns", "img-1", "run-1").await;
+        assert!(gone && s.deleted.lock().unwrap().as_slice() == ["img-1"]);
+        // another run's DataVolume, an unlabelled one, a missing one, a failing delete
+        for (store, want) in [
+            (mk(lab("run-2"), false), "label"),
+            (mk(Some(BTreeMap::new()), false), "label"),
+            (mk(None, false), "already gone"),
+            (mk(lab("run-1"), true), "cleanup failed"),
+        ] {
+            let (gone, note) = cleanup_blocked_import(&store, "ns", "img-1", "run-1").await;
+            assert!(!gone && note.contains(want), "{note}");
+            assert!(store.deleted.lock().unwrap().is_empty());
+        }
     }
 }
