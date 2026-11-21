@@ -473,8 +473,9 @@ mod tests {
         assert_eq!(out, Ok(()));
         assert!(r.calls.contains(&"umount -l /r/dev".to_string()));
 
+        // Every unmount (plain and lazy) fails; the binds themselves succeed.
         let mut r = Recorder {
-            fail_on: Some("/r/dev".into()),
+            fail_on: Some("umount".into()),
             ..Default::default()
         };
         let out: Result<(), String> = with_chroot_binds(&mut r, "/r", |_| Err("x".into()));
