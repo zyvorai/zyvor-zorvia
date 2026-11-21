@@ -362,6 +362,7 @@ pub struct CrossClusterDrRun {
     pub notes: Vec<String>,
 }
 
+#[cfg(feature = "web")]
 impl CrossClusterDrRun {
     /// Phase 1: enqueue off-cluster backups for each VM.
     /// Phase 2 (when `backup_operation_ids` is set): enqueue restores into

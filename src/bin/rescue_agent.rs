@@ -210,7 +210,9 @@ fn reset_password(g: &mut Guestfs, user: &str) -> anyhow::Result<()> {
 /// manager as an explicit argv (no shell). The guest has no network of its
 /// own while offline, so the Job pod's resolv.conf is placed temporarily in
 /// the guest and the original restored afterwards. /proc, /dev and /sys are
-/// NOT bind-mounted: packages whose maintainer scripts need them can fail.
+/// bind-mounted into the guest root for the duration (and unmounted in
+/// reverse order afterwards, even on error) so maintainer scripts work. The
+/// Job pod needs outbound network access to the guest's package mirrors.
 fn install_packages(g: &mut Guestfs, packages: &[String]) -> anyhow::Result<String> {
     let pm = logic::PackageManager::probes()
         .iter()
@@ -224,14 +226,23 @@ fn install_packages(g: &mut Guestfs, packages: &[String]) -> anyhow::Result<Stri
     g.write("/etc/resolv.conf", &host_dns)
         .map_err(|e| anyhow::anyhow!("could not provide DNS to the guest chroot: {e}"))?;
 
-    let mut outcome = Ok(());
-    for argv in pm.install_commands(packages) {
-        let refs: Vec<&str> = argv.iter().map(String::as_str).collect();
-        if let Err(e) = g.command(&refs) {
-            outcome = Err(anyhow::anyhow!("{e}"));
-            break;
-        }
-    }
+    // Guest "/" as seen from the Job pod: GuestKit records every mount's host
+    // path; the shortest is the root (/boot, /boot/efi nest under it).
+    let root = g
+        .mountpoints()
+        .ok()
+        .and_then(|m| m.values().min_by_key(|p| p.len()).cloned());
+    let outcome = match root {
+        Some(root) => logic::with_chroot_binds(&mut ShellRunner, &root, |_| {
+            for argv in pm.install_commands(packages) {
+                let refs: Vec<&str> = argv.iter().map(String::as_str).collect();
+                g.command(&refs).map_err(|e| e.to_string())?;
+            }
+            Ok(())
+        })
+        .map_err(anyhow::Error::msg),
+        None => Err(anyhow::anyhow!("could not locate the guest root mount")),
+    };
 
     // Always restore the guest's resolver config.
     match original {
@@ -248,6 +259,24 @@ fn install_packages(g: &mut Guestfs, packages: &[String]) -> anyhow::Result<Stri
         packages.len(),
         packages.join(", ")
     ))
+}
+
+/// Runs the mount/umount argvs built by `logic::with_chroot_binds` for real.
+struct ShellRunner;
+
+impl logic::CommandRunner for ShellRunner {
+    fn run(&mut self, argv: &[String]) -> Result<(), String> {
+        let (prog, args) = argv.split_first().ok_or("empty command")?;
+        let out = Command::new(prog)
+            .args(args)
+            .output()
+            .map_err(|e| format!("{prog}: {e}"))?;
+        if out.status.success() {
+            Ok(())
+        } else {
+            Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+        }
+    }
 }
 
 fn clip(s: &str) -> String {
