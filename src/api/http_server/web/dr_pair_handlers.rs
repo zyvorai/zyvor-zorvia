@@ -170,18 +170,36 @@ pub async fn get_dr_pair_handler(Path(name): Path<String>) -> impl IntoResponse 
 }
 
 /// RPO/RTO status for one pair; also refreshes the measured RTO of a pending failover.
-pub async fn dr_pair_status_handler(Path(name): Path<String>) -> impl IntoResponse {
+pub async fn dr_pair_status_handler(
+    State(state): State<SharedState>,
+    Path(name): Path<String>,
+) -> impl IntoResponse {
     if let Some(r) = gate() {
         return r;
     }
+    let pair = match load_pair(&name) {
+        Ok(p) => p,
+        Err(r) => return r,
+    };
+    let facts = gather_facts(&state, &pair).await;
     let now = chrono::Utc::now();
     let res = PairStore::update(&path(), |s| {
         let p = s.get_mut(&name).ok_or("not found")?;
         pairs::refresh_failover(p, &backend(), now);
-        Ok(pairs::status(p, now))
+        if p.failback.as_ref().is_some_and(|f| f.state.is_active()) {
+            pairs::advance_failback(
+                p,
+                &facts,
+                &backend(),
+                &backend(),
+                &pairs::NotificationSink,
+                now,
+            );
+        }
+        Ok((pairs::status(p, now), p.failback.clone()))
     });
     match res {
-        Ok(st) => ok(json!(st)),
+        Ok((st, fb)) => ok(json!({ "status": st, "failback": fb })),
         Err(e) if e == "not found" => bad(404, "NOT_FOUND", "No such DR pair"),
         Err(e) => bad(500, "PERSIST_FAILED", &e),
     }
@@ -319,6 +337,109 @@ pub async fn dr_failback_plan_handler(
     ok(json!(pairs::failback_plan(&pair, &facts)))
 }
 
+pub async fn dr_failback_handler(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    Path(name): Path<String>,
+    AxumJson(req): AxumJson<pairs::FailbackRequest>,
+) -> impl IntoResponse {
+    if let Some(r) = gate() {
+        return r;
+    }
+    let pair = match load_pair(&name) {
+        Ok(p) => p,
+        Err(r) => return r,
+    };
+    let facts = gather_facts(&state, &pair).await;
+    let now = chrono::Utc::now();
+    let be = backend();
+    let res = PairStore::update(&path(), |s| {
+        let p = s.get_mut(&name).ok_or("not found".to_string())?;
+        // Refresh first so a just-finished failover counts as complete.
+        pairs::refresh_failover(p, &be, now);
+        Ok(pairs::execute_failback(
+            p,
+            &facts,
+            &req,
+            &be,
+            &pairs::NotificationSink,
+            now,
+        ))
+    });
+    let outcome = match res {
+        Ok(o) => o,
+        Err(e) if e == "not found" => return bad(404, "NOT_FOUND", "No such DR pair"),
+        Err(e) => return bad(500, "PERSIST_FAILED", &e),
+    };
+    if !req.dry_run {
+        record_audit(
+            &state,
+            &headers,
+            crate::audit_trail::AuditAction::Restore,
+            "dr-pair-failback",
+            &name,
+            outcome.is_ok(),
+            outcome.as_ref().err().map(|e| e.to_string()),
+        )
+        .await;
+    }
+    match outcome {
+        Ok(pairs::FailbackOutcome::DryRun(plan)) => ok(json!({ "dry_run": true, "plan": plan })),
+        Ok(pairs::FailbackOutcome::Started { plan, backup_op }) => (
+            StatusCode::ACCEPTED,
+            Json(json!({
+                "success": true,
+                "data": { "dry_run": false, "backup_operation_id": backup_op, "plan": plan }
+            })),
+        )
+            .into_response(),
+        Err(pairs::FailoverError::Refused(b)) => bad(409, "FAILBACK_REFUSED", &b.join("; ")),
+        Err(e @ pairs::FailoverError::ConfirmationRequired(_)) => {
+            bad(400, "CONFIRMATION_REQUIRED", &e.to_string())
+        }
+        Err(pairs::FailoverError::Backend(e)) => bad(500, "BACKUP_FAILED", &e),
+    }
+}
+
+pub async fn dr_failback_cancel_handler(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    Path(name): Path<String>,
+) -> impl IntoResponse {
+    if let Some(r) = gate() {
+        return r;
+    }
+    let now = chrono::Utc::now();
+    let res = PairStore::update(&path(), |s| {
+        let p = s.get_mut(&name).ok_or("not found".to_string())?;
+        Ok(pairs::cancel_failback(
+            p,
+            &backend(),
+            &pairs::NotificationSink,
+            now,
+        ))
+    });
+    let outcome = match res {
+        Ok(o) => o,
+        Err(e) if e == "not found" => return bad(404, "NOT_FOUND", "No such DR pair"),
+        Err(e) => return bad(500, "PERSIST_FAILED", &e),
+    };
+    record_audit(
+        &state,
+        &headers,
+        crate::audit_trail::AuditAction::ConfigChange,
+        "dr-pair-failback-cancel",
+        &name,
+        outcome.is_ok(),
+        outcome.as_ref().err().map(|e| e.to_string()),
+    )
+    .await;
+    match outcome {
+        Ok(()) => ok(json!({ "cancelled": true })),
+        Err(e) => bad(409, "CANCEL_REFUSED", &e.to_string()),
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct ResumeBody {
     #[serde(default)]
@@ -367,21 +488,30 @@ pub async fn dr_resume_handler(
 }
 
 /// Scheduler loop: every 60s (leader only, feature enabled) advance each pair.
-pub fn spawn_dr_replication_loop(_state: SharedState) {
+pub fn spawn_dr_replication_loop(state: SharedState) {
     tokio::spawn(async move {
         loop {
             tokio::time::sleep(std::time::Duration::from_secs(60)).await;
             if !pairs::enabled() || crate::api::leader::skip_if_follower("dr-replication") {
                 continue;
             }
-            run_pairs_once().await;
+            run_pairs_once(&state).await;
         }
     });
 }
 
-async fn run_pairs_once() {
-    if PairStore::load_from(&path()).pairs.is_empty() {
+async fn run_pairs_once(state: &SharedState) {
+    let loaded = PairStore::load_from(&path());
+    if loaded.pairs.is_empty() {
         return;
+    }
+    // Cluster facts for pairs with an active failback (gathered before the
+    // synchronous, locked update).
+    let mut facts = std::collections::HashMap::new();
+    for p in &loaded.pairs {
+        if p.failback.as_ref().is_some_and(|f| f.state.is_active()) {
+            facts.insert(p.name.clone(), gather_facts(state, p).await);
+        }
     }
     let target = match crate::backup::offcluster::OffClusterTarget::resolve().await {
         Ok(Some(_)) => Ok(()),
@@ -394,10 +524,56 @@ async fn run_pairs_once() {
         for p in s.pairs.iter_mut() {
             pairs::tick(p, now, &be, &pairs::NotificationSink);
             pairs::refresh_failover(p, &be, now);
+            if let Some(f) = facts.get(&p.name) {
+                pairs::advance_failback(p, f, &be, &be, &pairs::NotificationSink, now);
+            }
         }
         Ok(())
     });
     if let Err(e) = res {
         log::error!("DR replication loop: {e}");
+    }
+    delete_finished_dr_vms(state).await;
+}
+
+/// After a successful failback with `keep_dr_vm = false`, delete the DR VM once.
+/// Only the DR VM named in the pair is ever touched, never the restored original.
+async fn delete_finished_dr_vms(state: &SharedState) {
+    let due: Vec<DrPair> = PairStore::load_from(&path())
+        .pairs
+        .into_iter()
+        .filter(pairs::dr_vm_cleanup_due)
+        .collect();
+    for p in due {
+        let client = state.read().await.client();
+        let outcome = match client.delete_vm(&p.dr_namespace, &p.dr_vm).await {
+            Ok(()) => Ok(()),
+            Err(e)
+                if matches!(
+                    e.downcast_ref::<crate::utils::ZorviaError>(),
+                    Some(crate::utils::ZorviaError::VmNotFound(_))
+                ) =>
+            {
+                Ok(())
+            }
+            Err(e) => Err(sanitize_error(&e)),
+        };
+        match outcome {
+            Ok(()) => {
+                let _ = PairStore::update(&path(), |s| {
+                    if let Some(x) = s.get_mut(&p.name) {
+                        pairs::mark_dr_vm_deleted(x);
+                    }
+                    Ok(())
+                });
+                pairs::AlertSink::alert(
+                    &pairs::NotificationSink,
+                    pairs::Severity::Info,
+                    &p.name,
+                    "DR VM deleted after failback",
+                );
+            }
+            Err(e) => log::warn!("DR pair {}: deleting DR VM failed: {e}", p.name),
+        }
     }
 }
