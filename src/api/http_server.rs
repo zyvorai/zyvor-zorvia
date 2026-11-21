@@ -236,6 +236,10 @@ pub mod web {
     mod warm_pool_handlers;
     use warm_pool_handlers::*;
 
+    #[path = "dr_pair_handlers.rs"]
+    mod dr_pair_handlers;
+    use dr_pair_handlers::*;
+
     /// Simple sliding-window rate limiter state.
     struct RateLimiterState {
         /// Number of requests in the current window
@@ -1392,6 +1396,35 @@ pub mod web {
                 post(enterprise_cross_cluster_dr_run),
             )
             .route(
+                "/v1/enterprise/dr/pairs",
+                get(list_dr_pairs_handler).post(create_dr_pair_handler),
+            )
+            .route(
+                "/v1/enterprise/dr/pairs/{name}",
+                get(get_dr_pair_handler).delete(delete_dr_pair_handler),
+            )
+            .route(
+                "/v1/enterprise/dr/pairs/{name}/status",
+                get(dr_pair_status_handler),
+            )
+            .route(
+                "/v1/enterprise/dr/pairs/{name}/failover/plan",
+                get(dr_failover_plan_handler),
+            )
+            .route(
+                "/v1/enterprise/dr/pairs/{name}/failover",
+                post(dr_failover_handler),
+            )
+            .route(
+                "/v1/enterprise/dr/pairs/{name}/failback/plan",
+                get(dr_failback_plan_handler),
+            )
+            .route(
+                "/v1/enterprise/dr/pairs/{name}/resume",
+                post(dr_resume_handler),
+            )
+            .route("/v1/enterprise/dr/alerts", get(dr_alerts_handler))
+            .route(
                 "/v1/enterprise/placement/gpu-numa",
                 post(enterprise_gpu_numa_plan),
             )
@@ -1674,6 +1707,7 @@ pub mod web {
         spawn_power_schedule_loop(state.clone());
         spawn_alert_evaluation_loop(state.clone());
         spawn_warm_pool_loop(state.clone());
+        spawn_dr_replication_loop(state.clone());
         let app = build_router(state);
         let addr = format!("{}:{}", host, port);
 
