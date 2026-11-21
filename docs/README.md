@@ -28,6 +28,11 @@ Start here: root [README.md](../README.md) (hero, gallery, quick start) · live 
 |-----|--------|
 | [LAB.md](LAB.md) | Remote deploy, auth Secret, NodePort **30152**, `lab-smoke.sh` |
 | [WEB_CONSOLE.md](WEB_CONSOLE.md) | SPA, Fabric HTTP API, console/VNC/SSH/pod WebSockets, Disk Images, hotplug, migration, Rook, RBAC, audit export |
+| [IMAGE_UPLOAD.md](IMAGE_UPLOAD.md) | Disk image upload through the CDI upload proxy (Experimental) |
+| [AUTOSCALER_LOOP.md](AUTOSCALER_LOOP.md) | Autoscaler reconcile loop, recommendation-only by default (Experimental) |
+| [SAML.md](SAML.md) | SAML 2.0 groundwork: metadata, login request, assertion validator; login not functional yet (Experimental) |
+| [VOLUME_ENCRYPTION.md](VOLUME_ENCRYPTION.md) | Envelope data keys for volumes wrapped by the key provider (Experimental) |
+| [DR_REPLICATION.md](DR_REPLICATION.md) | Durable DR replication pairs, RPO/RTO status, dry-run-first failover (Experimental) |
 | [PODS.md](PODS.md) | Pods page: all-namespace inventory, Terminal.app logs + exec, WebSocket protocol, RBAC, audit |
 | [RESCUE.md](RESCUE.md) | Rescue mode: offline hostname/SSH-key/enable-SSH via a Job-mounted disk, GuestKit, RBAC, audit |
 | [SUPPORT_MATRIX.md](SUPPORT_MATRIX.md) | Validated versions and measured E2E results; what is not validated |

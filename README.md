@@ -28,6 +28,13 @@
 
 ## What's new
 
+**Unreleased, seven Experimental features** (all opt-in behind `ZORVIA_EXPERIMENTAL=1`, mock-tested, none run against a live cluster yet; see [docs/FEATURE_MATURITY.md](docs/FEATURE_MATURITY.md)):
+[disk image upload](docs/IMAGE_UPLOAD.md), an [autoscaler loop](docs/AUTOSCALER_LOOP.md) (recommends only until it has a real metrics source),
+[SAML groundwork](docs/SAML.md) (login does **not** work yet: no signature verification), extended [rescue mode](docs/RESCUE.md)
+(reset-password, install-packages, inspect), golden-image [scan and sign gates](docs/GOLDEN_IMAGES.md),
+[volume envelope encryption](docs/VOLUME_ENCRYPTION.md) (the CSI driver does not consume the key) and
+[DR replication pairs](docs/DR_REPLICATION.md). Upgrade notes: [docs/UPGRADE.md](docs/UPGRADE.md).
+
 **v0.7.0, the MCP release**: AI assistants (Claude Desktop/Code and other MCP clients) can list, create, power-cycle and snapshot VMs
 through an opt-in `/api/mcp` endpoint or the `zorvia mcp` bridge, acting with their own scoped token ([docs/MCP.md](docs/MCP.md)).
 
