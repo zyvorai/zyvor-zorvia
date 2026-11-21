@@ -1,5 +1,18 @@
 # Upgrade notes
 
+## Unreleased (after v0.7.4)
+
+### Required ops
+1. **Minimum Kubernetes API server is now 1.33** (was 1.32). `k8s-openapi` moved from 0.28 to 0.29, which has no `v1_32` feature; `kube` 5.0 already required 0.29. The lab runs v1.36.
+2. **Rescue reset-password needs new RBAC.** The Zorvia ServiceAccount gains `secrets` `create`, `delete` and `patch` in its namespace (Helm: `charts/zorvia/templates/rbac.yaml`; manifests: `deploy/k8s.yaml`, `deploy/k3s-zorvia-web.yaml`). Existing installs must re-apply the RBAC. Only the new experimental rescue operations use it.
+3. **Volume encryption** also stores wrapped data keys in Secrets (`zorvia-dek-<vm>-<volume>`), so it needs the same Secret permissions. See [VOLUME_ENCRYPTION.md](VOLUME_ENCRYPTION.md).
+
+### Behaviour to know
+- All seven new features are off unless `ZORVIA_EXPERIMENTAL=1` plus the feature's own switch (see [FEATURE_MATURITY.md](FEATURE_MATURITY.md)); nothing changes for an install that sets neither.
+- **SAML:** `ZORVIA_SAML_ENABLED=1` exposes metadata and a login redirect, but the ACS endpoint answers 501 and creates no session. Keep using OIDC.
+- **Autoscaler loop:** it only recommends, even with `ZORVIA_AUTOSCALER_APPLY=1`, until a real metrics source replaces the simulated one.
+- `deploy/rescue-agent.Dockerfile` builds with `--no-default-features --features rescue-agent`, which fails; build with default features plus `rescue-agent` until it is fixed.
+
 ## v0.3.2 → v0.3.3+ (Production Foundation)
 
 ### Breaking / required ops
