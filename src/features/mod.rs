@@ -128,6 +128,12 @@ pub const FEATURES: &[Feature] = &[
         notes: "Opt-in via ZORVIA_OIDC_ENABLED=1; PKCE + JWKS; see docs/OIDC_LAB.md",
     },
     Feature {
+        id: "saml",
+        name: "SAML 2.0 SSO",
+        maturity: Maturity::Experimental,
+        notes: "Partial: no signature verification yet, ACS returns 501; ZORVIA_SAML_ENABLED=1; see docs/SAML.md",
+    },
+    Feature {
         id: "ai-troubleshoot",
         name: "AI troubleshooting wizard",
         maturity: Maturity::ModelOnly,

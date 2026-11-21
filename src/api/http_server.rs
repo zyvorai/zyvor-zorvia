@@ -529,6 +529,7 @@ pub mod web {
                 | "/api/v1/instance"
                 | "/api/instance"
         ) || path.starts_with("/api/v1/auth/oidc/")
+            || path.starts_with("/api/v1/auth/saml/")
     }
 
     // ── Rate limiting middleware ──────────────────────────────────
@@ -678,6 +679,9 @@ pub mod web {
             .route("/v1/auth/logout", post(auth_logout))
             .route("/v1/auth/oidc/callback", get(auth_oidc_callback))
             .route("/v1/auth/oidc/{id}", get(auth_oidc_login))
+            .route("/v1/auth/saml/metadata", get(auth_saml_metadata))
+            .route("/v1/auth/saml/login", get(auth_saml_login))
+            .route("/v1/auth/saml/acs", post(auth_saml_acs))
             .merge(admin_only)
             .route("/v1/instance", get(instance_handler))
             .route("/instance", get(instance_handler))
@@ -1813,6 +1817,21 @@ pub mod web {
     ) -> impl IntoResponse {
         let auth = auth_shared(&state).await;
         crate::api::auth::oidc_login_handler(axum::extract::State(auth), Path(id)).await
+    }
+
+    async fn auth_saml_metadata(State(state): State<SharedState>) -> impl IntoResponse {
+        let auth = auth_shared(&state).await;
+        crate::api::auth::saml::saml_metadata_handler(axum::extract::State(auth)).await
+    }
+
+    async fn auth_saml_login(State(state): State<SharedState>) -> impl IntoResponse {
+        let auth = auth_shared(&state).await;
+        crate::api::auth::saml::saml_login_handler(axum::extract::State(auth)).await
+    }
+
+    async fn auth_saml_acs(State(state): State<SharedState>) -> impl IntoResponse {
+        let auth = auth_shared(&state).await;
+        crate::api::auth::saml::saml_acs_handler(axum::extract::State(auth)).await
     }
 
     async fn auth_oidc_callback(

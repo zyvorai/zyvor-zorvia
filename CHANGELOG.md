@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- SAML 2.0 SSO groundwork (Experimental, partial, opt-in `ZORVIA_SAML_ENABLED=1`): SP metadata, SP-initiated AuthnRequest (HTTP-Redirect), strict assertion validation with replay cache and group-to-role mapping. XML signature verification and session creation are NOT implemented, so the ACS endpoint fails closed (501). See docs/SAML.md.
 - Scheduled per-VM snapshots with per-schedule retention: `/snapshot-schedules` API, a leader-gated runner, and idempotent per-slot snapshot names. See docs/SNAPSHOTS.md.
 
 ## [0.7.4] - 2026-10-17
