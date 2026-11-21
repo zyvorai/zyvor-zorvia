@@ -53,3 +53,7 @@ sealing or opening makes an HTTPS call (10 s timeout), so an unreachable Vault s
 
 Other stored secrets (webhook signing secrets, the bootstrap file) are not sealed by this; API tokens and passwords are
 already stored as hashes. The Vault client is tested against a mock server, not a real Vault; check it with yours.
+
+## Data keys
+
+The same provider also wraps per-volume data keys (purpose label `dek`, so a TOTP value never opens as a data key). See [VOLUME_ENCRYPTION.md](VOLUME_ENCRYPTION.md).

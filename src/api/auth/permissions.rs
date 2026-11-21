@@ -114,6 +114,11 @@ pub fn required_permission(method: &str, path: &str) -> Option<ApiPermission> {
         return Some(ApiPermission::ClusterAdmin);
     }
 
+    // Data-key management for encrypted volumes.
+    if path == "/volume-encryption" || path.starts_with("/volume-encryption/") {
+        return Some(ApiPermission::ClusterAdmin);
+    }
+
     // Off-cluster backup catalog, restore and drills: object keys and the
     // saved VM specs are sensitive, and restore creates VMs and volumes.
     if path == "/backups/offcluster" || path.starts_with("/backups/offcluster/") {
@@ -458,6 +463,18 @@ mod tests {
             ("POST", "/vm-imports"),
             ("POST", "/vm-imports/preflight"),
             ("GET", "/vm-imports/waves/wave-1"),
+        ] {
+            assert_eq!(required_permission(m, p), Some(ApiPermission::ClusterAdmin));
+        }
+    }
+
+    #[test]
+    fn volume_encryption_routes_are_cluster_admin_for_every_method() {
+        for (m, p) in [
+            ("GET", "/volume-encryption/status"),
+            ("POST", "/volume-encryption/plan"),
+            ("POST", "/volume-encryption/apply"),
+            ("POST", "/volume-encryption/rotate"),
         ] {
             assert_eq!(required_permission(m, p), Some(ApiPermission::ClusterAdmin));
         }

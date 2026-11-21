@@ -186,6 +186,10 @@ pub const FEATURES: &[Feature] = &[
         name: "Disk image upload via the CDI upload proxy",
         maturity: Maturity::Experimental,
         notes: "Requires ZORVIA_EXPERIMENTAL=1 and ZORVIA_CDI_UPLOAD_PROXY_URL; streams with a size cap and optional SHA-256, format detected from magic bytes (CDI converts to raw); verified against a local mock proxy only, not a live CDI",
+        id: "volume-encryption",
+        name: "Volume envelope encryption (per-VM data keys wrapped by local key / Vault Transit)",
+        maturity: Maturity::Experimental,
+        notes: "Wrapped data keys in a Secret, re-wrap rotation, plan/apply of an encrypted DataVolume via StorageClass parameters, audited; cloud KMS is a stub; unit-tested only, not run against a live cluster or CSI driver; the CSI driver does not consume the Zorvia key — docs/VOLUME_ENCRYPTION.md",
     },
     Feature {
         id: "golden-image-pipeline",
