@@ -2478,6 +2478,49 @@ pub enum GuestCommands {
         format: String,
     },
 
+    /// Upload a local disk image (qcow2, raw, vmdk, vhdx, vhd, vdi, iso) to a new
+    /// CDI DataVolume through the upload proxy (Experimental: needs ZORVIA_EXPERIMENTAL=1)
+    ImageUpload {
+        /// Path to the image file
+        file: String,
+
+        /// DataVolume / PVC name to create
+        #[arg(long)]
+        name: String,
+
+        /// Requested PVC size (for example 20Gi); must hold the virtual disk size
+        #[arg(long)]
+        size: String,
+
+        /// StorageClass for the DataVolume
+        #[arg(long)]
+        storage_class: Option<String>,
+
+        /// Declared format (raw, qcow2, vmdk, vhdx, vhd, vdi, iso); must match detection
+        #[arg(long)]
+        format: Option<String>,
+
+        /// Expected SHA-256 of the file; a mismatch aborts the upload
+        #[arg(long)]
+        sha256: Option<String>,
+
+        /// CDI upload proxy URL (https)
+        #[arg(long, env = "ZORVIA_CDI_UPLOAD_PROXY_URL")]
+        proxy_url: Option<String>,
+
+        /// PEM CA file for the proxy certificate
+        #[arg(long, env = "ZORVIA_CDI_UPLOAD_PROXY_CA_FILE")]
+        proxy_ca: Option<String>,
+
+        /// Hard size cap in bytes (default 20 GiB)
+        #[arg(long)]
+        max_bytes: Option<u64>,
+
+        /// Only detect and validate the format; do not touch the cluster
+        #[arg(long)]
+        validate_only: bool,
+    },
+
     /// Wait until a VM has an IP and Ready=True (cloud-init / DHCP done)
     WaitReady {
         /// VM name

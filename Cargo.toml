@@ -96,7 +96,7 @@ postgres-native-tls = { version = "0.5", optional = true }
 # instead, so this builds the same way on every target release.yml covers.
 openssl = { version = "0.10", features = ["vendored"], optional = true }
 http = "1"
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"], optional = true }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"], optional = true }
 secrecy = "0.10"
 pty-process = { version = "0.5.3", features = ["async"], optional = true }
 

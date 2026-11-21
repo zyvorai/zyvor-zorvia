@@ -164,6 +164,11 @@ pub mod web {
     #[path = "snapshot_scheduler_handlers.rs"]
     mod snapshot_scheduler_handlers;
     use snapshot_scheduler_handlers::*;
+    #[path = "image_upload_handlers.rs"]
+    mod image_upload_handlers;
+    use image_upload_handlers::{
+        get_upload_status_handler, upload_image_handler, validate_image_handler,
+    };
 
     #[path = "storage_handlers.rs"]
     mod storage_handlers;
@@ -1590,7 +1595,15 @@ pub mod web {
                 StatusCode::REQUEST_TIMEOUT,
                 std::time::Duration::from_secs(30),
             ));
-        let api = api_core.merge(mcp_routes);
+        // Image upload streams multi-GB bodies, so it sits outside the 30 s TimeoutLayer.
+        let upload_routes: Router = Router::new()
+            .route(
+                "/images/uploads/{name}",
+                post(upload_image_handler).get(get_upload_status_handler),
+            )
+            .route("/images/validate", post(validate_image_handler))
+            .with_state(state.clone());
+        let api = api_core.merge(mcp_routes).merge(upload_routes);
 
         Router::new()
             .route(

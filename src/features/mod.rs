@@ -170,6 +170,12 @@ pub const FEATURES: &[Feature] = &[
         notes: "Requires ZORVIA_EXPERIMENTAL=1; mode=stub Job-only; mode=local Job+stopped emptyDisk VM; vsphere needs ZORVIA_H2KVM_IMAGE; not yet exercised against a real vCenter",
     },
     Feature {
+        id: "image-upload",
+        name: "Disk image upload via the CDI upload proxy",
+        maturity: Maturity::Experimental,
+        notes: "Requires ZORVIA_EXPERIMENTAL=1 and ZORVIA_CDI_UPLOAD_PROXY_URL; streams with a size cap and optional SHA-256, format detected from magic bytes (CDI converts to raw); verified against a local mock proxy only, not a live CDI",
+    },
+    Feature {
         id: "golden-image-pipeline",
         name: "Golden-image build/scan/sign/promote",
         maturity: Maturity::Experimental,

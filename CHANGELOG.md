@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Disk image upload through the CDI upload proxy (Experimental, `ZORVIA_EXPERIMENTAL=1`): `zorvia guest image-upload`, `POST /api/images/uploads/{name}`, `POST /api/images/validate`; magic-byte format detection (qcow2/raw/vmdk/vhdx/vhd/vdi/iso), streamed with a size cap and SHA-256 check, upload token never exposed. Tested against a local mock proxy only. See docs/IMAGE_UPLOAD.md.
 - Scheduled per-VM snapshots with per-schedule retention: `/snapshot-schedules` API, a leader-gated runner, and idempotent per-slot snapshot names. See docs/SNAPSHOTS.md.
 
 ## [0.7.4] - 2026-10-17

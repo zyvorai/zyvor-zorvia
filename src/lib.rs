@@ -88,6 +88,8 @@ pub mod guest_insight;
 pub mod guest_rpc;
 pub mod handlers;
 pub mod health;
+#[cfg(feature = "web")]
+pub mod image_upload;
 pub mod migration;
 pub mod monitoring;
 pub mod multicloud;
@@ -1397,6 +1399,33 @@ pub async fn run(mut cli: Cli) -> Result<()> {
                 format,
                 &cli.namespace,
             )?,
+            GuestCommands::ImageUpload {
+                file,
+                name,
+                size,
+                storage_class,
+                format,
+                sha256,
+                proxy_url,
+                proxy_ca,
+                max_bytes,
+                validate_only,
+            } => {
+                handlers::images::handle_image_upload(
+                    file,
+                    name,
+                    size,
+                    storage_class,
+                    format,
+                    sha256,
+                    proxy_url,
+                    proxy_ca,
+                    max_bytes,
+                    validate_only,
+                    &cli.namespace,
+                )
+                .await?
+            }
             GuestCommands::WaitReady { name, timeout } => {
                 let client = crate::kube::KubeClient::new().await?;
                 let report = client
