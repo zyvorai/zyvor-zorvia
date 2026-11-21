@@ -1,0 +1,16 @@
+{
+  "kind": "PodMetricsList",
+  "apiVersion": "metrics.k8s.io/v1beta1",
+  "metadata": {},
+  "items": [
+    {
+      "metadata": {"name": "virt-launcher-vm-a-abcde", "namespace": "prod"},
+      "timestamp": "__TS__",
+      "window": "15s",
+      "containers": [
+        {"name": "compute", "usage": {"cpu": "2000000000n", "memory": "2097152Ki"}},
+        {"name": "guest-console-log", "usage": {"cpu": "1m", "memory": "10Mi"}}
+      ]
+    }
+  ]
+}

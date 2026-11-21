@@ -5,10 +5,11 @@
 //! Off unless `ZORVIA_AUTOSCALER_LOOP=1` and `ZORVIA_EXPERIMENTAL=1`; see docs/AUTOSCALER_LOOP.md.
 
 use super::*;
-use crate::autoscaler::live::{KubeExecutor, MonitoringLoadSource};
+use crate::autoscaler::live::KubeExecutor;
 use crate::autoscaler::reconcile::{
     parse_targets, Direction, EventSink, LoopConfig, Mode, Reconciler, ScaleEvent,
 };
+use crate::autoscaler::telemetry::TelemetryLoadSource;
 use crate::operations::{NewOperation, OperationsDb};
 
 struct AuditOpsSink {
@@ -91,6 +92,7 @@ pub fn spawn_autoscaler_loop(state: SharedState) {
             let s = state.read().await;
             (s.kube_client.clone(), s.audit.clone())
         };
+        let load = TelemetryLoadSource::from_env(&kube);
         let exec = KubeExecutor { kube };
         let sink = AuditOpsSink { audit };
         let mut rec = Reconciler::default();
@@ -102,7 +104,7 @@ pub fn spawn_autoscaler_loop(state: SharedState) {
                 leader,
                 &cfg,
                 &targets,
-                &MonitoringLoadSource,
+                &load,
                 &exec,
                 &sink,
             )
