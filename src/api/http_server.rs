@@ -3086,6 +3086,16 @@ pub mod web {
         )
         .await
         {
+            Ok(run) if run.blocked_reason.is_some() => (
+                StatusCode::CONFLICT,
+                Json(serde_json::json!({
+                    "success": false,
+                    "status": 409,
+                    "error": { "code": "promotion_blocked", "message": run.blocked_reason },
+                    "data": run
+                })),
+            )
+                .into_response(),
             Ok(run) => Json(serde_json::json!({ "success": true, "data": run })).into_response(),
             Err(e) => enterprise_err(e).into_response(),
         }

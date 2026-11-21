@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Golden-image pipeline scan and sign gates: operator-configured scanner (trivy-style JSON, severity threshold) and cosign verify/sign Jobs that block promotion on failure; plan stages are no longer deferred when configured. Experimental. See docs/GOLDEN_IMAGES.md.
 - Scheduled per-VM snapshots with per-schedule retention: `/snapshot-schedules` API, a leader-gated runner, and idempotent per-slot snapshot names. See docs/SNAPSHOTS.md.
 
 ## [0.7.4] - 2026-10-17
