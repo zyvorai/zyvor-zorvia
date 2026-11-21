@@ -28,6 +28,7 @@ Levels used by Zorvia (also exposed at `GET /api/v1/features` when the API is ru
 | `guest-agent-integration` | Zyvor guest agent: install, guest views, snapshot hooks, drill probe | Beta | Debian-family guests; read-only method set; freeze needs the drop-in Zorvia writes; Windows/RPM and real DB-flush hooks not verified — [GUEST_AGENT.md](GUEST_AGENT.md) |
 | `helm-chart` | Helm chart | Beta | Lab + hardened production values |
 | `oidc` | OIDC / SSO | Beta | `ZORVIA_OIDC_ENABLED=1` + PKCE/JWKS; lab bake-off [OIDC_LAB.md](OIDC_LAB.md) |
+| `saml` | SAML 2.0 SSO | Experimental | Partial: metadata, AuthnRequest, validator; **no signature verification, ACS returns 501**, no login possible. [SAML.md](SAML.md) |
 | `ai-troubleshoot` | AI troubleshooting | Model only | Rules demo, not ML RCA |
 | `dr-replication` | DR replication pairs | Model only | In-memory; needs experimental |
 | `incremental-backup` | Incremental backup fields | Model only | Executions still full snapshots |
