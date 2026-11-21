@@ -7,6 +7,7 @@ use std::collections::HashMap;
 
 pub mod failover;
 pub mod ha;
+pub mod pairs;
 pub mod plans;
 pub mod recovery;
 pub mod replication;

@@ -125,6 +125,12 @@ pub fn required_permission(method: &str, path: &str) -> Option<ApiPermission> {
         return Some(ApiPermission::ClusterAdmin);
     }
 
+    // DR replication pairs expose backup/restore operation ids and drive failover:
+    // admin-only for every method.
+    if path == "/v1/enterprise/dr" || path.starts_with("/v1/enterprise/dr/") {
+        return Some(ApiPermission::ClusterAdmin);
+    }
+
     // Auth self-service (any authenticated user)
     if path.starts_with("/v1/auth/") {
         return None;
@@ -664,6 +670,17 @@ mod tests {
             required_permission("POST", "/v1/atlas/volumes/vol_1/mirror"),
             Some(ApiPermission::StorageAdmin)
         );
+    }
+
+    #[test]
+    fn dr_pairs_are_admin_only_even_on_get() {
+        for (m, p) in [
+            ("GET", "/v1/enterprise/dr/pairs"),
+            ("POST", "/v1/enterprise/dr/pairs/web/failover"),
+            ("GET", "/v1/enterprise/dr/alerts"),
+        ] {
+            assert_eq!(required_permission(m, p), Some(ApiPermission::ClusterAdmin));
+        }
     }
 
     #[test]

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Experimental DR replication pairs (`ZORVIA_FEATURE_DR_REPLICATION=1`): persisted pairs, a leader-gated loop taking verified off-cluster backups at the RPO interval, RPO/RTO status and alerts, dry-run-first failover as `{vm}-dr` that refuses a running source or missing confirmation, failback plan. API under `/v1/enterprise/dr/`. See docs/DR_REPLICATION.md.
 - Scheduled per-VM snapshots with per-schedule retention: `/snapshot-schedules` API, a leader-gated runner, and idempotent per-slot snapshot names. See docs/SNAPSHOTS.md.
 
 ## [0.7.4] - 2026-10-17

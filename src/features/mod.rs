@@ -136,8 +136,8 @@ pub const FEATURES: &[Feature] = &[
     Feature {
         id: "dr-replication",
         name: "DR replication pairs",
-        maturity: Maturity::ModelOnly,
-        notes: "In-memory model; does not move data",
+        maturity: Maturity::Experimental,
+        notes: "Durable pairs + scheduled verified off-cluster backups, RPO/RTO status, dry-run-first failover as {vm}-dr; same-cluster object store, no traffic repointing; needs ZORVIA_FEATURE_DR_REPLICATION=1",
     },
     Feature {
         id: "incremental-backup",
