@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Opt-in autoscaler reconcile loop (Experimental, `ZORVIA_AUTOSCALER_LOOP=1`): hysteresis, cooldown, min/max bounds, recommendation-only default, leader-gated, audited. Not live-verified; the existing monitoring load source is simulated so nothing is applied from it. See docs/AUTOSCALER_LOOP.md.
 - SAML 2.0 SSO groundwork (Experimental, partial, opt-in `ZORVIA_SAML_ENABLED=1`): SP metadata, SP-initiated AuthnRequest (HTTP-Redirect), strict assertion validation with replay cache and group-to-role mapping. XML signature verification and session creation are NOT implemented, so the ACS endpoint fails closed (501). See docs/SAML.md.
 - Rescue mode: Experimental `reset-password`, `install-packages` and `inspect` operations (`ZORVIA_EXPERIMENTAL=1`, `cluster.admin`, audited). Passwords travel in a per-Job Secret, never the Job spec; package names are strictly validated; inspect returns a bounded, redacted summary. Needs `secrets` create/delete/patch RBAC. Unit-tested only, not run against a live cluster. See docs/RESCUE.md.
+- Golden-image pipeline scan and sign gates: operator-configured scanner (trivy-style JSON, severity threshold) and cosign verify/sign Jobs that block promotion on failure; plan stages are no longer deferred when configured. Experimental. See docs/GOLDEN_IMAGES.md.
 - Scheduled per-VM snapshots with per-schedule retention: `/snapshot-schedules` API, a leader-gated runner, and idempotent per-slot snapshot names. See docs/SNAPSHOTS.md.
 
 ## [0.7.4] - 2026-10-17

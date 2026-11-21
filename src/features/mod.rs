@@ -191,7 +191,7 @@ pub const FEATURES: &[Feature] = &[
         id: "golden-image-pipeline",
         name: "Golden-image build/scan/sign/promote",
         maturity: Maturity::Experimental,
-        notes: "Plan marks scan:deferred/sign:deferred; /run applies CDI DV/DS (build+promote); cosign/scan operator-owned",
+        notes: "/run applies CDI DV, runs operator-configured scan/cosign Jobs that block promotion, then the DS; unconfigured steps stay deferred; mock-tested only, no live cluster",
     },
     Feature {
         id: "commercial-contracts",

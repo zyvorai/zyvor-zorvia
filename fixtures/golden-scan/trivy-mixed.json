@@ -1,0 +1,24 @@
+{
+  "SchemaVersion": 2,
+  "ArtifactName": "quay.io/containerdisks/ubuntu:24.04",
+  "ArtifactType": "container_image",
+  "Results": [
+    {
+      "Target": "ubuntu 24.04", "Class": "os-pkgs", "Type": "ubuntu",
+      "Vulnerabilities": [
+        {"VulnerabilityID": "CVE-2026-0001", "PkgName": "openssl", "InstalledVersion": "3.0.1", "FixedVersion": "3.0.2", "Severity": "CRITICAL"},
+        {"VulnerabilityID": "CVE-2026-0002", "PkgName": "glibc", "InstalledVersion": "2.39", "FixedVersion": "2.40", "Severity": "HIGH"},
+        {"VulnerabilityID": "CVE-2026-0003", "PkgName": "curl", "InstalledVersion": "8.0", "Severity": "HIGH"},
+        {"VulnerabilityID": "CVE-2026-0004", "PkgName": "zlib", "InstalledVersion": "1.3", "FixedVersion": "1.4", "Severity": "MEDIUM"}
+      ]
+    },
+    {
+      "Target": "usr/bin/app", "Class": "lang-pkgs", "Type": "gobinary",
+      "Vulnerabilities": [
+        {"VulnerabilityID": "CVE-2026-0005", "PkgName": "x", "InstalledVersion": "1", "FixedVersion": "2", "Severity": "LOW"},
+        {"VulnerabilityID": "CVE-2026-0006", "PkgName": "y", "InstalledVersion": "1", "FixedVersion": "2", "Severity": "UNKNOWN"}
+      ]
+    },
+    {"Target": "empty", "Class": "lang-pkgs", "Vulnerabilities": null}
+  ]
+}

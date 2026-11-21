@@ -1,0 +1,1 @@
+{"SchemaVersion":2,"ArtifactName":"quay.io/containerdisks/ubuntu:24.04","ArtifactType":"container_image","Results":[{"Target":"ubuntu 24.04","Class":"os-pkgs","Type":"ubuntu"}]}
