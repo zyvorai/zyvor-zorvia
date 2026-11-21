@@ -1420,6 +1420,14 @@ pub mod web {
                 get(dr_failback_plan_handler),
             )
             .route(
+                "/v1/enterprise/dr/pairs/{name}/failback",
+                post(dr_failback_handler),
+            )
+            .route(
+                "/v1/enterprise/dr/pairs/{name}/failback/cancel",
+                post(dr_failback_cancel_handler),
+            )
+            .route(
                 "/v1/enterprise/dr/pairs/{name}/resume",
                 post(dr_resume_handler),
             )

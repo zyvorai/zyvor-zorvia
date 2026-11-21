@@ -61,6 +61,47 @@ pub struct FailoverRecord {
     pub error: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FailbackState {
+    /// Off-cluster backup of the DR VM is running.
+    BackingUp,
+    /// The DR VM backup is verified; waiting for the original name to be free.
+    BackedUp,
+    /// The restore to the original VM name is running.
+    Restoring,
+    Succeeded,
+    Failed,
+    Cancelled,
+}
+
+impl FailbackState {
+    pub fn is_active(self) -> bool {
+        matches!(self, Self::BackingUp | Self::BackedUp | Self::Restoring)
+    }
+}
+
+/// Progress and result of a real failback, persisted in the pair so a crash or
+/// restart resumes from the recorded stage.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FailbackRecord {
+    pub requested_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub state: FailbackState,
+    pub dr_backup_op: Option<String>,
+    pub restore_op: Option<String>,
+    /// Start the restored original VM after the restore (default false).
+    pub start: bool,
+    /// Keep the DR VM after success until the operator deletes it (default true).
+    pub keep_dr_vm: bool,
+    #[serde(default)]
+    pub dr_vm_deleted: bool,
+    pub completed_at: Option<DateTime<Utc>>,
+    pub error: Option<String>,
+    /// Non-terminal status text, e.g. why a restore is still waiting.
+    pub note: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrPair {
     pub name: String,
@@ -91,6 +132,12 @@ pub struct DrPair {
     pub alert_state: AlertState,
     #[serde(default)]
     pub failover: Option<FailoverRecord>,
+    #[serde(default)]
+    pub failback: Option<FailbackRecord>,
+    /// Counts failback starts; part of the backup idempotency key so a crash
+    /// before the save re-uses the same backup operation.
+    #[serde(default)]
+    pub failback_seq: u32,
 }
 
 fn label_ok(s: &str) -> bool {
@@ -151,6 +198,8 @@ impl DrPair {
             consecutive_failures: 0,
             alert_state: AlertState::Ok,
             failover: None,
+            failback: None,
+            failback_seq: 0,
         })
     }
 
@@ -267,6 +316,10 @@ pub trait BackupBackend {
     fn ready(&self) -> Result<(), String>;
     fn enqueue_backup(&self, namespace: &str, vm: &str, key: &str) -> Result<String, String>;
     fn backup_progress(&self, op_id: &str) -> Result<OpProgress, String>;
+    /// Ask the queue to stop a backup that is no longer wanted (best effort).
+    fn cancel_backup(&self, _op_id: &str) -> Result<(), String> {
+        Ok(())
+    }
 }
 
 pub trait RestoreBackend {
@@ -278,6 +331,11 @@ pub trait RestoreBackend {
         start: bool,
     ) -> Result<String, String>;
     fn restore_progress(&self, op_id: &str) -> Result<OpProgress, String>;
+    /// An existing non-failed restore of `backup_op` to `namespace/new_vm`, so a
+    /// resume after a crash adopts it instead of queueing a second one.
+    fn find_restore(&self, _backup_op: &str, _namespace: &str, _new_vm: &str) -> Option<String> {
+        None
+    }
 }
 
 /// The real backend: the durable operations queue and the off-cluster restore code.
@@ -338,6 +396,13 @@ impl BackupBackend for OpsBackend {
         }
         Ok(p)
     }
+
+    fn cancel_backup(&self, op_id: &str) -> Result<(), String> {
+        crate::operations::OperationsDb::global()
+            .request_cancel(op_id)
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
 }
 
 impl RestoreBackend for OpsBackend {
@@ -366,6 +431,24 @@ impl RestoreBackend for OpsBackend {
             .ok_or_else(|| format!("restore operation {op_id} not found"))?;
         Ok(op_progress(&op))
     }
+
+    fn find_restore(&self, backup_op: &str, namespace: &str, new_vm: &str) -> Option<String> {
+        let ops = crate::operations::OperationsDb::global()
+            .list(Some(crate::backup::restore::RESTORE_KIND), 200)
+            .ok()?;
+        ops.into_iter()
+            .filter(|o| {
+                o.namespace == namespace
+                    && o.params.get("new_vm_name").and_then(|v| v.as_str()) == Some(new_vm)
+                    && o.params.get("source_op").and_then(|v| v.as_str()) == Some(backup_op)
+                    && !matches!(
+                        o.state,
+                        crate::operations::OpState::Failed | crate::operations::OpState::Cancelled
+                    )
+            })
+            .map(|o| o.id)
+            .next()
+    }
 }
 
 // --------------------------------------------------------------- alerts
@@ -381,48 +464,105 @@ pub trait AlertSink {
     fn alert(&self, severity: Severity, pair: &str, message: &str);
 }
 
-static ALERTS: Mutex<Option<crate::notifications::NotificationManager>> = Mutex::new(None);
+const MAX_ALERTS: usize = 200;
+static ALERT_LOCK: Mutex<()> = Mutex::new(());
 
-/// Alert hook backed by the notifications module (in-memory, per replica, also logged).
-pub struct NotificationSink;
+/// The alert list, persisted as one JSON document through `state_docs` (a file, or
+/// PostgreSQL when `ZORVIA_DATABASE_URL` is set) so alerts survive restarts and
+/// are shared by replicas. Concurrent appends from two replicas are
+/// last-writer-wins, like the pairs document.
+#[derive(Debug, Default, Serialize, Deserialize)]
+struct AlertDoc {
+    alerts: Vec<crate::notifications::Notification>,
+}
 
-impl AlertSink for NotificationSink {
-    fn alert(&self, severity: Severity, pair: &str, message: &str) {
-        use crate::notifications::{Notification, NotificationType};
-        let (t, text) = match severity {
-            Severity::Info => (
-                NotificationType::Success,
-                format!("DR pair {pair}: {message}"),
-            ),
-            Severity::Warning => (
-                NotificationType::Warning,
-                format!("DR pair {pair}: {message}"),
-            ),
-            Severity::Error => (
-                NotificationType::Error,
-                format!("DR pair {pair}: {message}"),
-            ),
-        };
-        match severity {
-            Severity::Error => log::error!("{text}"),
-            Severity::Warning => log::warn!("{text}"),
-            Severity::Info => log::info!("{text}"),
-        }
-        let n = Notification::new(&text, t)
-            .with_source("dr-replication")
-            .with_duration(ALERT_RETENTION_SECS);
-        let mut g = ALERTS.lock().unwrap_or_else(|e| e.into_inner());
-        g.get_or_insert_with(crate::notifications::NotificationManager::default)
-            .notify(n);
+pub fn alerts_path() -> PathBuf {
+    dirs::data_dir()
+        .unwrap_or_else(|| PathBuf::from("/tmp"))
+        .join("zorvia")
+        .join("dr_alerts.json")
+}
+
+fn load_alerts(path: &Path) -> AlertDoc {
+    match crate::state_docs::read(path) {
+        Some(c) => serde_json::from_str(&c).unwrap_or_else(|e| {
+            log::warn!("Failed to parse DR alerts: {e}");
+            AlertDoc::default()
+        }),
+        None => AlertDoc::default(),
     }
+}
+
+/// Append one alert (expired ones and anything past the cap are dropped).
+pub fn record_alert(path: &Path, n: crate::notifications::Notification) {
+    let _g = ALERT_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut doc = load_alerts(path);
+    doc.alerts.retain(|a| !a.is_expired());
+    doc.alerts.push(n);
+    if doc.alerts.len() > MAX_ALERTS {
+        let excess = doc.alerts.len() - MAX_ALERTS;
+        doc.alerts.drain(0..excess);
+    }
+    let saved = serde_json::to_string_pretty(&doc)
+        .map_err(anyhow::Error::from)
+        .and_then(|j| crate::state_docs::write(path, &j));
+    if let Err(e) = saved {
+        log::error!("Failed to persist DR alert: {e}");
+    }
+}
+
+/// Recent alerts stored at `path`, oldest first.
+pub fn recent_alerts_from(path: &Path) -> Vec<crate::notifications::Notification> {
+    let _g = ALERT_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    load_alerts(path)
+        .alerts
+        .into_iter()
+        .filter(|a| !a.is_expired())
+        .collect()
 }
 
 /// Recent DR alerts, newest last.
 pub fn recent_alerts() -> Vec<crate::notifications::Notification> {
-    let g = ALERTS.lock().unwrap_or_else(|e| e.into_inner());
-    g.as_ref()
-        .map(|m| m.active().into_iter().cloned().collect())
-        .unwrap_or_default()
+    recent_alerts_from(&alerts_path())
+}
+
+fn emit(path: &Path, severity: Severity, pair: &str, message: &str) {
+    use crate::notifications::{Notification, NotificationType};
+    let t = match severity {
+        Severity::Info => NotificationType::Success,
+        Severity::Warning => NotificationType::Warning,
+        Severity::Error => NotificationType::Error,
+    };
+    let text = format!("DR pair {pair}: {message}");
+    match severity {
+        Severity::Error => log::error!("{text}"),
+        Severity::Warning => log::warn!("{text}"),
+        Severity::Info => log::info!("{text}"),
+    }
+    record_alert(
+        path,
+        Notification::new(&text, t)
+            .with_source("dr-replication")
+            .with_duration(ALERT_RETENTION_SECS),
+    );
+}
+
+/// Alert hook backed by the notifications module: logged and persisted durably.
+pub struct NotificationSink;
+
+impl AlertSink for NotificationSink {
+    fn alert(&self, severity: Severity, pair: &str, message: &str) {
+        emit(&alerts_path(), severity, pair, message);
+    }
+}
+
+/// Same, writing to an explicit path (tests).
+pub struct PathSink(pub PathBuf);
+
+impl AlertSink for PathSink {
+    fn alert(&self, severity: Severity, pair: &str, message: &str) {
+        emit(&self.0, severity, pair, message);
+    }
 }
 
 // ------------------------------------------------------------ lag / tick
@@ -861,52 +1001,366 @@ pub struct FailbackPlan {
     pub pair: String,
     pub allowed: bool,
     pub blockers: Vec<String>,
+    pub warnings: Vec<String>,
     pub steps: Vec<String>,
+    pub confirm_phrase: String,
     pub resume_phrase: String,
+    /// The current or last failback, if any.
+    pub failback: Option<FailbackRecord>,
 }
 
-/// Failback is a plan plus a confirmed `resume`: Zorvia does not automate the data
-/// return, because it must never overwrite a source VM.
+pub fn failback_phrase(pair: &DrPair) -> String {
+    format!("failback {}", pair.name)
+}
+
+/// Plan for returning to the original VM. The data return is automated by
+/// [`execute_failback`]: a verified off-cluster backup of the DR VM restored to
+/// the original name, only when that name is free and its VM is not running.
 pub fn failback_plan(pair: &DrPair, facts: &Facts) -> FailbackPlan {
     let mut blockers = Vec::new();
+    let mut warnings = Vec::new();
     if pair.phase != Phase::FailedOver {
         blockers.push("pair has not failed over".to_string());
+    } else if pair.failover.as_ref().map(|f| f.state.as_str()) != Some("succeeded") {
+        blockers.push("the failover has not completed successfully".to_string());
+    }
+    if let Some(fb) = &pair.failback {
+        if fb.state.is_active() {
+            blockers.push("a failback is already in progress".to_string());
+        } else if fb.state == FailbackState::Succeeded {
+            blockers.push("failback already completed; resume replication".to_string());
+        }
     }
     match &facts.source {
-        SourceState::Absent => {}
-        SourceState::Unknown(e) => {
-            blockers.push(format!("could not inspect the original source VM ({e})"))
-        }
-        _ => blockers.push(format!(
-            "the original VM {}/{} still exists; delete or rename it (Zorvia will not overwrite it)",
+        SourceState::Running => blockers.push(format!(
+            "the original VM {}/{} is running; Zorvia never restores over a running VM",
             pair.namespace, pair.vm
         )),
+        SourceState::Unknown(e) => blockers.push(format!(
+            "could not determine the state of the original VM ({e}); refusing"
+        )),
+        SourceState::Stopped => warnings.push(format!(
+            "the original VM {}/{} exists (stopped): the restore waits until you delete or rename it, because a restore never overwrites",
+            pair.namespace, pair.vm
+        )),
+        SourceState::Absent => {}
     }
+    match facts.dr_vm_exists {
+        Some(true) => {}
+        Some(false) => blockers.push(format!(
+            "the DR VM {}/{} does not exist; there is nothing to back up",
+            pair.dr_namespace, pair.dr_vm
+        )),
+        None => blockers.push("could not determine whether the DR VM exists".to_string()),
+    }
+    warnings.push(
+        "stop the DR VM first for a clean copy: the backup captures its disks as they are"
+            .to_string(),
+    );
     let steps = vec![
         format!(
-            "stop {}/{} (the DR VM) so its disks are quiescent",
+            "take a verified off-cluster backup of {}/{}",
             pair.dr_namespace, pair.dr_vm
         ),
         format!(
-            "POST /api/backups/offcluster for {}/{} and wait for it to succeed",
-            pair.dr_namespace, pair.dr_vm
-        ),
-        format!(
-            "remove the old source {}/{} once you no longer need it",
+            "restore it as {}/{} once the original is stopped or absent",
             pair.namespace, pair.vm
         ),
-        format!(
-            "restore that backup as {}/{} via the restore API",
-            pair.namespace, pair.vm
-        ),
-        "repoint clients back, then resume replication for this pair".to_string(),
+        "keep the DR VM until you delete it (unless keep_dr_vm=false)".to_string(),
+        "repoint clients back yourself, then POST resume to restart replication".to_string(),
     ];
     FailbackPlan {
         pair: pair.name.clone(),
         allowed: blockers.is_empty(),
         blockers,
+        warnings,
         steps,
+        confirm_phrase: failback_phrase(pair),
         resume_phrase: resume_phrase(pair),
+        failback: pair.failback.clone(),
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct FailbackRequest {
+    /// Defaults to true: nothing happens unless the caller opts out explicitly.
+    #[serde(default = "yes")]
+    pub dry_run: bool,
+    #[serde(default)]
+    pub confirm: Option<String>,
+    /// Start the restored original VM (default false; start it after repointing).
+    #[serde(default)]
+    pub start: bool,
+    /// Keep the DR VM after success until the operator deletes it (default true).
+    #[serde(default = "yes")]
+    pub keep_dr_vm: bool,
+}
+
+#[derive(Debug, Clone)]
+pub enum FailbackOutcome {
+    DryRun(FailbackPlan),
+    Started {
+        plan: FailbackPlan,
+        backup_op: String,
+    },
+}
+
+/// Start a failback: dry-run by default; a real run needs the confirmation phrase
+/// and an allowed plan, then queues the verified DR VM backup.
+pub fn execute_failback(
+    pair: &mut DrPair,
+    facts: &Facts,
+    req: &FailbackRequest,
+    backup: &dyn BackupBackend,
+    sink: &dyn AlertSink,
+    now: DateTime<Utc>,
+) -> Result<FailbackOutcome, FailoverError> {
+    let plan = failback_plan(pair, facts);
+    if req.dry_run {
+        return Ok(FailbackOutcome::DryRun(plan));
+    }
+    if !plan.allowed {
+        return Err(FailoverError::Refused(plan.blockers));
+    }
+    if req.confirm.as_deref() != Some(plan.confirm_phrase.as_str()) {
+        return Err(FailoverError::ConfirmationRequired(plan.confirm_phrase));
+    }
+    backup.ready().map_err(FailoverError::Backend)?;
+    let failover_ts = pair
+        .failover
+        .as_ref()
+        .map_or(0, |f| f.requested_at.timestamp());
+    let key = format!(
+        "dr-failback:{}:{}:{}",
+        pair.name, failover_ts, pair.failback_seq
+    );
+    let op = backup
+        .enqueue_backup(&pair.dr_namespace, &pair.dr_vm, &key)
+        .map_err(FailoverError::Backend)?;
+    pair.failback_seq += 1;
+    pair.failback = Some(FailbackRecord {
+        requested_at: now,
+        updated_at: now,
+        state: FailbackState::BackingUp,
+        dr_backup_op: Some(op.clone()),
+        restore_op: None,
+        start: req.start,
+        keep_dr_vm: req.keep_dr_vm,
+        dr_vm_deleted: false,
+        completed_at: None,
+        error: None,
+        note: None,
+    });
+    sink.alert(
+        Severity::Warning,
+        &pair.name,
+        &format!(
+            "failback started: backing up {}/{}",
+            pair.dr_namespace, pair.dr_vm
+        ),
+    );
+    Ok(FailbackOutcome::Started {
+        plan,
+        backup_op: op,
+    })
+}
+
+fn fail_failback(pair: &mut DrPair, msg: String, sink: &dyn AlertSink, now: DateTime<Utc>) {
+    sink.alert(
+        Severity::Error,
+        &pair.name,
+        &format!("failback failed: {msg}"),
+    );
+    if let Some(fb) = pair.failback.as_mut() {
+        fb.state = FailbackState::Failed;
+        fb.error = Some(msg);
+        fb.note = None;
+        fb.completed_at = Some(now);
+        fb.updated_at = now;
+    }
+}
+
+/// Move an active failback forward one step. Safe to call repeatedly and after a
+/// restart: it only reads the persisted stage. The source VM state is re-checked
+/// right before the restore is queued, because time has passed since the plan.
+pub fn advance_failback(
+    pair: &mut DrPair,
+    facts: &Facts,
+    backup: &dyn BackupBackend,
+    restore: &dyn RestoreBackend,
+    sink: &dyn AlertSink,
+    now: DateTime<Utc>,
+) {
+    let Some(fb) = pair.failback.clone() else {
+        return;
+    };
+    if !fb.state.is_active() {
+        return;
+    }
+    let mut state = fb.state;
+    if state == FailbackState::BackingUp {
+        let Some(op) = fb.dr_backup_op.clone() else {
+            return fail_failback(pair, "no backup operation recorded".into(), sink, now);
+        };
+        match backup.backup_progress(&op) {
+            Ok(OpProgress::Succeeded { .. }) => {
+                state = FailbackState::BackedUp;
+                set_failback(pair, state, None, now);
+            }
+            Ok(OpProgress::Failed(e)) => {
+                return fail_failback(pair, format!("DR VM backup failed: {e}"), sink, now)
+            }
+            // Pending, or the lookup itself failed: try again next tick.
+            _ => return,
+        }
+    }
+    if state == FailbackState::BackedUp {
+        let Some(bop) = fb.dr_backup_op.clone() else {
+            return;
+        };
+        // A crash after queueing the restore but before saving: adopt it.
+        let adopted = restore.find_restore(&bop, &pair.namespace, &pair.vm);
+        if adopted.is_none() {
+            match &facts.source {
+                SourceState::Running => {
+                    return fail_failback(
+                        pair,
+                        format!(
+                            "original VM {}/{} is running; refusing to restore over it",
+                            pair.namespace, pair.vm
+                        ),
+                        sink,
+                        now,
+                    )
+                }
+                SourceState::Unknown(e) => {
+                    return set_failback_note(
+                        pair,
+                        format!("waiting: cannot read the original VM state ({e})"),
+                        now,
+                    )
+                }
+                SourceState::Stopped => {
+                    return set_failback_note(
+                        pair,
+                        format!(
+                            "waiting: original VM {}/{} still exists (stopped); delete or rename it, a restore never overwrites",
+                            pair.namespace, pair.vm
+                        ),
+                        now,
+                    )
+                }
+                SourceState::Absent => {}
+            }
+        }
+        let op = match adopted {
+            Some(op) => op,
+            None => match restore.enqueue_restore(&bop, &pair.namespace, &pair.vm, fb.start) {
+                Ok(op) => op,
+                Err(e) => {
+                    return set_failback_note(pair, format!("restore not queued yet: {e}"), now)
+                }
+            },
+        };
+        if let Some(f) = pair.failback.as_mut() {
+            f.restore_op = Some(op);
+        }
+        set_failback(pair, FailbackState::Restoring, None, now);
+        return;
+    }
+    if state == FailbackState::Restoring {
+        let Some(op) = fb.restore_op.clone() else {
+            return fail_failback(pair, "no restore operation recorded".into(), sink, now);
+        };
+        match restore.restore_progress(&op) {
+            Ok(OpProgress::Succeeded { completed }) => {
+                set_failback(pair, FailbackState::Succeeded, None, now);
+                if let Some(f) = pair.failback.as_mut() {
+                    f.completed_at = Some(completed.unwrap_or(now).min(now));
+                }
+                sink.alert(
+                    Severity::Info,
+                    &pair.name,
+                    &format!(
+                        "failback complete: {}/{} restored; repoint clients, then resume replication",
+                        pair.namespace, pair.vm
+                    ),
+                );
+            }
+            Ok(OpProgress::Failed(e)) => {
+                fail_failback(pair, format!("restore failed: {e}"), sink, now)
+            }
+            _ => {}
+        }
+    }
+}
+
+fn set_failback(pair: &mut DrPair, state: FailbackState, note: Option<String>, now: DateTime<Utc>) {
+    if let Some(f) = pair.failback.as_mut() {
+        f.state = state;
+        f.note = note;
+        f.updated_at = now;
+    }
+}
+
+fn set_failback_note(pair: &mut DrPair, note: String, now: DateTime<Utc>) {
+    if let Some(f) = pair.failback.as_mut() {
+        f.note = Some(note);
+        f.updated_at = now;
+    }
+}
+
+/// Cancel a failback that has not started restoring. A restore already in
+/// flight cannot be stopped safely and is refused.
+pub fn cancel_failback(
+    pair: &mut DrPair,
+    backup: &dyn BackupBackend,
+    sink: &dyn AlertSink,
+    now: DateTime<Utc>,
+) -> Result<(), FailoverError> {
+    let Some(fb) = pair.failback.clone() else {
+        return Err(FailoverError::Refused(vec![
+            "no failback to cancel".to_string()
+        ]));
+    };
+    match fb.state {
+        FailbackState::BackingUp | FailbackState::BackedUp => {}
+        FailbackState::Restoring => {
+            return Err(FailoverError::Refused(vec![
+                "the restore is already running and cannot be cancelled safely".to_string(),
+            ]))
+        }
+        _ => {
+            return Err(FailoverError::Refused(vec![
+                "the failback is not active".to_string()
+            ]))
+        }
+    }
+    if let Some(op) = fb.dr_backup_op.as_deref() {
+        // Best effort: the backup is harmless if it finishes anyway.
+        if let Err(e) = backup.cancel_backup(op) {
+            log::warn!("failback cancel: backup {op}: {e}");
+        }
+    }
+    set_failback(pair, FailbackState::Cancelled, None, now);
+    if let Some(f) = pair.failback.as_mut() {
+        f.completed_at = Some(now);
+    }
+    sink.alert(Severity::Warning, &pair.name, "failback cancelled");
+    Ok(())
+}
+
+/// True when the DR VM should be deleted now: failback succeeded, the operator
+/// asked not to keep it, and it has not been deleted yet.
+pub fn dr_vm_cleanup_due(pair: &DrPair) -> bool {
+    pair.failback
+        .as_ref()
+        .is_some_and(|f| f.state == FailbackState::Succeeded && !f.keep_dr_vm && !f.dr_vm_deleted)
+}
+
+pub fn mark_dr_vm_deleted(pair: &mut DrPair) {
+    if let Some(f) = pair.failback.as_mut() {
+        f.dr_vm_deleted = true;
     }
 }
 
@@ -921,6 +1375,11 @@ pub fn resume(
     if pair.phase != Phase::FailedOver {
         return Err(FailoverError::Refused(plan.blockers));
     }
+    if pair.failback.as_ref().is_some_and(|f| f.state.is_active()) {
+        return Err(FailoverError::Refused(vec![
+            "a failback is in progress; wait for it or cancel it".to_string(),
+        ]));
+    }
     // The source VM must be back (not Absent): replication needs something to back up.
     if matches!(facts.source, SourceState::Absent | SourceState::Unknown(_)) {
         return Err(FailoverError::Refused(vec![format!(
@@ -933,6 +1392,7 @@ pub fn resume(
     }
     pair.phase = Phase::Replicating;
     pair.failover = None;
+    pair.failback = None;
     pair.in_flight_op = None;
     pair.last_attempt = None;
     pair.last_success = None;
@@ -966,9 +1426,14 @@ mod tests {
         ready_err: RefCell<Option<String>>,
         enqueued: RefCell<Vec<(String, String)>>,
         progress: RefCell<Option<OpProgress>>,
+        cancelled: RefCell<Vec<String>>,
     }
 
     impl BackupBackend for FakeBackup {
+        fn cancel_backup(&self, op: &str) -> Result<(), String> {
+            self.cancelled.borrow_mut().push(op.into());
+            Ok(())
+        }
         fn ready(&self) -> Result<(), String> {
             self.ready_err.borrow().clone().map_or(Ok(()), Err)
         }
@@ -991,9 +1456,13 @@ mod tests {
         calls: RefCell<Vec<(String, String, String, bool)>>,
         progress: RefCell<Option<OpProgress>>,
         fail: bool,
+        found: RefCell<Option<String>>,
     }
 
     impl RestoreBackend for FakeRestore {
+        fn find_restore(&self, _b: &str, _ns: &str, _vm: &str) -> Option<String> {
+            self.found.borrow().clone()
+        }
         fn enqueue_restore(
             &self,
             b: &str,
@@ -1357,10 +1826,15 @@ mod tests {
         assert!(plan.warnings.iter().any(|w| w.contains("RPO breached")));
     }
 
-    #[test]
-    fn failback_plan_and_resume_rules() {
+    fn facts_dr(source: SourceState) -> Facts {
+        Facts {
+            source,
+            dr_vm_exists: Some(true),
+        }
+    }
+
+    fn failed_over_pair() -> DrPair {
         let mut p = replicated_pair();
-        assert!(!failback_plan(&p, &facts(SourceState::Absent)).allowed);
         let r = FakeRestore::default();
         let req = FailoverRequest {
             dry_run: false,
@@ -1368,9 +1842,360 @@ mod tests {
             start: true,
         };
         execute_failover(&mut p, &facts(SourceState::Stopped), &req, &r, t0()).unwrap();
-        // Original still present: blocked.
-        assert!(!failback_plan(&p, &facts(SourceState::Stopped)).allowed);
-        assert!(failback_plan(&p, &facts(SourceState::Absent)).allowed);
+        p.failover.as_mut().unwrap().state = "succeeded".into();
+        p
+    }
+
+    fn fb_req(dry: bool, confirm: Option<&str>) -> FailbackRequest {
+        FailbackRequest {
+            dry_run: dry,
+            confirm: confirm.map(Into::into),
+            start: false,
+            keep_dr_vm: true,
+        }
+    }
+
+    fn started_failback(p: &mut DrPair, b: &FakeBackup, s: &Sink) {
+        execute_failback(
+            p,
+            &facts_dr(SourceState::Stopped),
+            &fb_req(false, Some("failback web")),
+            b,
+            s,
+            t0(),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn failback_dry_run_and_confirmation() {
+        let mut p = failed_over_pair();
+        let (b, s) = (FakeBackup::default(), Sink::default());
+        let f = facts_dr(SourceState::Absent);
+        // Dry run (the default) changes nothing.
+        let out = execute_failback(&mut p, &f, &fb_req(true, None), &b, &s, t0()).unwrap();
+        assert!(matches!(out, FailbackOutcome::DryRun(pl) if pl.allowed));
+        assert!(p.failback.is_none() && b.enqueued.borrow().is_empty());
+        // Real run without the phrase is refused.
+        assert!(matches!(
+            execute_failback(&mut p, &f, &fb_req(false, Some("nope")), &b, &s, t0()),
+            Err(FailoverError::ConfirmationRequired(_))
+        ));
+        assert!(b.enqueued.borrow().is_empty());
+        // With the phrase the DR VM (not the original) is backed up.
+        started_failback(&mut p, &b, &s);
+        assert_eq!(b.enqueued.borrow()[0].0, "web1-dr");
+        assert_eq!(p.failback.as_ref().unwrap().state, FailbackState::BackingUp);
+        assert!(s
+            .0
+            .borrow()
+            .iter()
+            .any(|(_, m)| m.contains("failback started")));
+        // A second start while active is refused.
+        assert!(matches!(
+            execute_failback(
+                &mut p,
+                &f,
+                &fb_req(false, Some("failback web")),
+                &b,
+                &s,
+                t0()
+            ),
+            Err(FailoverError::Refused(_))
+        ));
+    }
+
+    #[test]
+    fn failback_refuses_running_unknown_or_unconfirmed_failover() {
+        let (b, s) = (FakeBackup::default(), Sink::default());
+        for src in [SourceState::Running, SourceState::Unknown("x".into())] {
+            let mut p = failed_over_pair();
+            let r = execute_failback(
+                &mut p,
+                &facts_dr(src),
+                &fb_req(false, Some("failback web")),
+                &b,
+                &s,
+                t0(),
+            );
+            assert!(matches!(r, Err(FailoverError::Refused(_))));
+            assert!(p.failback.is_none());
+        }
+        // DR VM missing / unknown.
+        let mut p = failed_over_pair();
+        for dr in [Some(false), None] {
+            let f = Facts {
+                source: SourceState::Absent,
+                dr_vm_exists: dr,
+            };
+            assert!(!failback_plan(&p, &f).allowed);
+        }
+        // Failover still pending, or never happened.
+        p.failover.as_mut().unwrap().state = "pending".into();
+        assert!(!failback_plan(&p, &facts_dr(SourceState::Absent)).allowed);
+        assert!(!failback_plan(&replicated_pair(), &facts_dr(SourceState::Absent)).allowed);
+        assert!(b.enqueued.borrow().is_empty());
+    }
+
+    #[test]
+    fn failback_full_flow_restores_to_original_name() {
+        let mut p = failed_over_pair();
+        let (b, r, s) = (
+            FakeBackup::default(),
+            FakeRestore::default(),
+            Sink::default(),
+        );
+        started_failback(&mut p, &b, &s);
+        let f = facts_dr(SourceState::Absent);
+        // Backup still running: nothing restored.
+        advance_failback(&mut p, &f, &b, &r, &s, t0());
+        assert!(r.calls.borrow().is_empty());
+        *b.progress.borrow_mut() = Some(OpProgress::Succeeded { completed: None });
+        advance_failback(&mut p, &f, &b, &r, &s, t0());
+        {
+            let calls = r.calls.borrow();
+            assert_eq!(calls.len(), 1);
+            // backup op, original namespace and name, not started.
+            assert_eq!(
+                calls[0],
+                ("op-1".into(), "prod".into(), "web1".into(), false)
+            );
+        }
+        assert_eq!(p.failback.as_ref().unwrap().state, FailbackState::Restoring);
+        *r.progress.borrow_mut() = Some(OpProgress::Succeeded { completed: None });
+        let done = t0() + Duration::seconds(60);
+        advance_failback(&mut p, &f, &b, &r, &s, done);
+        let fb = p.failback.as_ref().unwrap();
+        assert_eq!(fb.state, FailbackState::Succeeded);
+        assert_eq!(fb.completed_at, Some(done));
+        assert!(!dr_vm_cleanup_due(&p), "DR VM is kept by default");
+        assert!(s
+            .0
+            .borrow()
+            .iter()
+            .any(|(_, m)| m.contains("failback complete")));
+        // Resume now works (source exists again) and clears the record.
+        resume(
+            &mut p,
+            &facts(SourceState::Stopped),
+            Some("resume web"),
+            done,
+        )
+        .unwrap();
+        assert!(p.failback.is_none());
+    }
+
+    #[test]
+    fn failback_waits_for_stopped_original_and_fails_if_it_runs() {
+        let mut p = failed_over_pair();
+        let (b, r, s) = (
+            FakeBackup::default(),
+            FakeRestore::default(),
+            Sink::default(),
+        );
+        started_failback(&mut p, &b, &s);
+        *b.progress.borrow_mut() = Some(OpProgress::Succeeded { completed: None });
+        // Original exists but is stopped: never overwritten, waits.
+        advance_failback(&mut p, &facts_dr(SourceState::Stopped), &b, &r, &s, t0());
+        assert!(r.calls.borrow().is_empty());
+        let fb = p.failback.as_ref().unwrap();
+        assert_eq!(fb.state, FailbackState::BackedUp);
+        assert!(fb.note.as_deref().unwrap().contains("never overwrites"));
+        // State unreadable: still waits.
+        advance_failback(
+            &mut p,
+            &facts_dr(SourceState::Unknown("net".into())),
+            &b,
+            &r,
+            &s,
+            t0(),
+        );
+        assert!(r.calls.borrow().is_empty());
+        assert_eq!(p.failback.as_ref().unwrap().state, FailbackState::BackedUp);
+        // Someone started the original: refuse for good.
+        advance_failback(&mut p, &facts_dr(SourceState::Running), &b, &r, &s, t0());
+        assert!(r.calls.borrow().is_empty());
+        let fb = p.failback.as_ref().unwrap();
+        assert_eq!(fb.state, FailbackState::Failed);
+        assert!(fb.error.as_deref().unwrap().contains("running"));
+        assert!(s.0.borrow().iter().any(|(sv, _)| *sv == Severity::Error));
+        // A failed failback can be started again with a fresh backup key.
+        started_failback(&mut p, &b, &s);
+        let keys: Vec<_> = b.enqueued.borrow().iter().map(|e| e.1.clone()).collect();
+        assert_ne!(keys[0], keys[1]);
+    }
+
+    #[test]
+    fn failback_backup_and_restore_failures_are_recorded() {
+        let mut p = failed_over_pair();
+        let (b, r, s) = (
+            FakeBackup::default(),
+            FakeRestore::default(),
+            Sink::default(),
+        );
+        started_failback(&mut p, &b, &s);
+        *b.progress.borrow_mut() = Some(OpProgress::Failed("disk".into()));
+        advance_failback(&mut p, &facts_dr(SourceState::Absent), &b, &r, &s, t0());
+        let fb = p.failback.as_ref().unwrap();
+        assert_eq!(fb.state, FailbackState::Failed);
+        assert!(fb.error.as_deref().unwrap().contains("disk"));
+        // Restore failure.
+        started_failback(&mut p, &b, &s);
+        *b.progress.borrow_mut() = Some(OpProgress::Succeeded { completed: None });
+        *r.progress.borrow_mut() = Some(OpProgress::Failed("exists".into()));
+        let f = facts_dr(SourceState::Absent);
+        advance_failback(&mut p, &f, &b, &r, &s, t0());
+        advance_failback(&mut p, &f, &b, &r, &s, t0());
+        let fb = p.failback.as_ref().unwrap();
+        assert_eq!(fb.state, FailbackState::Failed);
+        assert!(fb.error.as_deref().unwrap().contains("restore failed"));
+    }
+
+    #[test]
+    fn failback_cancel_rules() {
+        let mut p = failed_over_pair();
+        let (b, r, s) = (
+            FakeBackup::default(),
+            FakeRestore::default(),
+            Sink::default(),
+        );
+        assert!(cancel_failback(&mut p, &b, &s, t0()).is_err());
+        started_failback(&mut p, &b, &s);
+        cancel_failback(&mut p, &b, &s, t0()).unwrap();
+        assert_eq!(p.failback.as_ref().unwrap().state, FailbackState::Cancelled);
+        assert_eq!(b.cancelled.borrow().as_slice(), ["op-1"]);
+        // Cancelled failbacks never advance.
+        *b.progress.borrow_mut() = Some(OpProgress::Succeeded { completed: None });
+        advance_failback(&mut p, &facts_dr(SourceState::Absent), &b, &r, &s, t0());
+        assert!(r.calls.borrow().is_empty());
+        assert!(cancel_failback(&mut p, &b, &s, t0()).is_err());
+        // Once restoring, cancel is refused.
+        started_failback(&mut p, &b, &s);
+        advance_failback(&mut p, &facts_dr(SourceState::Absent), &b, &r, &s, t0());
+        assert_eq!(p.failback.as_ref().unwrap().state, FailbackState::Restoring);
+        assert!(matches!(
+            cancel_failback(&mut p, &b, &s, t0()),
+            Err(FailoverError::Refused(_))
+        ));
+        // Resume is refused while a failback is active.
+        assert!(matches!(
+            resume(
+                &mut p,
+                &facts(SourceState::Stopped),
+                Some("resume web"),
+                t0()
+            ),
+            Err(FailoverError::Refused(_))
+        ));
+    }
+
+    #[test]
+    fn failback_crash_resume_from_persisted_state() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("dr_pairs_fb_test.json");
+        PairStore::update(&path, |st| st.add(failed_over_pair())).unwrap();
+        let (b, r, s) = (
+            FakeBackup::default(),
+            FakeRestore::default(),
+            Sink::default(),
+        );
+        PairStore::update(&path, |st| {
+            started_failback(st.get_mut("web").unwrap(), &b, &s);
+            Ok(())
+        })
+        .unwrap();
+        // "Crash": everything in memory is dropped; only the document remains.
+        let (b2, r2) = (FakeBackup::default(), FakeRestore::default());
+        *b2.progress.borrow_mut() = Some(OpProgress::Succeeded { completed: None });
+        let f = facts_dr(SourceState::Absent);
+        PairStore::update(&path, |st| {
+            advance_failback(st.get_mut("web").unwrap(), &f, &b2, &r2, &s, t0());
+            Ok(())
+        })
+        .unwrap();
+        // Crash again, now mid-restore.
+        let loaded = PairStore::load_from(&path);
+        let fb = loaded.get("web").unwrap().failback.clone().unwrap();
+        assert_eq!(fb.state, FailbackState::Restoring);
+        assert_eq!(fb.restore_op.as_deref(), Some("rop-1"));
+        assert_eq!(fb.dr_backup_op.as_deref(), Some("op-1"));
+        *r2.progress.borrow_mut() = Some(OpProgress::Succeeded { completed: None });
+        PairStore::update(&path, |st| {
+            advance_failback(st.get_mut("web").unwrap(), &f, &b2, &r2, &s, t0());
+            Ok(())
+        })
+        .unwrap();
+        // Exactly one restore was ever queued across the restarts.
+        assert_eq!(r2.calls.borrow().len(), 1);
+        assert!(r.calls.borrow().is_empty());
+        let done = PairStore::load_from(&path);
+        assert_eq!(
+            done.get("web").unwrap().failback.as_ref().unwrap().state,
+            FailbackState::Succeeded
+        );
+    }
+
+    #[test]
+    fn failback_adopts_restore_queued_before_a_crash() {
+        let mut p = failed_over_pair();
+        let (b, r, s) = (
+            FakeBackup::default(),
+            FakeRestore::default(),
+            Sink::default(),
+        );
+        started_failback(&mut p, &b, &s);
+        *b.progress.borrow_mut() = Some(OpProgress::Succeeded { completed: None });
+        // The restore was queued (and already created a stopped VM) before the
+        // state was saved: adopt it, do not wait on the now-existing original.
+        *r.found.borrow_mut() = Some("rop-7".into());
+        advance_failback(&mut p, &facts_dr(SourceState::Stopped), &b, &r, &s, t0());
+        let fb = p.failback.as_ref().unwrap();
+        assert_eq!(fb.restore_op.as_deref(), Some("rop-7"));
+        assert!(r.calls.borrow().is_empty());
+    }
+
+    #[test]
+    fn failback_dr_vm_cleanup_only_when_opted_out() {
+        let mut p = failed_over_pair();
+        let (b, r, s) = (
+            FakeBackup::default(),
+            FakeRestore::default(),
+            Sink::default(),
+        );
+        let req = FailbackRequest {
+            keep_dr_vm: false,
+            ..fb_req(false, Some("failback web"))
+        };
+        execute_failback(&mut p, &facts_dr(SourceState::Absent), &req, &b, &s, t0()).unwrap();
+        assert!(!dr_vm_cleanup_due(&p), "not before success");
+        *b.progress.borrow_mut() = Some(OpProgress::Succeeded { completed: None });
+        *r.progress.borrow_mut() = Some(OpProgress::Succeeded { completed: None });
+        let f = facts_dr(SourceState::Absent);
+        advance_failback(&mut p, &f, &b, &r, &s, t0());
+        advance_failback(&mut p, &f, &b, &r, &s, t0());
+        assert!(dr_vm_cleanup_due(&p));
+        mark_dr_vm_deleted(&mut p);
+        assert!(!dr_vm_cleanup_due(&p));
+    }
+
+    #[test]
+    fn failback_plan_and_resume_rules() {
+        let mut p = replicated_pair();
+        assert!(!failback_plan(&p, &facts_dr(SourceState::Absent)).allowed);
+        let r = FakeRestore::default();
+        let req = FailoverRequest {
+            dry_run: false,
+            confirm: Some("failover web".into()),
+            start: true,
+        };
+        execute_failover(&mut p, &facts(SourceState::Stopped), &req, &r, t0()).unwrap();
+        // Failover not yet confirmed complete: blocked.
+        assert!(!failback_plan(&p, &facts_dr(SourceState::Absent)).allowed);
+        p.failover.as_mut().unwrap().state = "succeeded".into();
+        // A stopped original is allowed (the restore waits); a running one is not.
+        assert!(failback_plan(&p, &facts_dr(SourceState::Stopped)).allowed);
+        assert!(failback_plan(&p, &facts_dr(SourceState::Absent)).allowed);
+        assert!(!failback_plan(&p, &facts_dr(SourceState::Running)).allowed);
         // Resume needs the source back and the phrase.
         assert!(matches!(
             resume(
@@ -1399,10 +2224,34 @@ mod tests {
     }
 
     #[test]
-    fn notification_sink_records_alerts() {
-        NotificationSink.alert(Severity::Error, "zz-test", "RPO breached");
-        assert!(recent_alerts()
+    fn alerts_are_durable_across_reloads() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("dr_alerts_test.json");
+        let sink = PathSink(path.clone());
+        sink.alert(Severity::Error, "zz-test", "RPO breached");
+        sink.alert(Severity::Info, "zz-test", "RPO recovered");
+        // A fresh read (as after a restart, or from another replica) sees both.
+        let alerts = recent_alerts_from(&path);
+        assert_eq!(alerts.len(), 2);
+        assert!(alerts
             .iter()
-            .any(|n| n.source == "dr-replication" && n.message.contains("zz-test")));
+            .all(|n| n.source == "dr-replication" && n.message.contains("zz-test")));
+        assert!(alerts[0].message.contains("breached"));
+    }
+
+    #[test]
+    fn alert_store_caps_length() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("dr_alerts_cap_test.json");
+        for i in 0..(MAX_ALERTS + 5) {
+            PathSink(path.clone()).alert(Severity::Info, "p", &format!("m{i}"));
+        }
+        let alerts = recent_alerts_from(&path);
+        assert_eq!(alerts.len(), MAX_ALERTS);
+        assert!(alerts
+            .last()
+            .unwrap()
+            .message
+            .ends_with(&format!("m{}", MAX_ALERTS + 4)));
     }
 }
