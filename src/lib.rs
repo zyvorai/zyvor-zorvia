@@ -60,6 +60,7 @@ pub mod templates;
 pub mod terraform;
 pub mod tui;
 pub mod utils;
+#[cfg(feature = "web")]
 pub mod volume_encryption;
 
 // Innovative features

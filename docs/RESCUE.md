@@ -57,10 +57,16 @@ images.
 | **Install Packages** (`install-packages`) | Detects `apt-get`/`dnf`/`yum`/`zypper`/`apk` in the guest and runs it via `chroot` as an explicit argv (no shell). The Job pod's `resolv.conf` is placed in the guest for the run and the original restored. Active deadline 900 s. |
 | **Inspect** (`inspect`) | Read-only. Returns `result.details` with OS type/distro/product/arch/version/hostname, package format, init system, mountpoints and the first 50 installed applications (plus the total count). |
 
-Known limits: install does not bind-mount `/proc`, `/dev`, `/sys`, so
-packages with maintainer scripts needing them can fail; a guest whose
-`/etc/resolv.conf` is a dangling symlink may refuse the DNS step; the Job pod
-needs outbound network. The disk-image path assumption (`/disk/disk.img`)
+Install bind-mounts `/proc`, `/dev` and `/sys` from the Job pod into the guest
+root (in that order) so maintainer scripts work, and unmounts them in reverse
+order afterwards, including when the install or a later mount fails (a busy
+unmount is retried lazily; a leftover mount is reported as an error). The Job
+pod needs **outbound network access** (DNS plus HTTP(S) to the guest's package
+mirrors): the guest has no network of its own, so a cluster with a default-deny
+egress NetworkPolicy on the rescue namespace will make install fail. A guest
+whose `/etc/resolv.conf` is a dangling symlink may refuse the DNS step. The
+mount ordering is unit-tested without root; the real mounts have not been run
+against a live guest disk. The disk-image path assumption (`/disk/disk.img`)
 below applies to all six operations.
 
 ### Password handling
