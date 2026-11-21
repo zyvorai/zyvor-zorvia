@@ -226,19 +226,69 @@ from the environment, never from request bodies.
 | `ZORVIA_GOLDEN_SIGN_KEY_SECRET` | Key mode: Secret in the pipeline namespace with `cosign.pub`, and `cosign.key` plus optional `cosign.password` when signing. Verify Jobs mount only `cosign.pub`. |
 | `ZORVIA_GOLDEN_SIGN_KEYLESS_IDENTITY`, `_ISSUER` | Keyless mode: verify against this certificate identity and OIDC issuer. |
 | `ZORVIA_GOLDEN_SIGN_SIGN` | `1` signs the image before verifying (key mode only). |
+| `ZORVIA_GOLDEN_PULL_SECRET` | Name of a `kubernetes.io/dockerconfigjson` Secret in the pipeline namespace. Used as `imagePullSecrets` on scan/sign/verify Jobs, and its `.dockerconfigjson` is mounted read-only as `DOCKER_CONFIG` so trivy and cosign can read a private image. |
+| `ZORVIA_GOLDEN_CDI_SECRET` | Name of a CDI-format Secret (`accessKeyId`, `secretKey`) set as `secretRef` on the DataVolume `registry` (or `http`) source, so CDI can import from a private source. CDI does not accept a dockerconfigjson here, so this is a separate Secret. |
+| `ZORVIA_GOLDEN_FETCH_IMAGE` | Image providing `sh`, `curl` and `sha256sum` (a curl image). Required for HTTP(S) checksum and blob-signature checks. |
+| `ZORVIA_GOLDEN_BLOB_MAX_SIZE` | `emptyDir` size limit for the blob the verify-blob Job downloads (default `50Gi`). |
+| `ZORVIA_GOLDEN_HTTP_ALLOW_UNSCANNED` | `1` lets an HTTP(S) source pass when a scan gate is configured (disk blobs cannot be scanned; recorded as `scan:skipped`). Default: it blocks. |
+| `ZORVIA_GOLDEN_KEEP_ON_BLOCK` | `1` keeps the imported DataVolume when a gate blocks. Default: it is removed. |
 
 Images and commands are validated (no whitespace or leading dash in image
 references, bounded argv, only the `{image}` placeholder). Job pods run
 non-root, read-only root filesystem, all capabilities dropped, no service
 account token. Key material is never logged or returned.
 
+#### Private registries
+
+Credentials are referenced by Secret name in operator configuration only. They
+are never accepted in request bodies, never copied into Job specs, logs, plans
+or API responses; the Jobs mount the Secret and nothing else reads it. Create
+the Secrets yourself, for example
+`kubectl create secret docker-registry regcred ...` and, for CDI,
+`kubectl create secret generic cdi-reg --from-literal=accessKeyId=... --from-literal=secretKey=...`.
+
+#### HTTP(S) sources: checksum and blob signature
+
+For an `https://` (or `http://`) source `/run` accepts two optional fields:
+`checksum_sha256` (64 hex characters, optional `sha256:` prefix) and
+`signature_url` (a detached cosign signature). They are not credentials; trust
+is anchored in the expected digest you supply and in the cosign public key in
+`ZORVIA_GOLDEN_SIGN_KEY_SECRET`. Both run as Jobs, and both need
+`ZORVIA_GOLDEN_FETCH_IMAGE`:
+
+1. `checksum`: streams the URL through `sha256sum` and compares the digest.
+2. `verify-blob`: an init container downloads the blob into an `emptyDir`
+   (size-limited by `ZORVIA_GOLDEN_BLOB_MAX_SIZE`), then
+   `cosign verify-blob --key cosign.pub --signature <url>` runs on it. Key
+   mode only; with a sign gate configured and no `signature_url`, the run
+   blocks. Zorvia does not sign blobs (`sign-blob`), only verifies them.
+
+URLs with embedded credentials are rejected; authenticated downloads are not
+supported by the Jobs (CDI itself can use `ZORVIA_GOLDEN_CDI_SECRET`). The
+download happens separately from CDI's own import, so a server could serve
+different bytes to the two; the DataVolume also records the checksum as an
+annotation but CDI does not enforce it.
+
+#### Blocked runs
+
+When a gate blocks, Zorvia removes the DataVolume that run created, identified
+by the label `zorvia.io/golden-run=<run id>` it set on that DataVolume; an
+object without exactly that label is never deleted. The stable DataSource is
+only applied after the gates pass, so a blocked run never creates or deletes
+it. Set `ZORVIA_GOLDEN_KEEP_ON_BLOCK=1` to keep the import for inspection. The
+response reports `data_volume_removed`; a failed cleanup is noted but never
+turns a block into a pass. Deleting needs `delete` on `datavolumes`
+(`cdi.kubevirt.io`).
+
 Fail closed: a failed Job, unparseable scanner output, findings at or above the
 threshold, or a failed `cosign verify` blocks promotion. `/run` then returns
 HTTP 409 `promotion_blocked` with the reason and per-step counts (no scanner
-logs); the DataVolume import stays applied, the DataSource is not changed.
+logs); the DataSource is not changed.
 
-Limits: only registry sources (`docker://...`) can be scanned and signed; with
-a gate configured an HTTP(S) disk source blocks. The scan targets the source
-image reference, not the imported PVC. Private registry credentials for the
-scanned image are not wired. Covered by unit tests with mocked Jobs and trivy
+Limits: vulnerability scanning and image signing apply to registry sources
+(`docker://...`) only; an HTTP(S) disk source blocks when a scan gate is
+configured unless `ZORVIA_GOLDEN_HTTP_ALLOW_UNSCANNED=1`. The scan targets the
+source image reference, not the imported PVC. `cosign verify-blob` runs with
+cosign's default transparency-log behaviour; keyless blob verification and blob
+signing are not implemented. Covered by unit tests with mocked Jobs and trivy
 JSON fixtures; not yet exercised against a live cluster, trivy or cosign.
