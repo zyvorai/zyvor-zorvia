@@ -30,6 +30,15 @@ pub enum TargetKind {
     VmPool,
 }
 
+/// Which utilisation figure drives a target (default CPU).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LoadMetric {
+    #[default]
+    Cpu,
+    Memory,
+}
+
 /// One scaled resource and its policy.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoopTarget {
@@ -41,6 +50,9 @@ pub struct LoopTarget {
     /// required for `vm_pool`).
     #[serde(default)]
     pub metric_vms: Vec<String>,
+    /// Utilisation signal: `cpu` (default) or `memory`.
+    #[serde(default)]
+    pub load_metric: LoadMetric,
     pub min: u32,
     pub max: u32,
     #[serde(default = "d_step")]
@@ -423,6 +435,7 @@ mod tests {
             namespace: "ns".into(),
             name: "pool".into(),
             metric_vms: vec!["vm-a".into()],
+            load_metric: LoadMetric::Cpu,
             min: 2,
             max: 5,
             step: 1,

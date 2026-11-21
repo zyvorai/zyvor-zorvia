@@ -9,6 +9,8 @@ use std::collections::HashMap;
 
 pub mod live;
 pub mod reconcile;
+#[cfg(feature = "web")]
+pub mod telemetry;
 
 /// Auto-scaling engine that monitors VMs and scales resources automatically
 #[derive(Debug, Clone, Serialize, Deserialize)]
