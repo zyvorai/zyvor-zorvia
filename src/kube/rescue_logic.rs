@@ -170,6 +170,85 @@ impl PackageManager {
     }
 }
 
+/// Pseudo-filesystems bind-mounted into the guest chroot, in mount order
+/// (`(source on the Job pod, directory under the guest root)`). Maintainer
+/// scripts commonly need `/proc` (e.g. `mount`, `ps`), `/dev` (`/dev/null`,
+/// `/dev/urandom`) and `/sys`. Unmounting is always the reverse order.
+pub const CHROOT_BINDS: [(&str, &str); 3] = [("/proc", "proc"), ("/dev", "dev"), ("/sys", "sys")];
+
+/// Abstraction over "run one privileged command" so the mount/unmount
+/// ordering can be unit-tested without root. The agent's real implementation
+/// shells out; tests record the argv instead.
+pub trait CommandRunner {
+    fn run(&mut self, argv: &[String]) -> Result<(), String>;
+}
+
+fn argv(parts: &[&str]) -> Vec<String> {
+    parts.iter().map(|s| s.to_string()).collect()
+}
+
+/// `mount --bind <src> <root>/<dir>` argv for one bind.
+pub fn bind_mount_argv(root: &str, source: &str, dir: &str) -> Vec<String> {
+    let target = format!("{}/{}", root.trim_end_matches('/'), dir);
+    argv(&["mount", "--bind", source, &target])
+}
+
+/// `umount <root>/<dir>` argv for one bind.
+pub fn unmount_argv(root: &str, dir: &str, lazy: bool) -> Vec<String> {
+    let target = format!("{}/{}", root.trim_end_matches('/'), dir);
+    if lazy {
+        argv(&["umount", "-l", &target])
+    } else {
+        argv(&["umount", &target])
+    }
+}
+
+/// Bind-mounts /proc, /dev and /sys into `root`, runs `body`, then unmounts
+/// them in reverse order. Cleanup happens on every path: if the Nth mount
+/// fails, the N-1 already done are unmounted before returning; if `body`
+/// fails, the unmounts still run. An unmount that fails is retried once
+/// lazily (`umount -l`, for a busy mount left by a daemon the maintainer
+/// scripts started). A leftover mount is reported as an error (appended to
+/// any body error) because it would make GuestKit's own unmount fail.
+pub fn with_chroot_binds<R: CommandRunner, T>(
+    runner: &mut R,
+    root: &str,
+    body: impl FnOnce(&mut R) -> Result<T, String>,
+) -> Result<T, String> {
+    let mut mounted: Vec<&str> = Vec::new();
+    let mut setup_err = None;
+    for (source, dir) in CHROOT_BINDS {
+        if let Err(e) = runner.run(&bind_mount_argv(root, source, dir)) {
+            setup_err = Some(format!("could not bind-mount {source} into the guest: {e}"));
+            break;
+        }
+        mounted.push(dir);
+    }
+    let result = match setup_err {
+        Some(e) => Err(e),
+        None => body(runner),
+    };
+    let mut leftovers = Vec::new();
+    for dir in mounted.iter().rev() {
+        if runner.run(&unmount_argv(root, dir, false)).is_err()
+            && runner.run(&unmount_argv(root, dir, true)).is_err()
+        {
+            leftovers.push(*dir);
+        }
+    }
+    if leftovers.is_empty() {
+        return result;
+    }
+    let msg = format!(
+        "could not unmount /{} from the guest",
+        leftovers.join(", /")
+    );
+    match result {
+        Ok(_) => Err(msg),
+        Err(e) => Err(format!("{e}; {msg}")),
+    }
+}
+
 /// Makes a string safe to return to a caller: drops control characters,
 /// masks `key=value` tokens whose key looks sensitive and any long
 /// token-looking run, then truncates to `max` chars.
@@ -307,5 +386,100 @@ mod tests {
         assert_eq!(redact_text(&format!("x {tok}"), 50), "x [redacted]");
         let long = redact_text(&"word ".repeat(200), 20);
         assert!(long.chars().count() <= 21);
+    }
+    #[derive(Default)]
+    struct Recorder {
+        calls: Vec<String>,
+        fail_on: Option<String>,
+    }
+    impl CommandRunner for Recorder {
+        fn run(&mut self, a: &[String]) -> Result<(), String> {
+            let line = a.join(" ");
+            self.calls.push(line.clone());
+            match &self.fail_on {
+                Some(f) if line.contains(f.as_str()) => Err("boom".into()),
+                _ => Ok(()),
+            }
+        }
+    }
+
+    #[test]
+    fn binds_mount_in_order_and_unmount_in_reverse() {
+        let mut r = Recorder::default();
+        let out = with_chroot_binds(&mut r, "/mnt/g/", |r| {
+            r.run(&s(&["chroot", "/mnt/g", "apt-get", "install"]))?;
+            Ok(7)
+        });
+        assert_eq!(out, Ok(7));
+        assert_eq!(
+            r.calls,
+            [
+                "mount --bind /proc /mnt/g/proc",
+                "mount --bind /dev /mnt/g/dev",
+                "mount --bind /sys /mnt/g/sys",
+                "chroot /mnt/g apt-get install",
+                "umount /mnt/g/sys",
+                "umount /mnt/g/dev",
+                "umount /mnt/g/proc",
+            ]
+        );
+    }
+
+    #[test]
+    fn body_failure_still_unmounts() {
+        let mut r = Recorder::default();
+        let out: Result<(), String> =
+            with_chroot_binds(&mut r, "/r", |_| Err("install failed".into()));
+        assert_eq!(out, Err("install failed".into()));
+        assert_eq!(
+            &r.calls[3..],
+            ["umount /r/sys", "umount /r/dev", "umount /r/proc"]
+        );
+    }
+
+    #[test]
+    fn mount_failure_unwinds_only_what_was_mounted_and_skips_body() {
+        let mut r = Recorder {
+            fail_on: Some("--bind /sys".into()),
+            ..Default::default()
+        };
+        let mut ran = false;
+        let out: Result<(), String> = with_chroot_binds(&mut r, "/r", |_| {
+            ran = true;
+            Ok(())
+        });
+        assert!(!ran);
+        assert!(out.unwrap_err().contains("bind-mount /sys"));
+        assert_eq!(
+            r.calls,
+            [
+                "mount --bind /proc /r/proc",
+                "mount --bind /dev /r/dev",
+                "mount --bind /sys /r/sys",
+                "umount /r/dev",
+                "umount /r/proc",
+            ]
+        );
+    }
+
+    #[test]
+    fn busy_unmount_retries_lazily_and_leftover_is_an_error() {
+        let mut r = Recorder {
+            fail_on: Some("umount /r/dev".into()),
+            ..Default::default()
+        };
+        let out: Result<(), String> = with_chroot_binds(&mut r, "/r", |_| Ok(()));
+        // "umount -l /r/dev" does not contain "umount /r/dev", so lazy succeeds.
+        assert_eq!(out, Ok(()));
+        assert!(r.calls.contains(&"umount -l /r/dev".to_string()));
+
+        // Every unmount (plain and lazy) fails; the binds themselves succeed.
+        let mut r = Recorder {
+            fail_on: Some("umount".into()),
+            ..Default::default()
+        };
+        let out: Result<(), String> = with_chroot_binds(&mut r, "/r", |_| Err("x".into()));
+        let e = out.unwrap_err();
+        assert!(e.starts_with("x; ") && e.contains("/dev"), "{e}");
     }
 }

@@ -1,0 +1,3 @@
+{"kind":"PodMetricsList","apiVersion":"metrics.k8s.io/v1beta1","metadata":{},
+ "items":[{"metadata":{"name":"virt-launcher-vm-a-abcde"},"timestamp":"__TS__","window":"15s",
+  "containers":[{"name":"guest-console-log","usage":{"cpu":"1m","memory":"10Mi"}}]}]}

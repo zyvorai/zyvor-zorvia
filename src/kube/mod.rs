@@ -868,6 +868,46 @@ impl KubeClient {
         Ok(self.client.request::<serde_json::Value>(req).await?)
     }
 
+    /// Fetch a CDI DataVolume; `None` when it does not exist.
+    pub async fn find_data_volume(
+        &self,
+        namespace: &str,
+        name: &str,
+    ) -> Result<Option<serde_json::Value>> {
+        lifecycle::validate_k8s_name("namespace", namespace)?;
+        lifecycle::validate_k8s_name("name", name)?;
+        let path =
+            format!("/apis/cdi.kubevirt.io/v1beta1/namespaces/{namespace}/datavolumes/{name}");
+        let req = http::Request::builder()
+            .method(http::Method::GET)
+            .uri(&path)
+            .body(Vec::new())
+            .map_err(|e| anyhow::anyhow!("failed to build DataVolume request: {e}"))?;
+        match self.client.request::<serde_json::Value>(req).await {
+            Ok(v) => Ok(Some(v)),
+            Err(kube::Error::Api(ae)) if ae.code == 404 => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    /// Delete a CDI DataVolume (a missing one counts as deleted).
+    pub async fn delete_data_volume(&self, namespace: &str, name: &str) -> Result<()> {
+        lifecycle::validate_k8s_name("namespace", namespace)?;
+        lifecycle::validate_k8s_name("name", name)?;
+        let path =
+            format!("/apis/cdi.kubevirt.io/v1beta1/namespaces/{namespace}/datavolumes/{name}");
+        let req = http::Request::builder()
+            .method(http::Method::DELETE)
+            .uri(&path)
+            .body(Vec::new())
+            .map_err(|e| anyhow::anyhow!("failed to build DataVolume request: {e}"))?;
+        match self.client.request::<serde_json::Value>(req).await {
+            Ok(_) => Ok(()),
+            Err(kube::Error::Api(ae)) if ae.code == 404 => Ok(()),
+            Err(e) => Err(e.into()),
+        }
+    }
+
     /// Create-or-update a CDI DataSource — the stable alias a golden-image
     /// bundle points at its current versioned DataVolume. Unlike DataVolumes
     /// (each version immutable/uniquely named), the same DataSource name is

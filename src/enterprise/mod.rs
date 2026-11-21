@@ -154,6 +154,7 @@ impl GoldenPipelinePlan {
             ),
             "Configured scan/sign run as Kubernetes Jobs and block promotion on failure; unconfigured steps stay deferred (operator-owned). See docs/GOLDEN_IMAGES.md.".into(),
         ];
+        notes.push("HTTP(S) sources: supply checksum_sha256 and/or signature_url on /run (needs ZORVIA_GOLDEN_FETCH_IMAGE); a blocked run removes its own DataVolume unless ZORVIA_GOLDEN_KEEP_ON_BLOCK=1.".into());
         if gates.sign.is_some() {
             notes.push("sign stage covers cosign verification (and signing when ZORVIA_GOLDEN_SIGN_SIGN=1 in key mode).".into());
         }
@@ -176,6 +177,9 @@ pub struct GoldenPipelineRun {
     pub versioned_name: String,
     pub data_volume_applied: bool,
     pub data_source_applied: bool,
+    /// True when a blocked run's imported DataVolume was removed again.
+    #[serde(default)]
+    pub data_volume_removed: bool,
     pub stages_completed: Vec<String>,
     /// Scan/sign step results (empty when no gate is configured).
     #[serde(default)]
@@ -194,6 +198,7 @@ impl GoldenPipelineRun {
         namespace: impl Into<String>,
         source: impl Into<String>,
         size: impl Into<String>,
+        checks: golden_gates::SourceChecks,
         client: &crate::kube::KubeClient,
     ) -> Result<Self, String> {
         require("ZORVIA_FEATURE_GOLDEN_PIPELINE")?;
@@ -216,6 +221,11 @@ impl GoldenPipelineRun {
         };
         let spec_source = source.clone();
         let gates = golden_gates::GateConfig::from_env()?;
+        // Validate the supplied checks before anything is applied to the cluster.
+        let checks = checks.validated()?;
+        if source_type == crate::golden_images::ImageSourceType::Registry && !checks.is_empty() {
+            return Err("checksum_sha256 and signature_url only apply to HTTP(S) sources".into());
+        }
         let spec = crate::golden_images::GoldenImageSpec {
             name: image_name.clone(),
             version: version.clone(),
@@ -228,10 +238,27 @@ impl GoldenPipelineRun {
                 size
             },
             storage_class: None,
-            checksum: None,
+            checksum: checks
+                .checksum_sha256
+                .as_ref()
+                .map(|c| format!("sha256:{c}")),
         };
-        let bundle = crate::golden_images::GoldenImageBundle::build(spec)
+        let mut bundle = crate::golden_images::GoldenImageBundle::build(spec)
             .map_err(|e| format!("bundle build failed: {e}"))?;
+        // Label this run's DataVolume so a blocked run removes only what it created.
+        let run_id = crate::utils::generate_id("run", "golden");
+        bundle.data_volume["metadata"]["labels"][golden_gates::RUN_LABEL] =
+            serde_json::Value::String(run_id.clone());
+        // Registry credentials are referenced by Secret name only (operator config).
+        if let Some(secret) = &gates.cdi_secret {
+            let key = if source_type == crate::golden_images::ImageSourceType::Http {
+                "http"
+            } else {
+                "registry"
+            };
+            bundle.data_volume["spec"]["source"][key]["secretRef"] =
+                serde_json::Value::String(secret.clone());
+        }
         client
             .apply_data_volume(&namespace, &bundle.data_volume)
             .await
@@ -239,9 +266,15 @@ impl GoldenPipelineRun {
         let runner = golden_gates::KubeJobRunner {
             client: client.client(),
         };
-        let report =
-            golden_gates::run_gates(&gates, &runner, &namespace, "zorvia-golden", &spec_source)
-                .await;
+        let report = golden_gates::run_gates(
+            &gates,
+            &runner,
+            &namespace,
+            "zorvia-golden",
+            &spec_source,
+            &checks,
+        )
+        .await;
         Self::finish(
             image_name,
             version,
@@ -251,6 +284,7 @@ impl GoldenPipelineRun {
             report,
             client,
             &bundle.data_source,
+            &run_id,
         )
         .await
     }
@@ -265,6 +299,7 @@ impl GoldenPipelineRun {
         report: golden_gates::GateReport,
         client: &crate::kube::KubeClient,
         data_source: &serde_json::Value,
+        run_id: &str,
     ) -> Result<Self, String> {
         let mut stages = vec!["build".to_string()];
         for s in &report.steps {
@@ -273,18 +308,32 @@ impl GoldenPipelineRun {
             }
         }
         if let Some(reason) = report.blocked_reason.clone() {
+            // Fail closed, then clean up: remove only the DataVolume this run
+            // created (matched by its run label) unless keep-on-block is set.
+            // The stable DataSource was never touched, so it is not deleted.
+            let (removed, cleanup_note) = if gates.keep_on_block {
+                (
+                    false,
+                    "ZORVIA_GOLDEN_KEEP_ON_BLOCK is set: imported DataVolume kept.".to_string(),
+                )
+            } else {
+                golden_gates::cleanup_blocked_import(client, &namespace, &versioned_name, run_id)
+                    .await
+            };
             return Ok(Self {
                 image_name,
                 version,
                 namespace,
                 versioned_name,
-                data_volume_applied: true,
+                data_volume_applied: !removed,
                 data_source_applied: false,
+                data_volume_removed: removed,
                 stages_completed: stages,
                 gate_steps: report.steps,
                 blocked_reason: Some(reason),
                 notes: vec![
-                    "DataVolume import was applied; the stable DataSource was NOT promoted. Fix the finding or signature and re-run.".into(),
+                    "The stable DataSource was NOT promoted. Fix the finding, checksum or signature and re-run.".into(),
+                    cleanup_note,
                 ],
             });
         }
@@ -307,6 +356,7 @@ impl GoldenPipelineRun {
             versioned_name,
             data_volume_applied: true,
             data_source_applied: true,
+            data_volume_removed: false,
             stages_completed: stages,
             gate_steps: report.steps,
             blocked_reason: None,
@@ -362,6 +412,7 @@ pub struct CrossClusterDrRun {
     pub notes: Vec<String>,
 }
 
+#[cfg(feature = "web")]
 impl CrossClusterDrRun {
     /// Phase 1: enqueue off-cluster backups for each VM.
     /// Phase 2 (when `backup_operation_ids` is set): enqueue restores into

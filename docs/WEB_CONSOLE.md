@@ -73,6 +73,8 @@ Useful env on the API pod:
 | `/app/pods` | Every pod in the cluster: Terminal.app-style live logs, shell, events, YAML, restart/delete (admin-only — see [Pods](#pods-logs--exec)) |
 | `/app/pods/:ns/:name/logs` | Full-window logs for one pod (opened in a new tab from the Pods panel) |
 | `/app/disk-images` | Image catalog rendered as a black Terminal.app listing (see [Disk Images](#disk-images)) |
+| `/app/dr-pairs` | Experimental DR replication pairs: RPO/RTO status, failover dry run and confirmed failover (admin-only; see [DR_REPLICATION.md](DR_REPLICATION.md)) |
+| `/app/volume-encryption` | Experimental volume encryption: provider status, plan, apply, rotate (admin-only; see [VOLUME_ENCRYPTION.md](VOLUME_ENCRYPTION.md)) |
 | `/app/events` | Live VM event stream in a black Terminal.app window |
 
 Top nav: **Dashboard · Virtual Machines · Pods** (admin) as direct links, then the

@@ -1420,6 +1420,14 @@ pub mod web {
                 get(dr_failback_plan_handler),
             )
             .route(
+                "/v1/enterprise/dr/pairs/{name}/failback",
+                post(dr_failback_handler),
+            )
+            .route(
+                "/v1/enterprise/dr/pairs/{name}/failback/cancel",
+                post(dr_failback_cancel_handler),
+            )
+            .route(
                 "/v1/enterprise/dr/pairs/{name}/resume",
                 post(dr_resume_handler),
             )
@@ -3146,6 +3154,12 @@ pub mod web {
         namespace: String,
         #[serde(default = "default_golden_size")]
         size: String,
+        /// HTTP(S) sources only: expected SHA-256 of the disk image.
+        #[serde(default)]
+        checksum_sha256: Option<String>,
+        /// HTTP(S) sources only: URL of a detached cosign signature for the disk image.
+        #[serde(default)]
+        signature_url: Option<String>,
     }
     fn default_golden_size() -> String {
         "20Gi".into()
@@ -3164,6 +3178,10 @@ pub mod web {
             body.namespace,
             body.source,
             body.size,
+            crate::enterprise::golden_gates::SourceChecks {
+                checksum_sha256: body.checksum_sha256,
+                signature_url: body.signature_url,
+            },
             &client,
         )
         .await

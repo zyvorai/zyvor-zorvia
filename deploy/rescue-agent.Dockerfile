@@ -3,6 +3,11 @@
 # docs/RESCUE.md) -- this needs the same package set GuestKit's own worker
 # image ships (qemu-utils, util-linux, kmod), and the container must run
 # with SYS_ADMIN + SYS_RESOURCE (set in the Job's pod spec, not here).
+# install-packages also bind-mounts /proc, /dev and /sys into the guest chroot
+# (needs the same capabilities) and needs outbound network access from the pod.
+#
+# The binary builds without the server's default `web` feature; the
+# lib's web-only modules are cfg-gated so no server dependencies are pulled in.
 FROM rust:1.99-slim-bookworm@sha256:24707e70a4f1e23d9a7b25202ec43126d28a52294b96aad5c670df1fd1f1d400 AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
