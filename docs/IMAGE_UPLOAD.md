@@ -44,8 +44,12 @@ All under `/api`, `POST` needs `vm.create` (same as other `/images/*` writes), a
 
 These routes are registered outside the 30 s request timeout that wraps the rest of `/api`. A reverse proxy in front of Zorvia must also allow large bodies and long requests.
 
+## Web console
+
+`/app/disk-images` has an upload panel (user/admin role): choose a file, name, PVC size and optional format, namespace, StorageClass and SHA-256; **Validate only** sends just the first ~33 KiB to `/images/validate`; **Upload** streams the file with a progress bar (bytes sent to Zorvia; the request finishes once CDI accepts the image). Size-cap, checksum and proxy errors get plain-language messages. When the API answers 403 `EXPERIMENTAL_DISABLED` the panel shows an experimental, disabled notice instead.
+
 ## Not done
 
 - No server-side conversion or conversion between formats (CDI converts to raw during upload).
-- No compressed (`.gz`/`.xz`) input, no resumable uploads, no web console page.
+- No compressed (`.gz`/`.xz`) input, no resumable uploads.
 - No live-cluster verification; the CDI version and storage classes it works with are untested.
