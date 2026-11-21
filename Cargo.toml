@@ -96,6 +96,7 @@ postgres-native-tls = { version = "0.5", optional = true }
 # instead, so this builds the same way on every target release.yml covers.
 openssl = { version = "0.10", features = ["vendored"], optional = true }
 http = "1"
+rpassword = { version = "7", optional = true }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"], optional = true }
 secrecy = "0.10"
 pty-process = { version = "0.5.3", features = ["async"], optional = true }
@@ -114,7 +115,7 @@ web = [
   "dep:jsonwebtoken", "dep:bcrypt", "dep:rusqlite", "dep:uuid",
   "dep:totp-rs", "dep:base64", "dep:sha2", "dep:subtle", "dep:urlencoding",
   "dep:futures-util", "dep:tokio-tungstenite", "dep:native-tls", "dep:openssl",
-  "dep:reqwest", "dep:pty-process", "dep:chrono-tz", "dep:aes-gcm",
+  "dep:reqwest", "dep:rpassword", "dep:pty-process", "dep:chrono-tz", "dep:aes-gcm",
   "dep:tokio-postgres", "dep:postgres-native-tls",
 ]
 # PAM host auth (Linux): enable with --features pam and system libpam-dev

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
 
 use clap::builder::styling::{AnsiColor, Styles};
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 
 /// Colored `--help`/`--version`/error styling, matching the palette
 /// `tui::colors::cli` already uses for the rest of the CLI's output
@@ -141,6 +141,30 @@ pub enum Commands {
     /// API server, keys, webhooks, and TUI
     #[command(subcommand)]
     Api(ApiCommands),
+
+    /// Disaster-recovery pairs, via the REST API (Experimental)
+    Dr {
+        #[command(flatten)]
+        remote: RemoteArgs,
+        #[command(subcommand)]
+        cmd: DrCommands,
+    },
+
+    /// Volume encryption, via the REST API (Experimental)
+    Volume {
+        #[command(flatten)]
+        remote: RemoteArgs,
+        #[command(subcommand)]
+        cmd: VolumeCommands,
+    },
+
+    /// Offline guest-disk rescue operations, via the REST API (Experimental)
+    Rescue {
+        #[command(flatten)]
+        remote: RemoteArgs,
+        #[command(subcommand)]
+        cmd: RescueCommands,
+    },
 
     /// MCP server for AI assistants: a stdio bridge to a Zorvia API (see docs/MCP.md)
     Mcp {
@@ -3223,4 +3247,199 @@ mod tests {
             _ => panic!("Expected Migrate command"),
         }
     }
+}
+
+/// Connection options for the commands that call a running Zorvia API (`dr`, `volume`, `rescue`).
+#[derive(Args, Debug, Clone)]
+pub struct RemoteArgs {
+    /// Base URL of the Zorvia API, e.g. https://zorvia.example.com:30152
+    #[arg(long, env = "ZORVIA_URL", global = true)]
+    pub url: Option<String>,
+
+    /// API token (prefer the environment variable)
+    #[arg(long, env = "ZORVIA_TOKEN", hide_env_values = true, global = true)]
+    pub token: Option<String>,
+
+    /// Accept an untrusted TLS certificate (lab clusters with a self-signed cert)
+    #[arg(long, global = true)]
+    pub insecure: bool,
+
+    /// PEM file with the CA certificate that signed the server's certificate
+    #[arg(long, global = true)]
+    pub ca_cert: Option<String>,
+
+    /// Output format (table, yaml, json)
+    #[arg(short, long, default_value = "table", global = true)]
+    pub output: String,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum DrCommands {
+    /// Disaster-recovery pairs (Experimental: needs ZORVIA_EXPERIMENTAL=1 on the server)
+    Pair {
+        #[command(subcommand)]
+        cmd: DrPairCommands,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum DrPairCommands {
+    /// List pairs with their RPO/RTO status
+    List,
+
+    /// Create a pair for a VM
+    Create {
+        /// Pair name
+        name: String,
+        /// Source VM
+        #[arg(long)]
+        vm: String,
+        /// Source namespace (default: the server's)
+        #[arg(long)]
+        namespace: Option<String>,
+        /// Namespace the VM is restored into on failover
+        #[arg(long)]
+        dr_namespace: Option<String>,
+        /// Recovery point objective in seconds (60..604800)
+        #[arg(long)]
+        rpo_seconds: u64,
+        /// Recovery time objective in seconds
+        #[arg(long)]
+        rto_seconds: Option<u64>,
+    },
+
+    /// Show RPO/RTO health, lag and last success
+    Status {
+        /// Pair name
+        name: String,
+    },
+
+    /// Fail over to the DR copy. Dry run (plan only) unless --execute is given
+    Failover {
+        /// Pair name
+        name: String,
+        /// Really fail over (otherwise only the plan is shown)
+        #[arg(long)]
+        execute: bool,
+        /// With --execute: the exact phrase "failover <pair name>"
+        #[arg(long)]
+        confirm: Option<String>,
+        /// Restore the VM but do not start it
+        #[arg(long)]
+        no_start: bool,
+    },
+
+    /// Show the manual failback steps and blockers
+    FailbackPlan {
+        /// Pair name
+        name: String,
+    },
+
+    /// Resume replication after a manual failback
+    Resume {
+        /// Pair name
+        name: String,
+        /// The exact phrase "resume <pair name>"
+        #[arg(long)]
+        confirm: String,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum VolumeCommands {
+    /// Envelope encryption of volumes (Experimental: needs ZORVIA_EXPERIMENTAL=1 on the server)
+    Encryption {
+        #[command(subcommand)]
+        cmd: VolumeEncryptionCommands,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum VolumeEncryptionCommands {
+    /// Show the key provider and its readiness
+    Status,
+
+    /// Preflight an encrypted volume (changes nothing)
+    Plan {
+        /// VM name
+        vm: String,
+        /// Disk name (the DataVolume is <vm>-<volume>)
+        volume: String,
+        /// Requested size, e.g. 20Gi
+        #[arg(long)]
+        size: String,
+        /// StorageClass that encrypts
+        #[arg(long)]
+        storage_class: String,
+        /// Accept a StorageClass whose provisioner Zorvia cannot verify as encrypting
+        #[arg(long)]
+        acknowledge_unverified_encryption: bool,
+    },
+
+    /// Wrap a key, create its Secret and the DataVolume (needs --yes)
+    Apply {
+        /// VM name
+        vm: String,
+        /// Disk name
+        volume: String,
+        /// Requested size, e.g. 20Gi
+        #[arg(long)]
+        size: String,
+        /// StorageClass that encrypts
+        #[arg(long)]
+        storage_class: String,
+        /// Accept a StorageClass whose provisioner Zorvia cannot verify as encrypting
+        #[arg(long)]
+        acknowledge_unverified_encryption: bool,
+        /// Confirm the change
+        #[arg(long)]
+        yes: bool,
+    },
+
+    /// Re-wrap a volume's key under the current provider key (needs --yes)
+    Rotate {
+        /// VM name
+        vm: String,
+        /// Disk name
+        volume: String,
+        /// Confirm the change
+        #[arg(long)]
+        yes: bool,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum RescueCommands {
+    /// Reset a guest user's password on a stopped VM. The password is read from a
+    /// no-echo prompt, or one line of stdin when piped; there is no password option
+    ResetPassword {
+        /// VM name (must be stopped)
+        vm: String,
+        /// Guest user
+        #[arg(long, default_value = "root")]
+        user: String,
+    },
+
+    /// Install packages into a stopped VM's disk
+    InstallPackages {
+        /// VM name (must be stopped)
+        vm: String,
+        /// Package names
+        #[arg(required = true)]
+        packages: Vec<String>,
+    },
+
+    /// Collect a bounded, redacted summary of a stopped VM's disk
+    Inspect {
+        /// VM name (must be stopped)
+        vm: String,
+    },
+
+    /// Show the state and result of a rescue job
+    Status {
+        /// VM name
+        vm: String,
+        /// Job name returned when the operation was queued
+        job: String,
+    },
 }

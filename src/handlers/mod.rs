@@ -18,6 +18,7 @@ pub mod mcp;
 pub mod multitenancy;
 pub mod observability;
 pub mod profiles;
+pub mod remote;
 pub mod security;
 pub mod vcenter;
 pub mod vm;

@@ -45,6 +45,7 @@ Levels used by Zorvia (also exposed at `GET /api/v1/features` when the API is ru
 | `golden-image-pipeline` | Golden-image pipeline | Experimental | `/run` applies the CDI DataVolume, runs operator-configured scan (trivy-style JSON + severity threshold) and cosign sign/verify Jobs, and only then promotes the DataSource; a failing gate blocks promotion (409). Unconfigured steps stay `deferred`. Unit-tested with mocked Jobs and fixtures; not run against a live cluster, trivy or cosign. Registry sources only. |
 | `gpu-sriov-numa` | GPU/SR-IOV/NUMA | Experimental | Create/preflight/permit + placement plan with **live** inventory preflight; lab fake GPU (`deploy/lab-fake-gpu-device-plugin.yaml` + `scripts/lab-fake-gpu-device.sh`); not proven on real GPU/SR-IOV hardware — [DEVICES.md](DEVICES.md) |
 | `fleet-multicluster` | Fleet multi-cluster | Experimental | Live read-only inventory + admin console; lab dual-enrollment script (`scripts/lab-fleet-dual-enroll.sh`); true multi-API validation pending — [FLEET.md](FLEET.md) |
+| `cli-remote` | CLI for DR pairs, volume encryption, rescue ops (`zorvia dr / volume / rescue`) | Experimental | Thin client over the Experimental APIs; server enforces gate/RBAC; tested against a mock server only, no live cluster — [CLI_REMOTE.md](CLI_REMOTE.md) |
 
 Set `ZORVIA_EXPERIMENTAL=1` only in non-production environments to exercise model-only / experimental surfaces.
 See [PHASE5_ENTERPRISE.md](PHASE5_ENTERPRISE.md) for env flags and endpoints.
