@@ -8,10 +8,14 @@
 //! deferred (password reset, package install, disk inspect).
 
 use super::*;
-use crate::kube::rescue::{build_rescue_job, resolve_vm_disk_pvc, RescueOperation};
+use crate::kube::rescue::logic;
+use crate::kube::rescue::{
+    build_rescue_job, build_rescue_secret, rescue_secret_name, resolve_vm_disk_pvc,
+    secret_owner_patch, RescueOperation, RescuePassword,
+};
 use k8s_openapi::api::batch::v1::Job;
-use k8s_openapi::api::core::v1::Pod;
-use kube::api::{Api, DeleteParams, ListParams, LogParams, PostParams};
+use k8s_openapi::api::core::v1::{Pod, Secret};
+use kube::api::{Api, DeleteParams, ListParams, LogParams, Patch, PatchParams, PostParams};
 
 /// Kubernetes object names (DNS-1123 subdomain) -- same validator as
 /// pod-ops (`pod_handlers.rs`), reused here rather than duplicated because
@@ -69,12 +73,17 @@ fn kube_err(e: &kube::Error) -> axum::response::Response {
     (st, j).into_response()
 }
 
-#[derive(Debug, Deserialize)]
+/// Request body. No `Debug` derive on purpose: `ResetPassword` carries a
+/// password and must never be formattable into a log line.
+#[derive(Deserialize)]
 #[serde(tag = "operation", rename_all = "kebab-case")]
 pub enum RescueRequestBody {
     SetHostname { hostname: String },
     InjectSshKey { user: String, key: String },
     EnableSsh {},
+    ResetPassword { user: String, password: String },
+    InstallPackages { packages: Vec<String> },
+    Inspect {},
 }
 
 impl RescueRequestBody {
@@ -108,6 +117,18 @@ impl RescueRequestBody {
                 })
             }
             Self::EnableSsh {} => Ok(RescueOperation::EnableSsh),
+            Self::ResetPassword { user, password } => {
+                let user = logic::validate_username(&user)?;
+                logic::validate_password(&password)?;
+                Ok(RescueOperation::ResetPassword {
+                    user: user.to_string(),
+                    password: RescuePassword::new(password),
+                })
+            }
+            Self::InstallPackages { packages } => Ok(RescueOperation::InstallPackages {
+                packages: logic::validate_packages(&packages)?,
+            }),
+            Self::Inspect {} => Ok(RescueOperation::Inspect),
         }
     }
 }
@@ -133,6 +154,16 @@ pub async fn rescue_vm_handler(
             return (st, j).into_response();
         }
     };
+
+    // reset-password / install-packages / inspect are Experimental.
+    if operation.is_experimental() && !crate::features::allow_non_ga("rescue-ops-extended") {
+        let (st, j) = err_json(
+            403,
+            "EXPERIMENTAL_DISABLED",
+            "rescue-ops-extended is Experimental; set ZORVIA_EXPERIMENTAL=1 to enable",
+        );
+        return (st, j).into_response();
+    }
 
     let s = state.read().await;
     let namespace = s.namespace.clone();
@@ -179,17 +210,61 @@ pub async fn rescue_vm_handler(
     let job_name = crate::utils::generate_id("zorvia-rescue", &name);
     let job = build_rescue_job(&job_name, &namespace, &pvc_name, &operation);
 
-    let jobs: Api<Job> = Api::namespaced(client, &namespace);
-    let result = jobs.create(&PostParams::default(), &job).await;
+    let jobs: Api<Job> = Api::namespaced(client.clone(), &namespace);
+    let secrets: Api<Secret> = Api::namespaced(client, &namespace);
 
-    audit_rescue(
-        &audit,
-        &caller(&auth),
-        &name,
-        result.is_ok(),
-        serde_json::json!({ "operation": operation.name(), "job_name": job_name, "pvc": pvc_name }),
-    )
-    .await;
+    // reset-password: the password goes into a per-Job Secret created first;
+    // it is never part of the Job spec.
+    let mut secret_err = None;
+    if let Some(pw) = operation.secret_password() {
+        let secret = build_rescue_secret(&job_name, &namespace, pw);
+        if let Err(e) = secrets.create(&PostParams::default(), &secret).await {
+            secret_err = Some(e);
+        }
+    }
+    let result = match secret_err {
+        Some(e) => Err(e),
+        None => jobs.create(&PostParams::default(), &job).await,
+    };
+    if operation.secret_password().is_some() {
+        match &result {
+            // Job exists: make it the Secret's owner so GC removes the
+            // Secret with the Job; on failure to patch, delete it outright
+            // (the Job would fail to start rather than leave a password).
+            Ok(created) => {
+                let uid = created.metadata.uid.clone().unwrap_or_default();
+                let sname = rescue_secret_name(&job_name);
+                let patch = secret_owner_patch(&job_name, &uid);
+                if uid.is_empty()
+                    || secrets
+                        .patch(&sname, &PatchParams::default(), &Patch::Merge(&patch))
+                        .await
+                        .is_err()
+                {
+                    let _ = secrets.delete(&sname, &DeleteParams::default()).await;
+                    let _ = jobs.delete(&job_name, &DeleteParams::default()).await;
+                }
+            }
+            Err(_) => {
+                let _ = secrets
+                    .delete(&rescue_secret_name(&job_name), &DeleteParams::default())
+                    .await;
+            }
+        }
+    }
+
+    // Audit details deliberately omit any password; the user and package
+    // names are non-secret and useful to reviewers.
+    let mut details =
+        serde_json::json!({ "operation": operation.name(), "job_name": job_name, "pvc": pvc_name });
+    match &operation {
+        RescueOperation::ResetPassword { user, .. } => details["user"] = user.clone().into(),
+        RescueOperation::InstallPackages { packages } => {
+            details["packages"] = packages.clone().into()
+        }
+        _ => {}
+    }
+    audit_rescue(&audit, &caller(&auth), &name, result.is_ok(), details).await;
 
     match result {
         Ok(_) => (
@@ -199,6 +274,17 @@ pub async fn rescue_vm_handler(
             .into_response(),
         Err(e) => kube_err(&e),
     }
+}
+
+/// Takes the last log line as the agent's JSON result, refusing anything
+/// over [`logic::MAX_RESULT_BYTES`] so a misbehaving pod cannot make the API
+/// relay unbounded output.
+fn parse_result_line(logs: &str) -> Option<serde_json::Value> {
+    let line = logs.lines().last()?;
+    if line.len() > logic::MAX_RESULT_BYTES {
+        return None;
+    }
+    serde_json::from_str(line).ok()
 }
 
 #[derive(Debug, Serialize)]
@@ -225,6 +311,7 @@ pub async fn get_rescue_job_handler(
     let client = s.kube_client.client();
     drop(s);
 
+    let client_for_secret = client.clone();
     let jobs: Api<Job> = Api::namespaced(client.clone(), &namespace);
     let job = match jobs.get(&job_name).await {
         Ok(j) => j,
@@ -252,14 +339,20 @@ pub async fn get_rescue_job_handler(
             if let Some(pod) = list.items.into_iter().next() {
                 if let Some(pod_name) = pod.metadata.name {
                     if let Ok(logs) = pods.logs(&pod_name, &LogParams::default()).await {
-                        result = logs
-                            .lines()
-                            .last()
-                            .and_then(|line| serde_json::from_str::<serde_json::Value>(line).ok());
+                        result = parse_result_line(&logs);
                     }
                 }
             }
         }
+    }
+
+    if done {
+        // Best-effort: once the Job is terminal the password Secret has
+        // served its purpose (404 for jobs that never had one is fine).
+        let secrets: Api<Secret> = Api::namespaced(client_for_secret, &namespace);
+        let _ = secrets
+            .delete(&rescue_secret_name(&job_name), &DeleteParams::default())
+            .await;
     }
 
     Json(RescueJobStatus {
@@ -285,6 +378,11 @@ pub async fn delete_rescue_job_handler(
     let client = s.kube_client.client();
     drop(s);
 
+    // Drop any reset-password Secret first (404 for other operations).
+    let secrets: Api<Secret> = Api::namespaced(client.clone(), &namespace);
+    let _ = secrets
+        .delete(&rescue_secret_name(&job_name), &DeleteParams::default())
+        .await;
     let jobs: Api<Job> = Api::namespaced(client, &namespace);
     let dp = DeleteParams {
         propagation_policy: Some(kube::api::PropagationPolicy::Background),
@@ -293,5 +391,84 @@ pub async fn delete_rescue_job_handler(
     match jobs.delete(&job_name, &dp).await {
         Ok(_) => Json(serde_json::json!({ "deleted": true })).into_response(),
         Err(e) => kube_err(&e),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn body(json: &str) -> RescueRequestBody {
+        serde_json::from_str(json).unwrap()
+    }
+
+    #[test]
+    fn existing_operations_still_validate() {
+        assert!(body(r#"{"operation":"enable-ssh"}"#).validate().is_ok());
+        assert!(body(r#"{"operation":"set-hostname","hostname":"h"}"#)
+            .validate()
+            .is_ok());
+    }
+
+    #[test]
+    fn reset_password_validation() {
+        let ok = body(r#"{"operation":"reset-password","user":"root","password":"pw 1"}"#)
+            .validate()
+            .unwrap();
+        assert_eq!(ok.name(), "reset-password");
+        assert!(!format!("{ok:?}").contains("pw 1"));
+        assert!(
+            body(r#"{"operation":"reset-password","user":"a:b","password":"x"}"#)
+                .validate()
+                .is_err()
+        );
+        assert!(
+            body(r#"{"operation":"reset-password","user":"root","password":""}"#)
+                .validate()
+                .is_err()
+        );
+        assert!(
+            body(r#"{"operation":"reset-password","user":"root","password":"a\nb"}"#)
+                .validate()
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn install_packages_validation() {
+        let op = body(r#"{"operation":"install-packages","packages":["curl","git","curl"]}"#)
+            .validate()
+            .unwrap();
+        match op {
+            RescueOperation::InstallPackages { packages } => assert_eq!(packages, ["curl", "git"]),
+            _ => panic!("wrong op"),
+        }
+        for bad in [
+            r#"{"operation":"install-packages","packages":[]}"#,
+            r#"{"operation":"install-packages","packages":["-y"]}"#,
+            r#"{"operation":"install-packages","packages":["a;rm -rf /"]}"#,
+            r#"{"operation":"install-packages","packages":["$(id)"]}"#,
+        ] {
+            assert!(body(bad).validate().is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn inspect_parses_and_is_experimental() {
+        assert!(body(r#"{"operation":"inspect"}"#)
+            .validate()
+            .unwrap()
+            .is_experimental());
+    }
+
+    #[test]
+    fn result_line_is_bounded() {
+        assert!(parse_result_line("noise\n{\"success\":true}").is_some());
+        let huge = format!(
+            "{{\"message\":\"{}\"}}",
+            "x".repeat(logic::MAX_RESULT_BYTES)
+        );
+        assert!(parse_result_line(&huge).is_none());
+        assert!(parse_result_line("not json").is_none());
     }
 }

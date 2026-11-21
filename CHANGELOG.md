@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Rescue mode: Experimental `reset-password`, `install-packages` and `inspect` operations (`ZORVIA_EXPERIMENTAL=1`, `cluster.admin`, audited). Passwords travel in a per-Job Secret, never the Job spec; package names are strictly validated; inspect returns a bounded, redacted summary. Needs `secrets` create/delete/patch RBAC. Unit-tested only, not run against a live cluster. See docs/RESCUE.md.
 - Scheduled per-VM snapshots with per-schedule retention: `/snapshot-schedules` API, a leader-gated runner, and idempotent per-slot snapshot names. See docs/SNAPSHOTS.md.
 
 ## [0.7.4] - 2026-10-17

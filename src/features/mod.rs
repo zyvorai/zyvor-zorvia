@@ -83,7 +83,13 @@ pub const FEATURES: &[Feature] = &[
         id: "rescue-mode",
         name: "Rescue mode: hostname/SSH-key/enable-SSH via a Job-mounted disk",
         maturity: Maturity::Beta,
-        notes: "cluster.admin only; needs batch/jobs RBAC; 3 of 5 UI operations wired (reset-password, install-packages, inspect deferred); see docs/RESCUE.md",
+        notes: "cluster.admin only; needs batch/jobs RBAC; 3 original operations; see rescue-ops-extended for the rest; see docs/RESCUE.md",
+    },
+    Feature {
+        id: "rescue-ops-extended",
+        name: "Rescue mode: reset-password, install-packages, inspect",
+        maturity: Maturity::Experimental,
+        notes: "Requires ZORVIA_EXPERIMENTAL=1; cluster.admin only; password via per-Job Secret (needs secrets create/delete/patch RBAC); Job-spec/validation unit-tested, never run against a live cluster or real guest; see docs/RESCUE.md",
     },
     Feature {
         id: "schedulers",

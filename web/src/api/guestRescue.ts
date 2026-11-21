@@ -6,18 +6,16 @@ import { formatHttpErrorBody } from '../utils/apiError'
 
 const API_BASE = '/api'
 
-/** Only these three are wired to a real backend (see docs/RESCUE.md) --
-    each runs GuestKit directly against a `Guestfs` mutator or, for
-    enable-ssh, the same systemd-enable symlink trick GuestKit's own CLI
-    uses. `reset-password` and `install-packages` are real UI fields with
-    no backend yet: Linux has no direct password mutator in GuestKit
-    (Windows needs a libhivex FFI feature), and package install needs guest
-    network egress from inside a privileged Job -- both need their own
-    follow-up, not just wiring. */
+/** The first three are Beta; reset-password, install-packages and inspect are
+    Experimental (server needs ZORVIA_EXPERIMENTAL=1, else 403
+    EXPERIMENTAL_DISABLED). See docs/RESCUE.md. */
 export type SupportedRescueRequest =
   | { operation: 'inject-ssh-key'; user: string; key: string }
   | { operation: 'enable-ssh' }
   | { operation: 'set-hostname'; hostname: string }
+  | { operation: 'reset-password'; user: string; password: string }
+  | { operation: 'install-packages'; packages: string[] }
+  | { operation: 'inspect' }
 
 export interface RescueJobEnvelope {
   job_name: string
@@ -26,7 +24,13 @@ export interface RescueJobEnvelope {
 
 export interface RescueJobStatus {
   state: 'pending' | 'running' | 'succeeded' | 'failed'
-  result?: { success: boolean; operation: string; message: string } | null
+  result?: {
+    success: boolean
+    operation: string
+    message: string
+    /** inspect only: bounded, redacted guest summary */
+    details?: Record<string, unknown>
+  } | null
 }
 
 /** Offline guest configuration via GuestKit -- mounts the VM's disk

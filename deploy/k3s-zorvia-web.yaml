@@ -55,6 +55,11 @@ rules:
   - apiGroups: ["batch"]
     resources: ["jobs"]
     verbs: ["get", "list", "watch", "create", "delete"]
+  # Rescue mode reset-password (Experimental): a per-Job Secret carrying the
+  # password, owned by the Job and deleted when it finishes.
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "delete", "patch"]
   # Quotas feature: real ResourceQuota objects.
   - apiGroups: [""]
     resources: ["resourcequotas"]
