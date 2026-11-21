@@ -11,6 +11,7 @@ mod jwt;
 mod lab_guards;
 mod oidc;
 pub mod permissions;
+pub mod saml;
 pub mod tenancy;
 mod user_db;
 

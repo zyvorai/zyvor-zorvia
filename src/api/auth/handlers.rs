@@ -91,6 +91,8 @@ pub struct AuthState {
     /// OIDC group -> role mapping; `None` keeps the legacy behaviour (every OIDC user is a User).
     pub oidc_groups: Option<super::groups::GroupPolicy>,
     pub oidc_pending: Mutex<HashMap<String, PendingOidc>>,
+    /// SAML 2.0 (Experimental, opt-in via ZORVIA_SAML_ENABLED); the ACS fails closed, see docs/SAML.md.
+    pub saml: Option<super::saml::SamlState>,
 }
 
 impl AuthState {
@@ -190,6 +192,7 @@ impl AuthState {
             // A broken mapping fails startup: guessing would grant or deny access wrongly.
             oidc_groups: super::groups::GroupPolicy::from_env()?,
             oidc_pending: Mutex::new(HashMap::new()),
+            saml: super::saml::SamlState::from_env().map_err(|e| anyhow::anyhow!("{e}"))?,
         })
     }
 

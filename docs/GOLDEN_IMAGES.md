@@ -196,7 +196,7 @@ kubectl apply -f fixtures/golden-images/out/
 
 ### Phase 5 pipeline plan (experimental)
 
-For a dry-run build → scan → sign → promote plan (does not run scanners or cosign):
+For a build → scan → sign → promote plan (the plan itself runs nothing):
 
 ```bash
 # Requires ZORVIA_EXPERIMENTAL=1 and ZORVIA_FEATURE_GOLDEN_PIPELINE=1 on the API
@@ -206,3 +206,39 @@ curl -sk -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application
 ```
 
 See [PHASE5_ENTERPRISE.md](PHASE5_ENTERPRISE.md).
+
+### Scan and sign gates (experimental, operator-configured)
+
+`/run` applies the versioned DataVolume (build), then runs the **scan** and
+**sign** gates as Kubernetes Jobs in the pipeline namespace and waits for them,
+and only then applies the stable DataSource (promote). Nothing runs unless the
+operator sets these variables on the API pod; the plan shows `scan` / `sign`
+instead of `scan:deferred` / `sign:deferred` only when configured. Settings come
+from the environment, never from request bodies.
+
+| Variable | Meaning |
+|----------|---------|
+| `ZORVIA_GOLDEN_SCAN_IMAGE` | Scanner image (for example a trivy image). Enables scan. |
+| `ZORVIA_GOLDEN_SCAN_COMMAND` | JSON argv, `{image}` is substituted. Default `["trivy","image","--format","json","--quiet","{image}"]`. Output must be trivy-style JSON on stdout. |
+| `ZORVIA_GOLDEN_SCAN_THRESHOLD` | `low`, `medium`, `high` (default), `critical`. Findings at or above it block promotion. |
+| `ZORVIA_GOLDEN_SCAN_IGNORE_UNFIXED` | `1` ignores vulnerabilities with no fixed version. |
+| `ZORVIA_GOLDEN_SIGN_IMAGE` | cosign image (entrypoint must be `cosign`). Enables sign. |
+| `ZORVIA_GOLDEN_SIGN_KEY_SECRET` | Key mode: Secret in the pipeline namespace with `cosign.pub`, and `cosign.key` plus optional `cosign.password` when signing. Verify Jobs mount only `cosign.pub`. |
+| `ZORVIA_GOLDEN_SIGN_KEYLESS_IDENTITY`, `_ISSUER` | Keyless mode: verify against this certificate identity and OIDC issuer. |
+| `ZORVIA_GOLDEN_SIGN_SIGN` | `1` signs the image before verifying (key mode only). |
+
+Images and commands are validated (no whitespace or leading dash in image
+references, bounded argv, only the `{image}` placeholder). Job pods run
+non-root, read-only root filesystem, all capabilities dropped, no service
+account token. Key material is never logged or returned.
+
+Fail closed: a failed Job, unparseable scanner output, findings at or above the
+threshold, or a failed `cosign verify` blocks promotion. `/run` then returns
+HTTP 409 `promotion_blocked` with the reason and per-step counts (no scanner
+logs); the DataVolume import stays applied, the DataSource is not changed.
+
+Limits: only registry sources (`docker://...`) can be scanned and signed; with
+a gate configured an HTTP(S) disk source blocks. The scan targets the source
+image reference, not the imported PVC. Private registry credentials for the
+scanned image are not wired. Covered by unit tests with mocked Jobs and trivy
+JSON fixtures; not yet exercised against a live cluster, trivy or cosign.

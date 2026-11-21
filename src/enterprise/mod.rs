@@ -6,6 +6,8 @@
 //! These produce actionable plans / dry-runs. They do not call AWS, vSphere, or
 //! remote clusters. Live fleet inventory is implemented in `multi_cluster::fleet`.
 
+pub mod golden_gates;
+
 use serde::{Deserialize, Serialize};
 
 fn require(flag: &str) -> Result<(), String> {
@@ -125,24 +127,42 @@ impl GoldenPipelinePlan {
         namespace: impl Into<String>,
     ) -> Result<Self, String> {
         require("ZORVIA_FEATURE_GOLDEN_PIPELINE")?;
-        let image_name = image_name.into();
-        let version = version.into();
+        let gates = golden_gates::GateConfig::from_env()?;
+        Self::plan_with_gates(image_name.into(), version.into(), namespace.into(), &gates)
+    }
+
+    /// Plan for an explicit gate configuration (steps are `deferred` unless configured).
+    pub fn plan_with_gates(
+        image_name: String,
+        version: String,
+        namespace: String,
+        gates: &golden_gates::GateConfig,
+    ) -> Result<Self, String> {
+        let scan = if gates.scan.is_some() {
+            "scan"
+        } else {
+            "scan:deferred"
+        };
+        let sign = if gates.sign.is_some() {
+            "sign"
+        } else {
+            "sign:deferred"
+        };
+        let mut notes = vec![
+            format!(
+                "POST /api/v1/enterprise/golden-pipeline/run applies the CDI DataVolume for {image_name}:{version}, runs configured gates, then promotes the DataSource."
+            ),
+            "Configured scan/sign run as Kubernetes Jobs and block promotion on failure; unconfigured steps stay deferred (operator-owned). See docs/GOLDEN_IMAGES.md.".into(),
+        ];
+        if gates.sign.is_some() {
+            notes.push("sign stage covers cosign verification (and signing when ZORVIA_GOLDEN_SIGN_SIGN=1 in key mode).".into());
+        }
         Ok(Self {
             image_name: image_name.clone(),
             version: version.clone(),
-            namespace: namespace.into(),
-            stages: vec![
-                "build".into(),
-                "scan:deferred".into(),
-                "sign:deferred".into(),
-                "promote".into(),
-            ],
-            notes: vec![
-                format!(
-                    "POST /api/v1/enterprise/golden-pipeline/run applies CDI DataVolume+DataSource for {image_name}:{version}."
-                ),
-                "build+promote are live CDI apply; scan/sign (cosign) remain operator-owned.".into(),
-            ],
+            namespace,
+            stages: vec!["build".into(), scan.into(), sign.into(), "promote".into()],
+            notes,
         })
     }
 }
@@ -157,6 +177,12 @@ pub struct GoldenPipelineRun {
     pub data_volume_applied: bool,
     pub data_source_applied: bool,
     pub stages_completed: Vec<String>,
+    /// Scan/sign step results (empty when no gate is configured).
+    #[serde(default)]
+    pub gate_steps: Vec<golden_gates::StepReport>,
+    /// Set when a gate blocked promotion; the DataSource was not applied.
+    #[serde(default)]
+    pub blocked_reason: Option<String>,
     pub notes: Vec<String>,
 }
 
@@ -188,6 +214,8 @@ impl GoldenPipelineRun {
         } else {
             source
         };
+        let spec_source = source.clone();
+        let gates = golden_gates::GateConfig::from_env()?;
         let spec = crate::golden_images::GoldenImageSpec {
             name: image_name.clone(),
             version: version.clone(),
@@ -208,22 +236,81 @@ impl GoldenPipelineRun {
             .apply_data_volume(&namespace, &bundle.data_volume)
             .await
             .map_err(|e| format!("DataVolume apply failed: {e}"))?;
+        let runner = golden_gates::KubeJobRunner {
+            client: client.client(),
+        };
+        let report =
+            golden_gates::run_gates(&gates, &runner, &namespace, "zorvia-golden", &spec_source)
+                .await;
+        Self::finish(
+            image_name,
+            version,
+            namespace,
+            bundle.versioned_name.clone(),
+            &gates,
+            report,
+            client,
+            &bundle.data_source,
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn finish(
+        image_name: String,
+        version: String,
+        namespace: String,
+        versioned_name: String,
+        gates: &golden_gates::GateConfig,
+        report: golden_gates::GateReport,
+        client: &crate::kube::KubeClient,
+        data_source: &serde_json::Value,
+    ) -> Result<Self, String> {
+        let mut stages = vec!["build".to_string()];
+        for s in &report.steps {
+            if s.passed {
+                stages.push(s.step.clone());
+            }
+        }
+        if let Some(reason) = report.blocked_reason.clone() {
+            return Ok(Self {
+                image_name,
+                version,
+                namespace,
+                versioned_name,
+                data_volume_applied: true,
+                data_source_applied: false,
+                stages_completed: stages,
+                gate_steps: report.steps,
+                blocked_reason: Some(reason),
+                notes: vec![
+                    "DataVolume import was applied; the stable DataSource was NOT promoted. Fix the finding or signature and re-run.".into(),
+                ],
+            });
+        }
         client
-            .apply_data_source(&namespace, &bundle.data_source)
+            .apply_data_source(&namespace, data_source)
             .await
             .map_err(|e| format!("DataSource apply failed: {e}"))?;
+        stages.push("promote".into());
+        let mut notes = Vec::new();
+        if gates.scan.is_none() {
+            notes.push("scan skipped (not configured).".into());
+        }
+        if gates.sign.is_none() {
+            notes.push("sign skipped (not configured).".into());
+        }
         Ok(Self {
             image_name,
             version,
             namespace,
-            versioned_name: bundle.versioned_name,
+            versioned_name,
             data_volume_applied: true,
             data_source_applied: true,
-            stages_completed: vec!["build".into(), "promote".into()],
-            notes: vec![
-                "build+promote applied via CDI. scan/sign skipped (no cosign hook in this release)."
-                    .into(),
-            ],
+            stages_completed: stages,
+            gate_steps: report.steps,
+            blocked_reason: None,
+            notes,
         })
     }
 }

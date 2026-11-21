@@ -99,6 +99,13 @@ pub mod web {
         create_import_handler, get_wave_handler, list_imports_handler, preflight_import_handler,
     };
 
+    #[path = "volume_encryption_handlers.rs"]
+    mod volume_encryption_handlers;
+    use volume_encryption_handlers::{
+        apply_handler as ve_apply_handler, plan_handler as ve_plan_handler,
+        rotate_handler as ve_rotate_handler, status_handler as ve_status_handler,
+    };
+
     #[path = "backup_offcluster_handlers.rs"]
     mod backup_offcluster_handlers;
     use backup_offcluster_handlers::{
@@ -164,6 +171,14 @@ pub mod web {
     #[path = "snapshot_scheduler_handlers.rs"]
     mod snapshot_scheduler_handlers;
     use snapshot_scheduler_handlers::*;
+    #[path = "image_upload_handlers.rs"]
+    mod image_upload_handlers;
+    use image_upload_handlers::{
+        get_upload_status_handler, upload_image_handler, validate_image_handler,
+    };
+    #[path = "autoscaler_loop_handlers.rs"]
+    mod autoscaler_loop_handlers;
+    use autoscaler_loop_handlers::*;
 
     #[path = "storage_handlers.rs"]
     mod storage_handlers;
@@ -220,6 +235,10 @@ pub mod web {
     #[path = "warm_pool_handlers.rs"]
     mod warm_pool_handlers;
     use warm_pool_handlers::*;
+
+    #[path = "dr_pair_handlers.rs"]
+    mod dr_pair_handlers;
+    use dr_pair_handlers::*;
 
     /// Simple sliding-window rate limiter state.
     struct RateLimiterState {
@@ -529,6 +548,7 @@ pub mod web {
                 | "/api/v1/instance"
                 | "/api/instance"
         ) || path.starts_with("/api/v1/auth/oidc/")
+            || path.starts_with("/api/v1/auth/saml/")
     }
 
     // ── Rate limiting middleware ──────────────────────────────────
@@ -678,6 +698,9 @@ pub mod web {
             .route("/v1/auth/logout", post(auth_logout))
             .route("/v1/auth/oidc/callback", get(auth_oidc_callback))
             .route("/v1/auth/oidc/{id}", get(auth_oidc_login))
+            .route("/v1/auth/saml/metadata", get(auth_saml_metadata))
+            .route("/v1/auth/saml/login", get(auth_saml_login))
+            .route("/v1/auth/saml/acs", post(auth_saml_acs))
             .merge(admin_only)
             .route("/v1/instance", get(instance_handler))
             .route("/instance", get(instance_handler))
@@ -698,6 +721,11 @@ pub mod web {
             )
             .route("/vm-imports/preflight", post(preflight_import_handler))
             .route("/vm-imports/waves/{wave_id}", get(get_wave_handler))
+            // Volume envelope encryption (Experimental)
+            .route("/volume-encryption/status", get(ve_status_handler))
+            .route("/volume-encryption/plan", post(ve_plan_handler))
+            .route("/volume-encryption/apply", post(ve_apply_handler))
+            .route("/volume-encryption/rotate", post(ve_rotate_handler))
             // Off-cluster backups: catalog, restore, recovery drills
             .route(
                 "/backups/offcluster",
@@ -1368,6 +1396,35 @@ pub mod web {
                 post(enterprise_cross_cluster_dr_run),
             )
             .route(
+                "/v1/enterprise/dr/pairs",
+                get(list_dr_pairs_handler).post(create_dr_pair_handler),
+            )
+            .route(
+                "/v1/enterprise/dr/pairs/{name}",
+                get(get_dr_pair_handler).delete(delete_dr_pair_handler),
+            )
+            .route(
+                "/v1/enterprise/dr/pairs/{name}/status",
+                get(dr_pair_status_handler),
+            )
+            .route(
+                "/v1/enterprise/dr/pairs/{name}/failover/plan",
+                get(dr_failover_plan_handler),
+            )
+            .route(
+                "/v1/enterprise/dr/pairs/{name}/failover",
+                post(dr_failover_handler),
+            )
+            .route(
+                "/v1/enterprise/dr/pairs/{name}/failback/plan",
+                get(dr_failback_plan_handler),
+            )
+            .route(
+                "/v1/enterprise/dr/pairs/{name}/resume",
+                post(dr_resume_handler),
+            )
+            .route("/v1/enterprise/dr/alerts", get(dr_alerts_handler))
+            .route(
                 "/v1/enterprise/placement/gpu-numa",
                 post(enterprise_gpu_numa_plan),
             )
@@ -1590,7 +1647,15 @@ pub mod web {
                 StatusCode::REQUEST_TIMEOUT,
                 std::time::Duration::from_secs(30),
             ));
-        let api = api_core.merge(mcp_routes);
+        // Image upload streams multi-GB bodies, so it sits outside the 30 s TimeoutLayer.
+        let upload_routes: Router = Router::new()
+            .route(
+                "/images/uploads/{name}",
+                post(upload_image_handler).get(get_upload_status_handler),
+            )
+            .route("/images/validate", post(validate_image_handler))
+            .with_state(state.clone());
+        let api = api_core.merge(mcp_routes).merge(upload_routes);
 
         Router::new()
             .route(
@@ -1638,9 +1703,11 @@ pub mod web {
         spawn_operations_reconciler(state.clone());
         spawn_backup_scheduler_loop(state.clone());
         spawn_snapshot_scheduler_loop(state.clone());
+        spawn_autoscaler_loop(state.clone());
         spawn_power_schedule_loop(state.clone());
         spawn_alert_evaluation_loop(state.clone());
         spawn_warm_pool_loop(state.clone());
+        spawn_dr_replication_loop(state.clone());
         let app = build_router(state);
         let addr = format!("{}:{}", host, port);
 
@@ -1813,6 +1880,21 @@ pub mod web {
     ) -> impl IntoResponse {
         let auth = auth_shared(&state).await;
         crate::api::auth::oidc_login_handler(axum::extract::State(auth), Path(id)).await
+    }
+
+    async fn auth_saml_metadata(State(state): State<SharedState>) -> impl IntoResponse {
+        let auth = auth_shared(&state).await;
+        crate::api::auth::saml::saml_metadata_handler(axum::extract::State(auth)).await
+    }
+
+    async fn auth_saml_login(State(state): State<SharedState>) -> impl IntoResponse {
+        let auth = auth_shared(&state).await;
+        crate::api::auth::saml::saml_login_handler(axum::extract::State(auth)).await
+    }
+
+    async fn auth_saml_acs(State(state): State<SharedState>) -> impl IntoResponse {
+        let auth = auth_shared(&state).await;
+        crate::api::auth::saml::saml_acs_handler(axum::extract::State(auth)).await
     }
 
     async fn auth_oidc_callback(
@@ -3086,6 +3168,16 @@ pub mod web {
         )
         .await
         {
+            Ok(run) if run.blocked_reason.is_some() => (
+                StatusCode::CONFLICT,
+                Json(serde_json::json!({
+                    "success": false,
+                    "status": 409,
+                    "error": { "code": "promotion_blocked", "message": run.blocked_reason },
+                    "data": run
+                })),
+            )
+                .into_response(),
             Ok(run) => Json(serde_json::json!({ "success": true, "data": run })).into_response(),
             Err(e) => enterprise_err(e).into_response(),
         }

@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Disk image upload through the CDI upload proxy (Experimental, `ZORVIA_EXPERIMENTAL=1`): `zorvia guest image-upload`, `POST /api/images/uploads/{name}`, `POST /api/images/validate`; magic-byte format detection (qcow2/raw/vmdk/vhdx/vhd/vdi/iso), streamed with a size cap and SHA-256 check, upload token never exposed. Tested against a local mock proxy only. See docs/IMAGE_UPLOAD.md.
+- Opt-in autoscaler reconcile loop (Experimental, `ZORVIA_AUTOSCALER_LOOP=1`): hysteresis, cooldown, min/max bounds, recommendation-only default, leader-gated, audited. Not live-verified; the existing monitoring load source is simulated so nothing is applied from it. See docs/AUTOSCALER_LOOP.md.
+- SAML 2.0 SSO groundwork (Experimental, partial, opt-in `ZORVIA_SAML_ENABLED=1`): SP metadata, SP-initiated AuthnRequest (HTTP-Redirect), strict assertion validation with replay cache and group-to-role mapping. XML signature verification and session creation are NOT implemented, so the ACS endpoint fails closed (501). See docs/SAML.md.
+- Rescue mode: Experimental `reset-password`, `install-packages` and `inspect` operations (`ZORVIA_EXPERIMENTAL=1`, `cluster.admin`, audited). Passwords travel in a per-Job Secret, never the Job spec; package names are strictly validated; inspect returns a bounded, redacted summary. Needs `secrets` create/delete/patch RBAC. Unit-tested only, not run against a live cluster. See docs/RESCUE.md.
+- Golden-image pipeline scan and sign gates: operator-configured scanner (trivy-style JSON, severity threshold) and cosign verify/sign Jobs that block promotion on failure; plan stages are no longer deferred when configured. Experimental. See docs/GOLDEN_IMAGES.md.
+- Experimental volume envelope encryption: per-VM data keys wrapped by the local key or Vault Transit, stored only wrapped in a Secret, re-wrap rotation, and an audited plan/apply flow for an encrypted DataVolume (`/volume-encryption/*`, `ZORVIA_EXPERIMENTAL=1`). Cloud KMS is a stub. See docs/VOLUME_ENCRYPTION.md.
+- Experimental DR replication pairs (`ZORVIA_FEATURE_DR_REPLICATION=1`): persisted pairs, a leader-gated loop taking verified off-cluster backups at the RPO interval, RPO/RTO status and alerts, dry-run-first failover as `{vm}-dr` that refuses a running source or missing confirmation, failback plan. API under `/v1/enterprise/dr/`. See docs/DR_REPLICATION.md.
 - Scheduled per-VM snapshots with per-schedule retention: `/snapshot-schedules` API, a leader-gated runner, and idempotent per-slot snapshot names. See docs/SNAPSHOTS.md.
 
 ## [0.7.4] - 2026-10-17

@@ -83,7 +83,13 @@ pub const FEATURES: &[Feature] = &[
         id: "rescue-mode",
         name: "Rescue mode: hostname/SSH-key/enable-SSH via a Job-mounted disk",
         maturity: Maturity::Beta,
-        notes: "cluster.admin only; needs batch/jobs RBAC; 3 of 5 UI operations wired (reset-password, install-packages, inspect deferred); see docs/RESCUE.md",
+        notes: "cluster.admin only; needs batch/jobs RBAC; 3 original operations; see rescue-ops-extended for the rest; see docs/RESCUE.md",
+    },
+    Feature {
+        id: "rescue-ops-extended",
+        name: "Rescue mode: reset-password, install-packages, inspect",
+        maturity: Maturity::Experimental,
+        notes: "Requires ZORVIA_EXPERIMENTAL=1; cluster.admin only; password via per-Job Secret (needs secrets create/delete/patch RBAC); Job-spec/validation unit-tested, never run against a live cluster or real guest; see docs/RESCUE.md",
     },
     Feature {
         id: "schedulers",
@@ -128,6 +134,12 @@ pub const FEATURES: &[Feature] = &[
         notes: "Opt-in via ZORVIA_OIDC_ENABLED=1; PKCE + JWKS; see docs/OIDC_LAB.md",
     },
     Feature {
+        id: "saml",
+        name: "SAML 2.0 SSO",
+        maturity: Maturity::Experimental,
+        notes: "Partial: no signature verification yet, ACS returns 501; ZORVIA_SAML_ENABLED=1; see docs/SAML.md",
+    },
+    Feature {
         id: "ai-troubleshoot",
         name: "AI troubleshooting wizard",
         maturity: Maturity::ModelOnly,
@@ -136,8 +148,8 @@ pub const FEATURES: &[Feature] = &[
     Feature {
         id: "dr-replication",
         name: "DR replication pairs",
-        maturity: Maturity::ModelOnly,
-        notes: "In-memory model; does not move data",
+        maturity: Maturity::Experimental,
+        notes: "Durable pairs + scheduled verified off-cluster backups, RPO/RTO status, dry-run-first failover as {vm}-dr; same-cluster object store, no traffic repointing; needs ZORVIA_FEATURE_DR_REPLICATION=1",
     },
     Feature {
         id: "incremental-backup",
@@ -170,10 +182,22 @@ pub const FEATURES: &[Feature] = &[
         notes: "Requires ZORVIA_EXPERIMENTAL=1; mode=stub Job-only; mode=local Job+stopped emptyDisk VM; vsphere needs ZORVIA_H2KVM_IMAGE; not yet exercised against a real vCenter",
     },
     Feature {
+        id: "image-upload",
+        name: "Disk image upload via the CDI upload proxy",
+        maturity: Maturity::Experimental,
+        notes: "Requires ZORVIA_EXPERIMENTAL=1 and ZORVIA_CDI_UPLOAD_PROXY_URL; streams with a size cap and optional SHA-256, format detected from magic bytes (CDI converts to raw); verified against a local mock proxy only, not a live CDI",
+    },
+    Feature {
+        id: "volume-encryption",
+        name: "Volume envelope encryption (per-VM data keys wrapped by local key / Vault Transit)",
+        maturity: Maturity::Experimental,
+        notes: "Wrapped data keys in a Secret, re-wrap rotation, plan/apply of an encrypted DataVolume via StorageClass parameters, audited; cloud KMS is a stub; unit-tested only, not run against a live cluster or CSI driver; the CSI driver does not consume the Zorvia key — docs/VOLUME_ENCRYPTION.md",
+    },
+    Feature {
         id: "golden-image-pipeline",
         name: "Golden-image build/scan/sign/promote",
         maturity: Maturity::Experimental,
-        notes: "Plan marks scan:deferred/sign:deferred; /run applies CDI DV/DS (build+promote); cosign/scan operator-owned",
+        notes: "/run applies CDI DV, runs operator-configured scan/cosign Jobs that block promotion, then the DS; unconfigured steps stay deferred; mock-tested only, no live cluster",
     },
     Feature {
         id: "commercial-contracts",

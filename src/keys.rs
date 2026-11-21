@@ -71,8 +71,8 @@ fn valid_id(s: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
 }
 
-fn aad(owner: &str) -> Vec<u8> {
-    format!("zorvia:totp:{owner}").into_bytes()
+fn aad(purpose: &str, owner: &str) -> Vec<u8> {
+    format!("zorvia:{purpose}:{owner}").into_bytes()
 }
 
 /// Run a future from sync code (the user database is synchronous). Inside a
@@ -149,8 +149,8 @@ impl VaultTransit {
 
     /// The owner id is authenticated by putting it in front of the secret inside
     /// the encrypted payload and checking it on the way out.
-    fn seal(&self, owner: &str, secret: &str) -> Result<String> {
-        let mut plain = aad(owner);
+    fn seal(&self, purpose: &str, owner: &str, secret: &str) -> Result<String> {
+        let mut plain = aad(purpose, owner);
         plain.push(0);
         plain.extend_from_slice(secret.as_bytes());
         let v = block_on(self.call("encrypt", json!({"plaintext": B64.encode(plain)})))?;
@@ -160,7 +160,7 @@ impl VaultTransit {
             .ok_or_else(|| anyhow!("Vault returned no ciphertext"))
     }
 
-    fn open(&self, owner: &str, ciphertext: &str) -> Result<String> {
+    fn open(&self, purpose: &str, owner: &str, ciphertext: &str) -> Result<String> {
         let v = block_on(self.call("decrypt", json!({"ciphertext": ciphertext})))?;
         let raw = B64.decode(
             v["data"]["plaintext"]
@@ -168,7 +168,7 @@ impl VaultTransit {
                 .ok_or_else(|| anyhow!("Vault returned no plaintext"))?,
         )?;
         let prefix = {
-            let mut p = aad(owner);
+            let mut p = aad(purpose, owner);
             p.push(0);
             p
         };
@@ -249,6 +249,18 @@ impl KeyProvider {
 
     /// Seal `secret` for `owner` (a user id).
     pub fn seal(&self, owner: &str, secret: &str) -> Result<String> {
+        self.seal_for("totp", owner, secret)
+    }
+
+    /// Open a sealed value belonging to `owner`.
+    pub fn open(&self, owner: &str, stored: &str) -> Result<String> {
+        self.open_for("totp", owner, stored)
+    }
+
+    /// Seal `secret` for `owner` under a purpose label that is authenticated data,
+    /// so a value sealed for one purpose never opens as another (envelope data keys
+    /// use `"dek"`).
+    pub fn seal_for(&self, purpose: &str, owner: &str, secret: &str) -> Result<String> {
         match self {
             Self::Local { current, keys } => {
                 let cipher = Aes256Gcm::new_from_slice(&keys[current])
@@ -260,7 +272,7 @@ impl KeyProvider {
                         &Nonce::from(nonce),
                         Payload {
                             msg: secret.as_bytes(),
-                            aad: &aad(owner),
+                            aad: &aad(purpose, owner),
                         },
                     )
                     .map_err(|_| anyhow!("encryption failed"))?;
@@ -268,12 +280,15 @@ impl KeyProvider {
                 blob.extend_from_slice(&ct);
                 Ok(format!("{PREFIX}{current}:{}", B64.encode(blob)))
             }
-            Self::Vault(v) => Ok(format!("{PREFIX}{VAULT_ID}:{}", v.seal(owner, secret)?)),
+            Self::Vault(v) => Ok(format!(
+                "{PREFIX}{VAULT_ID}:{}",
+                v.seal(purpose, owner, secret)?
+            )),
         }
     }
 
-    /// Open a sealed value belonging to `owner`.
-    pub fn open(&self, owner: &str, stored: &str) -> Result<String> {
+    /// Counterpart of [`Self::seal_for`].
+    pub fn open_for(&self, purpose: &str, owner: &str, stored: &str) -> Result<String> {
         let rest = stored
             .strip_prefix(PREFIX)
             .ok_or_else(|| anyhow!("value is not sealed"))?;
@@ -281,7 +296,7 @@ impl KeyProvider {
             .split_once(':')
             .ok_or_else(|| anyhow!("malformed sealed value"))?;
         match (self, id) {
-            (Self::Vault(v), VAULT_ID) => v.open(owner, payload),
+            (Self::Vault(v), VAULT_ID) => v.open(purpose, owner, payload),
             (Self::Local { keys, .. }, id) if id != VAULT_ID => {
                 let key = keys
                     .get(id)
@@ -298,7 +313,7 @@ impl KeyProvider {
                         &Nonce::from(nonce),
                         Payload {
                             msg: &blob[12..],
-                            aad: &aad(owner),
+                            aad: &aad(purpose, owner),
                         },
                     )
                     .map_err(|_| {
@@ -436,11 +451,11 @@ mod tests {
     /// A one-endpoint-pair fake Vault: "encrypts" by reversing base64 text behind a
     /// `vault:v1:` marker, which is enough to exercise the wire protocol and the
     /// owner binding. Requests are checked for the token header.
-    fn fake_vault() -> (String, std::thread::JoinHandle<()>) {
+    fn fake_vault(requests: usize) -> (String, std::thread::JoinHandle<()>) {
         let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = format!("http://{}", l.local_addr().unwrap());
         let h = std::thread::spawn(move || {
-            for _ in 0..4 {
+            for _ in 0..requests {
                 let (mut s, _) = l.accept().unwrap();
                 let mut buf = vec![0u8; 8192];
                 let n = s.read(&mut buf).unwrap();
@@ -485,7 +500,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn vault_transit_seals_binds_to_the_owner_and_reports_vault_errors() {
-        let (addr, server) = fake_vault();
+        let (addr, server) = fake_vault(4);
         let p = KeyProvider::Vault(
             VaultTransit::new(&addr, "transit", "zorvia", "s.test-token").unwrap(),
         );
@@ -503,5 +518,16 @@ mod tests {
         server.join().unwrap();
         // A local provider cannot open Vault values and vice versa.
         assert!(local("k1", 1).open("user-1", &sealed).is_err());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn vault_seals_data_keys_by_purpose() {
+        let (addr, server) = fake_vault(2);
+        let p = KeyProvider::Vault(
+            VaultTransit::new(&addr, "transit", "zorvia", "s.test-token").unwrap(),
+        );
+        let w = p.seal_for("dek", "ns/vm/vol", "a2V5").unwrap();
+        assert_eq!(p.open_for("dek", "ns/vm/vol", &w).unwrap(), "a2V5");
+        server.join().unwrap();
     }
 }
