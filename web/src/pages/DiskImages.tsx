@@ -11,6 +11,7 @@ import { formatUserError } from '../utils/apiError'
 import { toastFailure } from '../utils/toastError'
 import { hintsForError } from '../utils/daemonHints'
 import { useToastContext } from '../contexts/ToastContext'
+import ImageUploadPanel from '../components/ImageUploadPanel'
 
 interface DiskImage { name: string; path: string; format: string; size_bytes: number; mod_time?: string }
 
@@ -111,6 +112,8 @@ export default function DiskImages() {
         onRefresh={fetchImages}
         refreshing={loading}
       />
+
+      <ImageUploadPanel onUploaded={fetchImages} />
 
       {error && (
         <ErrorBanner

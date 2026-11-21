@@ -57,3 +57,7 @@ time from the failover request to restore completion.
 - No incremental replication: each backup is a full one.
 - Unit-tested with fake backup/restore backends; not exercised against a live
   cluster or PostgreSQL in this change.
+
+## Web console
+
+`/app/dr-pairs` (admin) lists pairs with health, lag against RPO and measured against target RTO, creates and removes pairs, and runs failover: **Dry run** always, **Fail over now** only when the plan is allowed and the exact confirm phrase is typed. When the API answers 403 `feature_disabled` the page shows an experimental, disabled notice. Failback plan and resume are not in the UI yet.

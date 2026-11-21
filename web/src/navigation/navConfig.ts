@@ -40,6 +40,8 @@ import {
   Layers3,
   Boxes,
   DatabaseZap,
+  KeyRound,
+  LifeBuoy,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -118,6 +120,7 @@ export const TOP_MEGA_GROUPS: { label: string; items: NavItem[] }[] = [
       { label: 'Storage', path: '/app/storage', icon: Database, blurb: 'Rook-Ceph pools and status.' },
       { label: 'Disk Images', path: '/app/disk-images', icon: Disc, blurb: 'Cloud images and ISOs.' },
       { label: 'Golden Images', path: '/app/golden-images', icon: Layers, blurb: 'Windows builds via Kryton, Linux imports and captures.' },
+      { label: 'Volume Encryption', path: '/app/volume-encryption', icon: KeyRound, blurb: 'Envelope-encrypted volumes (experimental).', adminOnly: true },
       { label: 'Snapshots', path: '/app/snapshots', icon: Camera, blurb: 'Point-in-time VM snapshots.' },
       { label: 'Backups', path: '/app/backups', icon: Save, blurb: 'Backup jobs and restores.' },
       { label: 'Backup Scheduler', path: '/app/backup-scheduler', icon: Clock, blurb: 'Recurring backup policies.' },
@@ -147,6 +150,7 @@ export const TOP_MEGA_GROUPS: { label: string; items: NavItem[] }[] = [
       { label: 'Health Check', path: '/app/health-check', icon: HeartPulse, blurb: 'Guest and agent health.' },
       { label: 'HA Policy', path: '/app/ha-policy', icon: ShieldAlert, blurb: 'High-availability policies.' },
       { label: 'Placement Advisor', path: '/app/placement', icon: Scale, blurb: 'Where to schedule next.' },
+      { label: 'Disaster Recovery', path: '/app/dr-pairs', icon: LifeBuoy, blurb: 'Replication pairs, RPO/RTO and failover (experimental).', adminOnly: true },
       { label: 'Warm Pools', path: '/app/warm-pools', icon: Layers3, blurb: 'Pre-warmed capacity pools.' },
     ],
   },

@@ -49,3 +49,7 @@ With `storage_class`, the CSI driver encrypts with **its own KMS configuration**
 ## Not verified
 
 Live DataVolume/Secret creation, RBAC needed for Secret create/replace by the Zorvia service account (add `secrets` create/get/update in the target namespaces), a real Vault, restore/backup of encrypted volumes, and live migration of encrypted volumes.
+
+## Web console
+
+`/app/volume-encryption` (admin) shows provider status and offers plan, apply (behind a confirmation) and rotate. Apply is enabled only after a ready plan for the same inputs. A 403 `EXPERIMENTAL_DISABLED` shows an experimental, disabled notice.
