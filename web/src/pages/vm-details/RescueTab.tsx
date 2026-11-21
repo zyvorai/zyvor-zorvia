@@ -1,10 +1,10 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
 // SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
 
-import { useState, ReactNode } from 'react'
+import { useState } from 'react'
 import { Wrench, Key, Tag, Lock, Package, Search, AlertTriangle, Loader2 } from 'lucide-react'
 import type { VM } from '../../api/vm'
-import { rescueVM, pollRescueJob } from '../../api/guestRescue'
+import { rescueVM, pollRescueJob, type RescueJobStatus } from '../../api/guestRescue'
 import { useToastContext } from '../../contexts/ToastContext'
 import { toastFailure } from '../../utils/toastError'
 import { usePermissions } from '../../hooks/usePermissions'
@@ -18,6 +18,10 @@ export default function RescueTab({ vm }: { vm: VM }) {
   const [sshUser, setSshUser] = useState('')
   const [sshKey, setSshKey] = useState('')
   const [hostname, setHostname] = useState('')
+  const [pwUser, setPwUser] = useState('')
+  const [pwValue, setPwValue] = useState('')
+  const [packages, setPackages] = useState('')
+  const [inspectResult, setInspectResult] = useState<Record<string, unknown> | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
 
   const run = async (
@@ -28,7 +32,11 @@ export default function RescueTab({ vm }: { vm: VM }) {
     setBusy(key)
     try {
       const { job_name } = await rescueVM(vm.name, req)
-      const status = await pollRescueJob(vm.name, job_name)
+      const status: RescueJobStatus = await pollRescueJob(vm.name, job_name)
+      if (req.operation === 'inspect' && status.result?.details) {
+        setInspectResult(status.result.details)
+      }
+      if (req.operation === 'reset-password') setPwValue('')
       if (status.state === 'succeeded') {
         toast.success(status.result?.message ?? `${actionLabel} succeeded`)
       } else if (status.state === 'failed') {
@@ -127,36 +135,92 @@ export default function RescueTab({ vm }: { vm: VM }) {
         </div>
       </div>
 
-      <NotYetAvailable
-        icon={<Lock className="w-4 h-4 text-red-600" />}
-        title="Reset Password"
-        note="Linux has no direct password mutator in GuestKit yet -- needs a chroot+chpasswd follow-up, not just wiring."
-      />
-      <NotYetAvailable
-        icon={<Package className="w-4 h-4 text-amber-400" />}
-        title="Install Packages"
-        note="Needs guest network egress from inside a privileged rescue Job -- deferred pending that design."
-      />
-      <NotYetAvailable
-        icon={<Search className="w-4 h-4 text-[var(--zf-muted)]" />}
-        title="Pull Guest Info / Inspect Disk"
-        note="Needs its own research into GuestKit's inspection API -- not yet investigated."
-      />
+      <div className="bg-[var(--zf-canvas)] rounded-xl border border-[var(--zf-hairline)] p-5 space-y-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-[var(--zf-ink)]">
+          <Lock className="w-4 h-4 text-red-600" />
+          Reset Password
+          <ExperimentalBadge />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <input
+            value={pwUser} onChange={(e) => setPwUser(e.target.value)} disabled={disabled}
+            placeholder="Existing user (e.g. root)"
+            className="bg-[var(--zf-surface)] border border-[var(--zf-hairline)] rounded-lg px-3 py-2 text-sm text-[var(--zf-ink)] disabled:opacity-50"
+          />
+          <input
+            type="password" autoComplete="new-password"
+            value={pwValue} onChange={(e) => setPwValue(e.target.value)} disabled={disabled}
+            placeholder="New password"
+            className="md:col-span-2 bg-[var(--zf-surface)] border border-[var(--zf-hairline)] rounded-lg px-3 py-2 text-sm text-[var(--zf-ink)] disabled:opacity-50"
+          />
+        </div>
+        <p className="text-xs text-[var(--zf-muted)]">
+          Sent to a per-job Kubernetes Secret and deleted when the job finishes. Never logged or stored by Zorvia.
+        </p>
+        <button
+          onClick={() => run('reset-password', 'Reset password', { operation: 'reset-password', user: pwUser, password: pwValue })}
+          disabled={disabled || !pwUser || !pwValue || busy !== null}
+          className="zf-btn zf-btn-primary zf-btn-sm"
+        >
+          {busy === 'reset-password' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+          Reset Password
+        </button>
+      </div>
+
+      <div className="bg-[var(--zf-canvas)] rounded-xl border border-[var(--zf-hairline)] p-5 space-y-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-[var(--zf-ink)]">
+          <Package className="w-4 h-4 text-amber-400" />
+          Install Packages
+          <ExperimentalBadge />
+        </div>
+        <div className="flex gap-2">
+          <input
+            value={packages} onChange={(e) => setPackages(e.target.value)} disabled={disabled}
+            placeholder="curl git (space-separated, max 20)"
+            className="flex-1 bg-[var(--zf-surface)] border border-[var(--zf-hairline)] rounded-lg px-3 py-2 text-sm text-[var(--zf-ink)] font-mono disabled:opacity-50"
+          />
+          <button
+            onClick={() => run('install', 'Install packages', { operation: 'install-packages', packages: packages.split(/\s+/).filter(Boolean) })}
+            disabled={disabled || !packages.trim() || busy !== null}
+            className="zf-btn zf-btn-primary zf-btn-sm"
+          >
+            {busy === 'install' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            Install
+          </button>
+        </div>
+        <p className="text-xs text-[var(--zf-muted)]">
+          Runs the guest&apos;s own package manager in a chroot; needs outbound network from the rescue job.
+        </p>
+      </div>
+
+      <div className="bg-[var(--zf-canvas)] rounded-xl border border-[var(--zf-hairline)] p-5 space-y-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-[var(--zf-ink)]">
+          <Search className="w-4 h-4 text-[var(--zf-muted)]" />
+          Inspect Disk
+          <ExperimentalBadge />
+        </div>
+        <button
+          onClick={() => run('inspect', 'Inspect disk', { operation: 'inspect' })}
+          disabled={disabled || busy !== null}
+          className="zf-btn zf-btn-ghost zf-btn-sm"
+        >
+          {busy === 'inspect' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+          Inspect
+        </button>
+        {inspectResult && (
+          <pre className="text-xs font-mono text-[var(--zf-ink)] bg-[var(--zf-surface)] rounded-lg p-3 overflow-auto max-h-80">
+            {JSON.stringify(inspectResult, null, 2)}
+          </pre>
+        )}
+      </div>
     </div>
   )
 }
 
-function NotYetAvailable({ icon, title, note }: { icon: ReactNode; title: string; note: string }) {
+function ExperimentalBadge() {
   return (
-    <div className="bg-[var(--zf-canvas)] rounded-xl border border-[var(--zf-hairline)] p-5 space-y-2 opacity-60">
-      <div className="flex items-center gap-2 text-sm font-medium text-[var(--zf-ink)]">
-        {icon}
-        {title}
-        <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium border border-[var(--zf-hairline)] text-[var(--zf-muted)]">
-          Not yet available
-        </span>
-      </div>
-      <p className="text-xs text-[var(--zf-muted)]">{note}</p>
-    </div>
+    <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium border border-[var(--zf-hairline)] text-[var(--zf-muted)]">
+      Experimental
+    </span>
   )
 }

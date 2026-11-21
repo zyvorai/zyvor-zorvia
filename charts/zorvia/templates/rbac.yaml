@@ -55,6 +55,11 @@ rules:
   - apiGroups: ["batch"]
     resources: ["jobs"]
     verbs: ["get", "list", "watch", "create", "delete"]
+  # Rescue mode reset-password (Experimental): a per-Job Secret carrying the
+  # password, owned by the Job and deleted when it finishes.
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "delete", "patch"]
   - apiGroups: [""]
     resources: ["namespaces"]
     verbs: ["get", "list", "watch", "create", "update", "patch"]
@@ -165,6 +170,11 @@ rules:
   - apiGroups: ["batch"]
     resources: ["jobs"]
     verbs: ["get", "list", "watch", "create", "delete"]
+  # Rescue mode reset-password (Experimental): a per-Job Secret carrying the
+  # password, owned by the Job and deleted when it finishes.
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "delete", "patch"]
   # Read-only: verify existing Multus target attachments before VM import, and list SR-IOV pools.
   - apiGroups: ["k8s.cni.cncf.io"]
     resources: ["network-attachment-definitions"]

@@ -11,7 +11,7 @@ Pods page (see [PODS.md](PODS.md) for the parallel pattern this mirrors).
 
 - [Where to find it](#where-to-find-it)
 - [What it does today](#what-it-does-today)
-- [What's deferred](#whats-deferred)
+- [Experimental operations](#experimental-operations)
 - [HTTP API](#http-api)
 - [Security model](#security-model)
 - [Kubernetes RBAC](#kubernetes-rbac)
@@ -41,22 +41,57 @@ until it reaches `succeeded`/`failed`. The Job itself never processes more
 than one operation and self-deletes after an hour
 (`ttl_seconds_after_finished`).
 
-## What's deferred
+## Experimental operations
 
-These are still on the tab, marked "Not yet available" rather than calling
-a route that doesn't exist:
+Three more operations run through the same Job mechanism. They are
+**Experimental** (feature `rescue-ops-extended`): the server returns
+`403 EXPERIMENTAL_DISABLED` unless `ZORVIA_EXPERIMENTAL=1`. Their Job-spec
+generation, request validation and the pure `/etc/shadow` / argv / redaction
+logic are unit-tested; **none has been run against a live cluster or a real
+guest disk**, and the guest-side steps below are untested against real
+images.
 
-- **Reset Password** — GuestKit has no direct Linux password mutator (only
-  Windows, via a `registry-write` libhivex FFI feature not enabled here).
-  Would need a chroot + `chpasswd`/`usermod -p` approach, which is real
-  engineering, not wiring.
-- **Install Packages** — needs guest network egress from inside an already-
-  privileged Job, plus a guest package manager to shell into. Deferred
-  pending a real design for that, not attempted here.
-- **Inspect Disk** — needs its own research into GuestKit's inspection API
-  (`inspect_os`/`inspect_get_mountpoints` are used internally by the Job to
-  find and mount the guest filesystem, but a rich read-only "disk info"
-  view is a separate piece of work not yet investigated).
+| Operation | What happens |
+|-----------|--------------|
+| **Reset Password** (`reset-password`) | The agent hashes the password with `openssl passwd -6 -stdin` (SHA-512 crypt, password over stdin, never argv) and rewrites that user's field in the guest's `/etc/shadow` in place (owner/mode preserved). The user must already exist; accounts are never created. |
+| **Install Packages** (`install-packages`) | Detects `apt-get`/`dnf`/`yum`/`zypper`/`apk` in the guest and runs it via `chroot` as an explicit argv (no shell). The Job pod's `resolv.conf` is placed in the guest for the run and the original restored. Active deadline 900 s. |
+| **Inspect** (`inspect`) | Read-only. Returns `result.details` with OS type/distro/product/arch/version/hostname, package format, init system, mountpoints and the first 50 installed applications (plus the total count). |
+
+Known limits: install does not bind-mount `/proc`, `/dev`, `/sys`, so
+packages with maintainer scripts needing them can fail; a guest whose
+`/etc/resolv.conf` is a dangling symlink may refuse the DNS step; the Job pod
+needs outbound network. The disk-image path assumption (`/disk/disk.img`)
+below applies to all six operations.
+
+### Password handling
+
+- The password is accepted only in the `POST` body (1-128 chars, no control
+  characters) and is held in a type whose `Debug` is redacted.
+- It is written to a per-Job **Secret** `<job_name>-secret`, mounted
+  read-only at `/run/rescue-secret/password` with mode `0400`. The Job spec
+  carries only the *path* (`RESCUE_PASSWORD_FILE`), never the value, so it is
+  invisible to anyone who can read Jobs/Pods.
+- The Secret is owned by the Job (garbage-collected with it, TTL included),
+  deleted when `GET .../rescue/{job}` first sees a terminal state, and deleted
+  by `DELETE`. If Job creation fails the Secret is deleted immediately.
+- The audit entry records the user name, never the password. The agent
+  redacts and truncates every message it prints, and the API refuses any
+  result line over 16 KiB.
+- A Secret exists in etcd (base64, subject to your cluster's
+  encryption-at-rest) between creation and cleanup; Zorvia does not store it.
+
+### Package names
+
+Each name must match `[A-Za-z0-9][A-Za-z0-9._+-]{0,99}` (so it can never be
+an option or contain shell/version syntax), max 20 per request, duplicates
+dropped. Validation is repeated inside the agent.
+
+### Inspect output bounds
+
+Every string is stripped of control characters, masked when it looks like
+`key=value` with a sensitive key or a long token, and capped at 256 chars;
+lists are capped at 50; no file contents are read. This is best-effort
+redaction of a handful of metadata fields, not a DLP guarantee.
 
 ## HTTP API
 
@@ -69,6 +104,9 @@ status route, since it reveals whether/what a rescue operation did.
 { "operation": "set-hostname", "hostname": "new-name" }
 { "operation": "inject-ssh-key", "user": "root", "key": "ssh-ed25519 AAAA..." }
 { "operation": "enable-ssh" }
+{ "operation": "reset-password", "user": "root", "password": "..." }
+{ "operation": "install-packages", "packages": ["curl", "git"] }
+{ "operation": "inspect" }
 ```
 
 ```json
@@ -101,6 +139,7 @@ Best-effort early cleanup (the Job also self-expires).
 | 400 | `INVALID` | VM/job name is not a valid Kubernetes name, or the request body failed validation (e.g. key doesn't look like an SSH public key) |
 | 403 | — | Authenticated but not `cluster.admin` |
 | 404 | `NOT_FOUND` | VM or Job does not exist |
+| 403 | `EXPERIMENTAL_DISABLED` | reset-password / install-packages / inspect without `ZORVIA_EXPERIMENTAL=1` |
 | 409 | `VM_NOT_STOPPED` | VM is not stopped |
 | 409 | `NO_RESCUABLE_DISK` | VM has no PVC/DataVolume-backed disk |
 
@@ -131,7 +170,9 @@ a fixed binary against it — exec-equivalent sensitivity, gated the same way:
 ## Kubernetes RBAC
 
 The `zorvia` ServiceAccount needs one additional rule beyond what it
-already has:
+already has (plus `secrets` `create`/`delete`/`patch` in the namespace, only
+used by the Experimental reset-password operation; shipped in the same
+manifests and chart):
 
 ```yaml
 - apiGroups: ["batch"]
@@ -224,5 +265,6 @@ the Job/Pod directly with `kubectl`.
 | Permission gate | `src/api/auth/permissions.rs` |
 | Container image | `deploy/rescue-agent.Dockerfile` |
 | CI build/push | `.github/workflows/release.yml` (`rescue-agent-docker` job) |
+| Shared pure logic (validation, shadow rewrite, argv, redaction) | `src/kube/rescue_logic.rs` |
 | API client | `web/src/api/guestRescue.ts` |
 | UI | `web/src/pages/vm-details/RescueTab.tsx` |
