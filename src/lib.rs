@@ -1464,6 +1464,12 @@ pub async fn run(mut cli: Cli) -> Result<()> {
             ca_cert,
         } => handlers::mcp::run_stdio_bridge(url, token, insecure, ca_cert).await?,
 
+        Commands::Dr { remote, cmd } => handlers::remote::run_dr(remote, cmd).await?,
+        Commands::Volume { remote, cmd } => {
+            handlers::remote::run_volume(remote, cmd, &cli.namespace).await?
+        }
+        Commands::Rescue { remote, cmd } => handlers::remote::run_rescue(remote, cmd).await?,
+
         Commands::Api(cmd) => match cmd {
             ApiCommands::ApiServe {
                 port,
@@ -1900,6 +1906,15 @@ pub async fn run(mut cli: Cli) -> Result<()> {
                     "Guest agent insight and image readiness",
                     "guest",
                     vec!["guest-insight", "image-bundle", "wait-ready", "wait-image"],
+                ),
+                (
+                    "API-backed experimental features (ZORVIA_URL + ZORVIA_TOKEN)",
+                    "dr / volume / rescue",
+                    vec![
+                        "dr pair list|create|status|failover|failback-plan|resume",
+                        "volume encryption status|plan|apply|rotate",
+                        "rescue reset-password|install-packages|inspect|status",
+                    ],
                 ),
                 (
                     "API server, keys, webhooks, and TUI",

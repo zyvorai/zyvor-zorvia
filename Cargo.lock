@@ -7153,6 +7153,7 @@ dependencies = [
  "ratatui",
  "regex",
  "reqwest",
+ "rpassword",
  "rusqlite",
  "rustls",
  "rustyline 19.0.0",
