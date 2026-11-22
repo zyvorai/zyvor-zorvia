@@ -17,6 +17,8 @@
 //!
 //! See docs/VOLUME_ENCRYPTION.md for what is and is not verified.
 
+pub mod cloud_kms;
+
 use crate::keys::KeyProvider;
 use anyhow::{anyhow, bail, Result};
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
@@ -74,7 +76,7 @@ impl std::fmt::Debug for DataKey {
 }
 
 /// Something that can wrap and unwrap data keys. `KeyProvider` (local, Vault) is the
-/// real implementation; [`CloudKmsStub`] shows the shape a cloud KMS client would fill.
+/// real implementation, including the Experimental AWS / GCP KMS wrappers in [`cloud_kms`].
 pub trait DataKeyWrapper {
     fn provider_name(&self) -> String;
     /// Wrap `key`, binding it to `context`.
@@ -89,6 +91,7 @@ impl DataKeyWrapper for KeyProvider {
         match self {
             KeyProvider::Local { current, .. } => format!("local:{current}"),
             KeyProvider::Vault(_) => "vault-transit".into(),
+            KeyProvider::Cloud(c) => format!("{}-kms", c.id()),
         }
     }
 
@@ -114,35 +117,6 @@ impl DataKeyWrapper for KeyProvider {
 
     fn needs_rewrap(&self, wrapped: &str) -> bool {
         self.needs_seal(wrapped)
-    }
-}
-
-/// Placeholder for a cloud KMS (AWS KMS, GCP KMS, Azure Key Vault). No vetted client
-/// is a dependency of Zorvia, so this does NOT talk to any service: every call fails
-/// with a clear message. A real implementation would call Encrypt/Decrypt with
-/// `context` as the encryption context / AAD.
-pub struct CloudKmsStub {
-    pub kind: String,
-}
-
-impl DataKeyWrapper for CloudKmsStub {
-    fn provider_name(&self) -> String {
-        format!("cloud-kms-stub:{}", self.kind)
-    }
-    fn wrap(&self, _: &str, _: &DataKey) -> Result<String> {
-        bail!(
-            "cloud KMS ({}) is a stub: no client is implemented",
-            self.kind
-        )
-    }
-    fn unwrap(&self, _: &str, _: &str) -> Result<DataKey> {
-        bail!(
-            "cloud KMS ({}) is a stub: no client is implemented",
-            self.kind
-        )
-    }
-    fn needs_rewrap(&self, _: &str) -> bool {
-        false
     }
 }
 
@@ -411,13 +385,6 @@ mod tests {
         let mut b = [7u8; 16];
         zero(&mut b);
         assert_eq!(b, [0u8; 16]);
-    }
-
-    #[test]
-    fn cloud_kms_stub_fails_clearly() {
-        let c = CloudKmsStub { kind: "aws".into() };
-        let e = new_wrapped(&c, "a/b/c").unwrap_err().to_string();
-        assert!(e.contains("stub"), "{e}");
     }
 
     #[test]

@@ -35,7 +35,35 @@ With `storage_class`, the CSI driver encrypts with **its own KMS configuration**
 ## Providers
 
 * Local and Vault Transit: implemented (shared with TOTP sealing). Vault is tested against a fake HTTP Vault only.
-* Cloud KMS (AWS/GCP/Azure): only the `DataKeyWrapper` trait and `CloudKmsStub`, which fails every call. No vetted client is a dependency.
+* AWS KMS and Google Cloud KMS: implemented (Experimental), see below. **Nothing has been run against a real AWS or Google KMS**; the clients are tested against local mock servers only.
+* Azure Key Vault: not implemented. Its wrap/unwrap API has no authenticated-context parameter, so the binding to `namespace/vm/volume` would have to be faked inside the plaintext; it is left out rather than offered in a weaker form.
+
+## Cloud KMS providers (Experimental)
+
+Select one by environment (exactly one provider may be configured: local key, Vault, AWS or GCP). The provider then wraps data keys (`dek`) and, like the other providers, TOTP secrets, so every TOTP seal/open becomes a KMS call; use a cloud KMS for volume keys only if that latency and availability dependency is not acceptable for logins.
+
+| Variable | Meaning |
+|----------|---------|
+| `ZORVIA_AWS_KMS_KEY_ID` | selects AWS: key id, key ARN or alias |
+| `ZORVIA_AWS_REGION` (or `AWS_REGION`, `AWS_DEFAULT_REGION`) | region |
+| `ZORVIA_AWS_KMS_ENDPOINT` | optional, e.g. a VPC endpoint; https only (http for loopback) |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` | credentials from the environment (the Kubernetes Secret mounted as env) |
+| `ZORVIA_AWS_CREDENTIALS_FILE`, `ZORVIA_AWS_PROFILE` | alternative: a mounted shared-credentials style file (`[default]` with `aws_access_key_id` etc.), re-read on every request so rotation works |
+| `ZORVIA_GCP_KMS_KEY` | selects GCP: `projects/P/locations/L/keyRings/R/cryptoKeys/K` |
+| `ZORVIA_GCP_ACCESS_TOKEN_FILE` | mounted file with an OAuth2 access token, re-read on every request (for example kept fresh by a sidecar) |
+| `ZORVIA_GCP_USE_METADATA=1` | workload identity: token from the GCE/GKE metadata server, cached until near expiry (plain http to the link-local metadata server is the one non-https call) |
+| `ZORVIA_GCP_ACCESS_TOKEN` | fixed token; short-lived, prefer the two above |
+| `ZORVIA_GCP_KMS_ENDPOINT` | optional override; https only (http for loopback) |
+
+Set exactly one GCP token source. Credentials are never read from API request bodies and never logged; error messages contain only the service, operation, HTTP status and the service's error code.
+
+**Binding.** AWS: `EncryptionContext` = `{"zorvia:purpose":"dek","zorvia:owner":"<namespace>/<vm>/<volume>"}`. GCP: `additionalAuthenticatedData` = `zorvia:dek:<namespace>/<vm>/<volume>`. A wrapped key opened with another volume's context is refused by the KMS. Note that AWS records the encryption context in CloudTrail in clear, so namespace, VM and volume names are visible there. Sealed values are `enc:v1:aws:<CiphertextBlob>` or `enc:v1:gcp:<ciphertext>`. Key rotation happens inside the KMS (old ciphertexts keep decrypting), so `needs_rewrap` is true only for values from another provider.
+
+**Transport.** https only (plain http for loopback), 10 s request and 5 s connect timeouts, no redirects, 64 KiB response cap, up to 4 attempts with exponential backoff and jitter on HTTP 429, 5xx, transport errors and AWS throttling error codes; other 4xx are not retried. AWS requests are signed with SigV4 implemented in-tree (HMAC-SHA256 over the `sha2` crate); it is checked against the published AWS SigV4 test-suite vectors (get-vanilla, post-vanilla), the AWS documentation signing-key example and RFC 4231 HMAC vectors.
+
+**Why no SDK.** The official AWS SDK (`aws-sdk-kms` with `aws-config`) and Google's Cloud KMS client each pull in dozens of crates (smithy runtime, credential chains, hyper/tonic stacks, a second TLS stack in places) for two JSON POSTs. The REST route adds **no new crate**: `reqwest`, `sha2`, `base64` and `chrono` were already dependencies, so `Cargo.lock` is unchanged and `deny.toml` is unaffected.
+
+**Not done.** AWS IRSA / web-identity, instance-profile and SSO credential chains (use env or a credentials file kept fresh by your own tooling); GCP service-account JSON key signing (needs RSA; use workload identity or a token file); Azure Key Vault; multi-region keys; KMS request-level grants; zeroing of the HTTP response buffers (the data key transits the process heap like any other string in the Vault path).
 
 ## Storage backends considered
 

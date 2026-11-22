@@ -57,3 +57,7 @@ already stored as hashes. The Vault client is tested against a mock server, not 
 ## Data keys
 
 The same provider also wraps per-volume data keys (purpose label `dek`, so a TOTP value never opens as a data key). See [VOLUME_ENCRYPTION.md](VOLUME_ENCRYPTION.md).
+
+## Cloud KMS (Experimental)
+
+AWS KMS (`ZORVIA_AWS_KMS_KEY_ID`) and Google Cloud KMS (`ZORVIA_GCP_KMS_KEY`) can be selected instead of a local key or Vault; configure only one provider. Credentials come from the environment, a mounted file or GCP workload identity. Values are stored as `enc:v1:aws:...` / `enc:v1:gcp:...`. Every seal or open is a KMS call, including TOTP checks. Not run against a real cloud KMS. Variables and limits: [VOLUME_ENCRYPTION.md](VOLUME_ENCRYPTION.md#cloud-kms-providers-experimental).
