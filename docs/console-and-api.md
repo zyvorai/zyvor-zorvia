@@ -24,6 +24,7 @@ map lives in [docs/WEB_CONSOLE.md](WEB_CONSOLE.md).
 | `/app/templates` · `/app/windows` | OS catalog · Kryton inventory |
 | `/app/placement` · `/app/capacity` · `/app/optimizer` | Placement · headroom · right-sizing |
 | `/app/backups` · `/app/schedules` · `/app/alerts` | Backup · power cron · alerts |
+| `/app/dr-pairs` · `/app/volume-encryption` · `/app/certificates` · `/app/autoscaler` | Experimental, admin-only: DR pairs · volume encryption · certificate lifecycle · autoscaler decisions — see [FEATURE_MATURITY.md](FEATURE_MATURITY.md) |
 
 ```text
 wss://<HOST>:30152/ws/console/<vm>?token=<jwt>

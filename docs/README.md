@@ -29,14 +29,15 @@ Start here: root [README.md](../README.md) (hero, gallery, quick start) · live 
 | [LAB.md](LAB.md) | Remote deploy, auth Secret, NodePort **30152**, `lab-smoke.sh` |
 | [WEB_CONSOLE.md](WEB_CONSOLE.md) | SPA, Fabric HTTP API, console/VNC/SSH/pod WebSockets, Disk Images, hotplug, migration, Rook, RBAC, audit export |
 | [IMAGE_UPLOAD.md](IMAGE_UPLOAD.md) | Disk image upload through the CDI upload proxy (Experimental) |
-| [AUTOSCALER_LOOP.md](AUTOSCALER_LOOP.md) | Autoscaler reconcile loop, recommendation-only by default (Experimental) |
-| [SAML.md](SAML.md) | SAML 2.0 groundwork: metadata, login request, assertion validator; login not functional yet (Experimental) |
-| [VOLUME_ENCRYPTION.md](VOLUME_ENCRYPTION.md) | Envelope data keys for volumes wrapped by the key provider (Experimental) |
+| [AUTOSCALER_LOOP.md](AUTOSCALER_LOOP.md) | Autoscaler reconcile loop, recommendation-only by default, decisions log and telemetry (Experimental) |
+| [SAML.md](SAML.md) | SAML 2.0 SSO: metadata, login request, assertion validator; signature verification and login only in a build with the `saml` cargo feature (Experimental, no real IdP tested) |
+| [VOLUME_ENCRYPTION.md](VOLUME_ENCRYPTION.md) | Envelope data keys for volumes wrapped by a local key, Vault Transit, AWS KMS or GCP KMS; guest LUKS with one-time tokens (Experimental) |
 | [CERTIFICATE_LIFECYCLE.md](CERTIFICATE_LIFECYCLE.md) | Certificate inventory, expiry alerts and cert-manager renew (Experimental) |
-| [DR_REPLICATION.md](DR_REPLICATION.md) | Durable DR replication pairs, RPO/RTO status, dry-run-first failover (Experimental) |
+| [DR_REPLICATION.md](DR_REPLICATION.md) | Durable DR replication pairs, RPO/RTO status, dry-run-first failover and failback (Experimental) |
+| [CLI_REMOTE.md](CLI_REMOTE.md) | CLI for the API-backed experimental features: `zorvia dr / volume / rescue / certs / autoscaler / inventory pool` |
 | [PODS.md](PODS.md) | Pods page: all-namespace inventory, Terminal.app logs + exec, WebSocket protocol, RBAC, audit |
 | [RESOURCE_POOLS.md](RESOURCE_POOLS.md) | Resource pools: label-based VM groups, advisory limits, usage report, pool hierarchy (Experimental) |
-| [RESCUE.md](RESCUE.md) | Rescue mode: offline hostname/SSH-key/enable-SSH via a Job-mounted disk, GuestKit, RBAC, audit |
+| [RESCUE.md](RESCUE.md) | Rescue mode: offline hostname/SSH-key/enable-SSH via a Job-mounted disk (Beta); reset-password, install-packages, inspect (Experimental); GuestKit, RBAC, audit |
 | [SUPPORT_MATRIX.md](SUPPORT_MATRIX.md) | Validated versions and measured E2E results; what is not validated |
 | [DEVICES.md](DEVICES.md) | GPU / SR-IOV / host-device passthrough: create, preflight, inventory (Experimental) |
 | [KEY_PROVIDER.md](KEY_PROVIDER.md) | Encrypting TOTP secrets at rest (local key, Vault Transit), rotation, 2FA reset |
@@ -49,11 +50,19 @@ Start here: root [README.md](../README.md) (hero, gallery, quick start) · live 
 | [OFFCLUSTER_BACKUP.md](OFFCLUSTER_BACKUP.md) | Encrypted, verified S3 backups, restore, recovery drills, retention (Atlas bucket target) |
 | [VM_IMPORT.md](VM_IMPORT.md) | VMware import with h2kvm: waves, preflight, rollback |
 | [ATLAS_INTEGRATION.md](ATLAS_INTEGRATION.md) | Atlas storage control plane integration |
+| [MCP.md](MCP.md) | MCP server: let AI assistants manage VMs with their own scoped token (opt-in) |
+| [AI.md](AI.md) | AI-assisted diagnosis |
+| [FLEET.md](FLEET.md) | Live multi-cluster fleet inventory (Experimental) |
+| [SCHEDULER_LEADERSHIP.md](SCHEDULER_LEADERSHIP.md) | Scheduler leadership safety (lease election) |
+| [MANAGED_OPERATIONS.md](MANAGED_OPERATIONS.md) | Managed operations records |
+| [DIAGNOSTIC_PRIVACY.md](DIAGNOSTIC_PRIVACY.md) | What diagnostic bundles redact and share |
+| [BILLING_UNITS.md](BILLING_UNITS.md) | Billing units |
+| [SUBSCRIPTION-MODEL.md](SUBSCRIPTION-MODEL.md) | Support subscriptions |
 | [OIDC.md](OIDC.md) | Opt-in OIDC SSO (PKCE + token exchange + JWKS) |
 | [OIDC_LAB.md](OIDC_LAB.md) | Lab IdP bake-off (Dex/Keycloak) |
 | [FEATURE_MATURITY.md](FEATURE_MATURITY.md) | GA / Beta / Experimental / Model-only (`GET /api/v1/features`) |
 | [PHASE5_ENTERPRISE.md](PHASE5_ENTERPRISE.md) | Enterprise plan APIs (S3, Transiva, DR, GPU, fleet) |
-| [UPGRADE.md](UPGRADE.md) | 0.3.2 → 0.3.3+ operator notes |
+| [UPGRADE.md](UPGRADE.md) | 0.7.4 → 0.8.0 and 0.3.2 → 0.3.3+ operator notes |
 | [OS_TEMPLATES.md](OS_TEMPLATES.md) | 43 OS templates |
 | [INNOVATIVE_FEATURES.md](INNOVATIVE_FEATURES.md) | Profiles, blueprints, health, recommendations |
 | [THEME.md](THEME.md) | CLI/TUI theme |
@@ -62,12 +71,12 @@ Start here: root [README.md](../README.md) (hero, gallery, quick start) · live 
 
 | Doc | Topic |
 |-----|--------|
-| [SNAPSHOTS.md](SNAPSHOTS.md) | Snapshot create/restore/retention |
+| [SNAPSHOTS.md](SNAPSHOTS.md) | Snapshot create/restore/retention, scheduled snapshots |
 | [DISK_MANAGEMENT.md](DISK_MANAGEMENT.md) | Disks and volumes |
 | [NETWORK_MANAGEMENT.md](NETWORK_MANAGEMENT.md) | Networking |
 | [ADVANCED_FEATURES.md](ADVANCED_FEATURES.md) | Platform `zorvia vm status` + advanced CLI |
 | [GUEST_INSIGHT.md](GUEST_INSIGHT.md) | QEMU Guest Agent readiness |
-| [GOLDEN_IMAGES.md](GOLDEN_IMAGES.md) | Golden images: Linux imports (containerdisks, CDI `image-bundle`), VM captures, Windows builds via Kryton |
+| [GOLDEN_IMAGES.md](GOLDEN_IMAGES.md) | Golden images: Linux imports (containerdisks, CDI `image-bundle`), VM captures, Windows builds via Kryton; scan/sign gates (Experimental) |
 
 ## Drift, plan & inventory
 

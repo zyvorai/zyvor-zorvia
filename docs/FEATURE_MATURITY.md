@@ -6,10 +6,10 @@ Levels used by Zorvia (also exposed at `GET /api/v1/features` when the API is ru
 |-------|---------|
 | **GA** | Real backend, persistence, RBAC, tests, upgrade path |
 | **Beta** | Operational with documented limitations |
-| **Experimental** | Behind `ZORVIA_EXPERIMENTAL=1`; no production promise |
+| **Experimental** | Behind `ZORVIA_EXPERIMENTAL=1` (most also need their own per-feature switch, listed in the row); no production promise |
 | **Model only** | Internal types / demos — not marketed as working |
 
-## Current matrix (0.3.3+)
+## Current matrix (0.8.0)
 
 | ID | Feature | Level | Notes |
 |----|---------|-------|-------|
@@ -19,7 +19,6 @@ Levels used by Zorvia (also exposed at `GET /api/v1/features` when the API is ru
 | `web-console` | Web console + auth | GA | JWT + tokens; OIDC opt-in |
 | `audit-trail` | Audit trail | GA | SQLite (or [PostgreSQL](POSTGRES.md)) + `GET /api/audit/export` JSONL; optional `ZORVIA_AUDIT_JSONL` sidecar (per replica) |
 | `pod-ops` | Pods: logs, exec, events, YAML, restart/delete | Beta | `cluster.admin` only; `pods` delete + `pods/log` + `pods/exec` RBAC; exec, restart and delete audited — [PODS.md](PODS.md) |
-| `rescue-mode` | Rescue mode: hostname/SSH-key/enable-SSH via a Job-mounted disk | Beta | `cluster.admin` only; 3 of 5 UI operations wired (reset-password, install-packages, inspect deferred); needs on-cluster verification of the mounted PVC's disk-image path before trusting it against a production VM — [RESCUE.md](RESCUE.md) |
 | `autoscaler-decisions` | Autoscaler decisions view (API, CLI, web) | Experimental | Read-only `GET /api/v1/autoscaler/status and /decisions` (cluster.admin), `zorvia autoscaler status/decisions`, `/app/autoscaler`; bounded in-memory ring (100 per target), lost on restart, per process; unit/mock-server/component tested, not run against a live cluster — [AUTOSCALER_LOOP.md](AUTOSCALER_LOOP.md) |
 | `autoscaler-loop` | Autoscaler reconcile loop (VM pool replicas / VM vCPU) | Experimental | Opt-in `ZORVIA_AUTOSCALER_LOOP=1`; recommendation-only by default; decision logic unit-tested with fakes; executor not live-verified; load comes from the metrics API (PodMetrics) or optional Prometheus, tested against mock servers only, and missing/stale data means no decision — [AUTOSCALER_LOOP.md](AUTOSCALER_LOOP.md) |
 | `rescue-mode` | Rescue mode: hostname/SSH-key/enable-SSH via a Job-mounted disk | Beta | `cluster.admin` only; 3 original operations (the other three are the separate `rescue-ops-extended` row); needs on-cluster verification of the mounted PVC's disk-image path before trusting it against a production VM — [RESCUE.md](RESCUE.md) |
@@ -32,7 +31,8 @@ Levels used by Zorvia (also exposed at `GET /api/v1/features` when the API is ru
 | `guest-agent-integration` | Zyvor guest agent: install, guest views, snapshot hooks, drill probe | Beta | Debian-family guests; read-only method set; freeze needs the drop-in Zorvia writes; Windows/RPM and real DB-flush hooks not verified — [GUEST_AGENT.md](GUEST_AGENT.md) |
 | `helm-chart` | Helm chart | Beta | Lab + hardened production values |
 | `oidc` | OIDC / SSO | Beta | `ZORVIA_OIDC_ENABLED=1` + PKCE/JWKS; lab bake-off [OIDC_LAB.md](OIDC_LAB.md) |
-| `saml` | SAML 2.0 SSO | Experimental | Partial: metadata, AuthnRequest, validator; **no signature verification, ACS returns 501**, no login possible. [SAML.md](SAML.md) |
+| `saml` | SAML 2.0 SSO | Experimental | `ZORVIA_SAML_ENABLED=1` plus SP/IdP settings and an IdP certificate (`ZORVIA_SAML_IDP_CERT_PEM` or `_FILE`). SP metadata, SP-initiated login, strict assertion validation with replay cache and group-to-role mapping. Response signature verification (samael/libxmlsec1) exists only in a build with the **`saml` cargo feature**, which is off by default and absent from the published image: without it the ACS endpoint answers 501 and no login is possible. Unit-tested with locally signed fixtures; **never tested against a real IdP**; no signed AuthnRequests, SLO, encrypted assertions or IdP metadata import — [SAML.md](SAML.md) |
+| `commercial-contracts` | Commercial catalog, quote requests, contracts and coverage | Beta | Single-instance SQLite (`ZORVIA_COMMERCIAL_DB`); records only, no notifications, payments or remote access; expiry never affects VMs — [COMMERCIAL_OFFERINGS.md](COMMERCIAL_OFFERINGS.md) |
 | `ai-troubleshoot` | AI troubleshooting | Model only | Rules demo, not ML RCA |
 | `dr-replication` | DR replication pairs | Experimental | Durable pairs (file or PostgreSQL), leader-gated loop takes verified off-cluster backups at the RPO interval, lag/RPO/RTO status, alert hooks, dry-run-first confirmed failover restoring as `{vm}-dr` (never over a running/existing VM), dry-run-first confirmed failback (verified backup of the DR VM, restore to the original name only when it is stopped or absent, cancel, resumable progress, durable alerts). Needs `ZORVIA_EXPERIMENTAL=1` + `ZORVIA_FEATURE_DR_REPLICATION=1` and an off-cluster target. Unit-tested with fake backends only (incl. refusals and crash-resume), not run against a live cluster; failback never overwrites, so a stopped original must be removed by the operator; same-cluster object store, no site failover or traffic repointing — [DR_REPLICATION.md](DR_REPLICATION.md). The older CLI model (`dr::replication`) is unchanged and still in-memory. |
 | `incremental-backup` | Incremental backup fields | Model only | Executions still full snapshots |
@@ -42,21 +42,30 @@ Levels used by Zorvia (also exposed at `GET /api/v1/features` when the API is ru
 | `vm-import-h2kvm` | VMware → KubeVirt import via h2kvm Jobs | Experimental | Gated by `ZORVIA_EXPERIMENTAL=1`; admin console, fail-closed preflight, NIC mapping, cutover, cancel; `mode=stub` Job-only; `mode=local` Job + stopped emptyDisk VM; vsphere needs `ZORVIA_H2KVM_IMAGE`; not yet exercised against a real vCenter |
 | `image-upload` | Disk image upload via the CDI upload proxy | Experimental | `ZORVIA_EXPERIMENTAL=1` + `ZORVIA_CDI_UPLOAD_PROXY_URL`; streamed with size cap and SHA-256, magic-byte format detection (CDI converts to raw); tested against a local mock proxy only, not a live CDI; web console upload form on `/app/disk-images` (unit-tested only) — [IMAGE_UPLOAD.md](IMAGE_UPLOAD.md) |
 | `volume-encryption` | Volume envelope encryption (data keys wrapped by local key / Vault Transit / AWS KMS / GCP KMS) | Experimental | Wrapped key Secret, re-wrap rotation, audited plan/apply of an encrypted DataVolume via StorageClass parameters; AWS KMS and Google Cloud KMS wrappers over REST (in-tree SigV4, env/file/workload-identity credentials, retries) tested against mock servers only, never a real cloud KMS; no Azure Key Vault, no IRSA/instance-profile chains; unit-tested, no live-cluster or CSI verification; CSI does not consume the Zorvia key — [VOLUME_ENCRYPTION.md](VOLUME_ENCRYPTION.md) |
-
-| `volume-encryption` | Volume envelope encryption (data keys wrapped by local key / Vault Transit) | Experimental | Wrapped key Secret, re-wrap rotation, audited plan/apply of an encrypted DataVolume via StorageClass parameters; cloud KMS stub only; unit-tested, no live-cluster or CSI verification; CSI does not consume the Zorvia key — [VOLUME_ENCRYPTION.md](VOLUME_ENCRYPTION.md) |
 | `cert-lifecycle` | Certificate inventory, expiry alerts, cert-manager renew | Experimental | `ZORVIA_EXPERIMENTAL=1`; metadata-only inventory of TLS Secrets, serving cert and CA files, leader-gated threshold alerts (default 30/14/7/1 days, notification list + log only), cert-manager Ready state and audited renew via the `Issuing` condition; needs opt-in Secret/cert-manager RBAC; unit-tested with generated certificates and a fake store, no live-cluster or cert-manager verification — [CERTIFICATE_LIFECYCLE.md](CERTIFICATE_LIFECYCLE.md) |
-| `golden-image-pipeline` | Golden-image pipeline | Experimental | Plan marks `scan:deferred` / `sign:deferred`; `/run` applies CDI DataVolume+DataSource (build+promote). Cosign/scan remain operator-owned. |
 | `golden-image-pipeline` | Golden-image pipeline | Experimental | `/run` applies the CDI DataVolume, runs operator-configured scan (trivy-style JSON + severity threshold) and cosign sign/verify Jobs, and only then promotes the DataSource; a failing gate blocks promotion (409). Unconfigured steps stay `deferred`. Unit-tested with mocked Jobs and fixtures; not run against a live cluster, trivy or cosign. Registry sources only. |
 | `golden-gates-v2` | Golden gates: private registries, HTTP(S) checksum/blob signature, block cleanup | Experimental | Pull/CDI Secrets referenced by name (never in request bodies); HTTP(S) sources get a SHA-256 check and `cosign verify-blob` with a detached signature URL as Jobs; a blocked run removes only its own run-labelled DataVolume unless keep-on-block. Unit-tested with mocked Jobs and a fake DataVolume store; not run against a live cluster, registry, curl or cosign. No blob signing, no keyless blob verification, no scan of HTTP disks. |
 | `gpu-sriov-numa` | GPU/SR-IOV/NUMA | Experimental | Create/preflight/permit + placement plan with **live** inventory preflight; lab fake GPU (`deploy/lab-fake-gpu-device-plugin.yaml` + `scripts/lab-fake-gpu-device.sh`); not proven on real GPU/SR-IOV hardware — [DEVICES.md](DEVICES.md) |
 | `fleet-multicluster` | Fleet multi-cluster | Experimental | Live read-only inventory + admin console; lab dual-enrollment script (`scripts/lab-fleet-dual-enroll.sh`); true multi-API validation pending — [FLEET.md](FLEET.md) |
 | `guest-luks` | Guest LUKS volume encryption with one-time-token key delivery | Experimental (partial) | One-time token service (single use, TTL, bound to ns/vm/volume, constant-time, rate limited, audited), redeem endpoint, key-free cloud-init/crypttab templates, plan/apply for a blank DataVolume; unit-tested only. Missing: automatic token delivery on every start (a rebooted guest stays locked), never run in a guest or live cluster, in-memory single-replica token state, no luksChangeKey automation — [VOLUME_ENCRYPTION.md](VOLUME_ENCRYPTION.md) |
-| `cli-remote` | CLI for DR pairs, volume encryption, rescue ops (`zorvia dr / volume / rescue`) | Experimental | Thin client over the Experimental APIs; server enforces gate/RBAC; tested against a mock server only, no live cluster — [CLI_REMOTE.md](CLI_REMOTE.md) |
 | `resource-pools` | Resource pools (VM groups with advisory limits) | Experimental | `ZORVIA_EXPERIMENTAL=1`, cluster.admin only; membership is a `pool.zorvia.io/<name>` VM label, limits in the state store; read-only usage report and datacenter > cluster > folder > pool view; limits advisory (create returns `pool_warnings`, never blocks); unit-tested with fake VM objects and a mock API, not run against a live cluster; no web page — [RESOURCE_POOLS.md](RESOURCE_POOLS.md) |
-
 | `small-polish-r3` | CLI `dr pair delete`, rescue `--wait`, Prometheus token file, upload-cap API | Experimental | Extends the Experimental features above and inherits their gates; unit and mock-server tested only, no live cluster — [CLI_REMOTE.md](CLI_REMOTE.md), [AUTOSCALER_LOOP.md](AUTOSCALER_LOOP.md), [IMAGE_UPLOAD.md](IMAGE_UPLOAD.md) |
-
 | `cli-remote` | CLI for DR pairs, volume encryption, rescue ops, certificates (`zorvia dr / volume / rescue / certs`) | Experimental | Thin client over the Experimental APIs; server enforces gate/RBAC; tested against a mock server only, no live cluster — [CLI_REMOTE.md](CLI_REMOTE.md) |
+
+## What "verified" means here
+
+Every Experimental row above was verified by unit tests, mock HTTP servers or fake stores only. None has been run against a
+live cluster. In particular: SAML has not met a real IdP; the AWS and Google Cloud KMS wrappers have only talked to mock
+servers, never a real KMS endpoint; guest LUKS has never run in a guest, and its unauthenticated redeem route
+(`POST /volume-encryption/guest-luks/redeem/...`) needs a security review before the feature can leave Experimental;
+certificate lifecycle has not met a real cert-manager; golden-image scan/sign has not run trivy or cosign.
+
+## Registry versus this page
+
+`GET /api/v1/features` (from `src/features/mod.rs`) lists the features that have their own registry entry. The rows
+`autoscaler-decisions`, `autoscaler-loop`, `rescue-agent-build`, `golden-gates-v2`, `cli-remote` and `small-polish-r3` exist
+only on this page (their gates are the ones named in the row). The registry text for `saml` still says "no signature
+verification yet"; this page follows the 0.8.0 source (verification behind the `saml` cargo feature).
 
 Set `ZORVIA_EXPERIMENTAL=1` only in non-production environments to exercise model-only / experimental surfaces.
 See [PHASE5_ENTERPRISE.md](PHASE5_ENTERPRISE.md) for env flags and endpoints.
