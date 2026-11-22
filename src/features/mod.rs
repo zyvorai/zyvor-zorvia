@@ -194,6 +194,12 @@ pub const FEATURES: &[Feature] = &[
         notes: "Wrapped data keys in a Secret, re-wrap rotation, plan/apply of an encrypted DataVolume via StorageClass parameters, audited; cloud KMS is a stub; unit-tested only, not run against a live cluster or CSI driver; the CSI driver does not consume the Zorvia key — docs/VOLUME_ENCRYPTION.md",
     },
     Feature {
+        id: "resource-pools",
+        name: "Resource pools (VM groups with advisory limits)",
+        maturity: Maturity::Experimental,
+        notes: "Requires ZORVIA_EXPERIMENTAL=1; pool.zorvia.io/<name> VM labels plus limits in the state store; read-only usage report and datacenter > cluster > folder > pool view; limits advisory at create (warning only), never enforced; cluster.admin only; unit-tested with fake VM data, not run against a live cluster; see docs/RESOURCE_POOLS.md",
+    },
+    Feature {
         id: "golden-image-pipeline",
         name: "Golden-image build/scan/sign/promote",
         maturity: Maturity::Experimental,

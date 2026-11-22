@@ -34,6 +34,7 @@ Start here: root [README.md](../README.md) (hero, gallery, quick start) · live 
 | [VOLUME_ENCRYPTION.md](VOLUME_ENCRYPTION.md) | Envelope data keys for volumes wrapped by the key provider (Experimental) |
 | [DR_REPLICATION.md](DR_REPLICATION.md) | Durable DR replication pairs, RPO/RTO status, dry-run-first failover (Experimental) |
 | [PODS.md](PODS.md) | Pods page: all-namespace inventory, Terminal.app logs + exec, WebSocket protocol, RBAC, audit |
+| [RESOURCE_POOLS.md](RESOURCE_POOLS.md) | Resource pools: label-based VM groups, advisory limits, usage report, pool hierarchy (Experimental) |
 | [RESCUE.md](RESCUE.md) | Rescue mode: offline hostname/SSH-key/enable-SSH via a Job-mounted disk, GuestKit, RBAC, audit |
 | [SUPPORT_MATRIX.md](SUPPORT_MATRIX.md) | Validated versions and measured E2E results; what is not validated |
 | [DEVICES.md](DEVICES.md) | GPU / SR-IOV / host-device passthrough: create, preflight, inventory (Experimental) |

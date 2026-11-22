@@ -5,6 +5,8 @@ Status: **Experimental**. Thin clients over the REST APIs of [DR pairs](DR_REPLI
 (`cluster.admin`), validation, audit and the `ZORVIA_EXPERIMENTAL=1` gate; the CLI only builds the request.
 Tested against a mock HTTP server, never against a live cluster.
 
+The resource-pool commands (zorvia inventory pool) use the same connection options; see [RESOURCE_POOLS.md](RESOURCE_POOLS.md).
+
 ## Connection
 
 | Option | Env | Meaning |
