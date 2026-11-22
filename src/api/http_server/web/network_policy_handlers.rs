@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 //! Real Kubernetes `NetworkPolicy` CRUD, scoped to VMs by matching KubeVirt's
 //! own `kubevirt.io/domain` pod label. This replaces the deleted

@@ -20,7 +20,7 @@
 
 **KubeVirt gives you `VirtualMachine` objects. Zorvia gives you the control plane around them.** CLI, interactive TUI and a signed-in web console — one API, live cluster objects, not a parallel mock store.
 
-**43 OS templates** · **8 profiles, 5 blueprints** · **CLI · TUI · web, one API** · **Any KubeVirt cluster** · **Zyvor Production License**
+**43 OS templates** · **8 profiles, 5 blueprints** · **CLI · TUI · web, one API** · **Any KubeVirt cluster** · **Zyvor Production Licence v2.0**
 
 </div>
 
@@ -124,7 +124,7 @@ Placement Advisor and Capacity Planning against real Node capacity, a Resource O
 
 Zorvia is opinionated about one thing: VMs on KubeVirt, run like a platform. It works with any KubeVirt cluster, so your VMs stay ordinary `VirtualMachine` objects.
 
-- **Existing KubeVirt cluster** — point Zorvia at it, read-only first: [adoption runbook](docs/adopt-existing-kubevirt-cluster.md). Permitted for non-production use under the Zyvor Production License v1.0; production use needs a commercial license.
+- **Existing KubeVirt cluster** — point Zorvia at it, read-only first: [adoption runbook](docs/adopt-existing-kubevirt-cluster.md). A 30-day trial is available on request from sales@zyvor.dev (a paid evaluation Order at no charge); production and any other use needs a paid Order under the Zyvor Production Licence v2.0.
 - **Coming from VMware** — Zorvia has no production importer of its own. Use the Zyvor suite: [Transiva](https://github.com/zyvorai/zyvor-transiva) (export) → [h2kvm](https://github.com/zyvorai/zyvor-h2kvm) (convert, deploy) → [GuestKit](https://github.com/zyvorai/zyvor-guestkit) (assure) → Zorvia (operate).
 - **Commercial support** — production support and SLAs by contract. Scope and terms are agreed with sales: [talk to sales](https://zyvor.dev/contact?intent=sales&utm_source=github&utm_medium=zorvia&utm_campaign=readme_edition), or [book a demo](https://zyvor.dev/schedule?utm_source=github&utm_medium=zorvia&utm_campaign=readme_edition).
 
@@ -217,7 +217,7 @@ The web console is served on HTTPS NodePort **30152** (self-signed): `open https
 
 ## Production support and services
 
-Everything in this repository is under the Zyvor Production License v1.0: permitted for non-production use, with a commercial license for Production Use, and it works without a subscription. Paid service contracts add support coverage and services (deployment, migration, training, managed operations) around it. They are not a software licence. A contract records what was purchased. It never stops VMs, disables APIs or blocks access to your data.
+Everything in this repository is under the Zyvor Production Licence v2.0, and it works without a subscription. Paid service contracts add support coverage and services (deployment, migration, training, managed operations) around it. They are not a software licence. A contract records what was purchased. It never stops VMs, disables APIs or blocks access to your data.
 
 | Topic | Doc |
 |---|---|
@@ -296,11 +296,11 @@ No `unsafe` on the product path. CORS off unless configured. TLS verification en
 
 ## Support
 
-Evaluation is permitted for 30 days per organization under the Zyvor Production License v1.0; production use requires a commercial license (sales@zyvor.dev). If it helps you, you can donate any amount you like: <https://rzp.io/rzp/utwdYh3>. A donation is voluntary and supports development and maintenance. It is not a purchase: it buys no support, SLA, features, priority or license, and it is not tax-deductible (Zyvor AI Labs Private Limited is a company, not a charity). Zyvor Enterprise (supported releases, SLAs, a named contact and enterprise features) is separate: sales@zyvor.dev.
+A 30-day trial is available on request from sales@zyvor.dev (a paid evaluation Order at no charge); production and any other use needs a paid Order under the Zyvor Production Licence v2.0. If it helps you, you can donate any amount you like: <https://rzp.io/rzp/utwdYh3>. A donation is voluntary and supports development and maintenance. It is not a purchase: it buys no support, SLA, features, priority or license, and it is not tax-deductible (Zyvor AI Labs Private Limited is a company, not a charity). Zyvor Enterprise (supported releases, SLAs, a named contact and enterprise features) is separate: sales@zyvor.dev.
 
 ## License
 
-Zorvia is source-available under the [Zyvor Production License v1.0](LICENSE). Evaluation (evaluation, development, testing, research, education) is free for 30 days per organization; Production Use requires a commercial license from Zyvor AI Labs Private Limited ([sales@zyvor.dev](mailto:sales@zyvor.dev), [zyvor.dev/buy](https://zyvor.dev/buy)); a 30-day trial key is available for production evaluation. See [NOTICE](NOTICE).
+Zorvia is source-available under the [Zyvor Production Licence v2.0](LICENSE). A 30-day trial is available on request from [sales@zyvor.dev](mailto:sales@zyvor.dev) (a paid evaluation Order at no charge); production and any other use needs a paid Order ([zyvor.dev/buy](https://zyvor.dev/buy)). See [NOTICE](NOTICE).
 
 **Price:** INR 67,999 per node per year incl. 18% GST in India; US$686 per node per year excl. tax elsewhere. Buy: [zyvor.dev/buy](https://zyvor.dev/buy). Orders of USD 5,000 or more and quotes are invoiced in USD through Skydo.
 

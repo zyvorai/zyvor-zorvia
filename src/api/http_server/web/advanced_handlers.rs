@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 //! Real backend for the VM detail page's "Advanced" tab: boot/firmware
 //! config, CPU model, watchdog, serial console status, and a couple of

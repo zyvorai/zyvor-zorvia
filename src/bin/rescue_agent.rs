@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 //! Rescue mode's Job entrypoint: mounts a VM's own disk image (via GuestKit,
 //! which shells out to `losetup`/`qemu-nbd`/`mount`/`chroot` internally --

@@ -1,7 +1,7 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
-// Copyright 2026 Zyvor AI Labs · Zyvor Production License v1.0
+// Copyright 2026 Zyvor AI Labs · Zyvor Production Licence v2.0
 import { test, expect, type Page } from '@playwright/test'
 
 const liveBase = process.env.ZORVIA_E2E_BASE_URL || process.env.PLAYWRIGHT_BASE_URL

@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 //! vCenter-style operational primitives implemented with Kubernetes/KubeVirt semantics.
 //! These modules do not create a second control-plane database: inventory hierarchy,

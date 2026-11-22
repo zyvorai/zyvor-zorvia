@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 //! Raw-HTTP client for Rook/Ceph CRDs, following the same
 //! `kube::Client::request` pattern `crate::kube::cdi` uses for CDI

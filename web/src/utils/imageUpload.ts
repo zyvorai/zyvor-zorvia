@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 /** The validate endpoint only needs the first ~33 KiB (docs/IMAGE_UPLOAD.md). */
 export const VALIDATE_HEAD_BYTES = 33 * 1024

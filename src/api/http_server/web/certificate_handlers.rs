@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 //! Certificate lifecycle API (Experimental, `cert-lifecycle`): inventory, expiry status and
 //! alerts, cert-manager state and the renew action. Every route is cluster.admin (see

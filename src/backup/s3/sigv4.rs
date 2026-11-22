@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 //! AWS Signature Version 4 for S3-compatible object stores (AWS S3, MinIO,
 //! Ceph RGW). Only depends on `sha2` and `chrono`; HMAC-SHA256 is

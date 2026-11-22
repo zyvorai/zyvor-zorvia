@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 //! Pure, dependency-free helpers shared by the server (`src/kube/rescue.rs`,
 //! request validation + Job-spec generation) and the `rescue-agent` binary

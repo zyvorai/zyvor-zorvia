@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 import type {ReactNode} from 'react';
 import clsx from 'clsx';
@@ -156,7 +156,7 @@ function TrustBand() {
               Source-available, KubeVirt-native
             </Heading>
             <p>
-              Zyvor Production License, written in Rust. Zorvia doesn't
+              Zyvor Production Licence v2.0, written in Rust. Zorvia doesn't
               reimplement VM execution — it's a real backend and UX layer
               on top of KubeVirt's own CRDs, so what you see in the CLI,
               TUI, or web console is what's actually running in the
@@ -177,7 +177,7 @@ function TrustBand() {
             />
             <img
               src="https://img.shields.io/badge/License-Zyvor%20Production-blue.svg"
-              alt="Zyvor Production License"
+              alt="Zyvor Production Licence v2.0"
             />
           </div>
         </div>
@@ -194,7 +194,7 @@ function EnterpriseCTA() {
           Want to talk it through?
         </Heading>
         <p className={styles.enterpriseCopy}>
-          Zorvia is permitted for non-production use; production use needs a commercial license. Reach out if
+          A 30-day trial is available on request from sales@zyvor.dev; production and any other use needs a paid Order. Reach out if
           you want to talk through a KubeVirt rollout or what Zorvia looks
           like at fleet scale.
         </p>

@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 //! `GET /api/v1/maintenance/plan?node=NAME`: what a drain of NAME would do to
 //! its VMs (see `crate::placement::maintenance`). Read-only; it never cordons,

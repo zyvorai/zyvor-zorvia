@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 //! Autoscaler reconcile loop wiring: leader-gated spawn, audit + operations sink.
 //! Off unless `ZORVIA_AUTOSCALER_LOOP=1` and `ZORVIA_EXPERIMENTAL=1`; see docs/AUTOSCALER_LOOP.md.

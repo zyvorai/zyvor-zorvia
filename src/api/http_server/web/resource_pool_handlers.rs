@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 //! Resource pools (Experimental): `/v1/inventory/pools*`. Membership is a VM label, pool
 //! definitions (limits) live in the shared state store; the logic is in

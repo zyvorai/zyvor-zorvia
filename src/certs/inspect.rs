@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 //! X.509 metadata extraction (OpenSSL, already a dependency). Only public certificate
 //! fields are read; a [`CertMeta`] holds no PEM text and no key material.
