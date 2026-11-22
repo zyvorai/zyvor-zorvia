@@ -505,6 +505,8 @@ mod tests {
             RedeemError::Unknown
         );
         for bad in ["", "x", "zlt1.a", "zlt2.a.b", &"z".repeat(500)] {
+            // A fresh service each time: failures count against the binding and would throttle it.
+            let svc = TokenService::new();
             assert_eq!(
                 svc.consume(bad, &b(), NOW).unwrap_err(),
                 RedeemError::Malformed

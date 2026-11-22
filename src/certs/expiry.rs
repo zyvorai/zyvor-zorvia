@@ -458,7 +458,7 @@ mod tests {
 
     #[test]
     fn custom_thresholds_are_honoured() {
-        let raw = secret("c", 50 * D);
+        let raw = secret("c", 43 * D);
         let mut st = ExpiryState::default();
         assert!(evaluate(&certs_at(&raw, t0()), &mut st, &[45], t0()).len() == 1);
         let mut st2 = ExpiryState::default();
