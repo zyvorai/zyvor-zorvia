@@ -3,7 +3,7 @@ name = "zorvia-desktop"
 version = "0.1.0"
 description = "Zorvia — native macOS app around the bundled `zorvia api-serve`"
 edition = "2021"
-license = "LicenseRef-Zyvor-Production-1.0"
+license = "LicenseRef-Zyvor-Production-2.0"
 
 [lib]
 name = "zorvia_desktop_lib"

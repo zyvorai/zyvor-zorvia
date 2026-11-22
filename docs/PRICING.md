@@ -1,6 +1,6 @@
 # Pricing
 
-> **Note:** Zyvor is moving to an enterprise subscription model for new quotes: an annual subscription that includes updates and the stated support level, with non-production terms unchanged. See `docs/SUBSCRIPTION-MODEL.md` in this repository. Rates below apply to existing agreements; contact [sales@zyvor.dev](mailto:sales@zyvor.dev) for current rates.
+> **Note:** Zyvor is moving to an enterprise subscription model for new quotes: an annual subscription that includes updates and the stated support level. See `docs/SUBSCRIPTION-MODEL.md` in this repository. Rates below apply to existing agreements; contact [sales@zyvor.dev](mailto:sales@zyvor.dev) for current rates.
 >
 > **Prices: INR incl. 18% GST in India; US dollars excl. tax elsewhere (VAT, GST or sales tax added where applicable). Pay online by UPI, card or netbanking where a buy page exists; international cards work (charged in rupees); or request a US-dollar invoice by bank transfer. Custom pricing: contact [sales@zyvor.dev](mailto:sales@zyvor.dev).** Buy / get a quote: <https://zyvor.dev/buy>.
 
@@ -9,7 +9,7 @@
 
 ## What you pay for
 
-Zorvia is source-available under the Zyvor Production License v1.0. Production Use requires a commercial license (sales@zyvor.dev). Customers pay for the commercial license and **services around the software**: production support, deployment, migration, training and managed operations. Support is a paid service contract, not a software licence, and nothing in the product checks for one.
+Zorvia is source-available under the Zyvor Production Licence v2.0. Production Use requires a commercial license (sales@zyvor.dev). Customers pay for the commercial license and **services around the software**: production support, deployment, migration, training and managed operations. Support is a paid service contract, not a software licence, and nothing in the product checks for one.
 
 An expired or missing contract never stops VMs or disables existing functionality ([COMMERCIAL_OFFERINGS.md](COMMERCIAL_OFFERINGS.md)).
 

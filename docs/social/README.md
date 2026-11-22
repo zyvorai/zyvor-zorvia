@@ -30,5 +30,5 @@ outputs above and the comparison cards below.
 The repository's **Social preview** image (Settings → Social preview) cannot be set through the API or `gh`;
 upload `zorvia-share-card.png` there by hand after it changes.
 
-Licence wording follows `LICENSE` (Zyvor Production License v1.0). The version chip tracks `Cargo.toml` (currently 0.7.4) and the
+Licence wording follows `LICENSE` (Zyvor Production Licence v2.0). The version chip tracks `Cargo.toml` (currently 0.7.4) and the
 CHANGELOG.

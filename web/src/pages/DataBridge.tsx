@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 import { useEffect, useState } from 'react'
 import { DatabaseZap, Plus, Trash2, Search, Rocket, Play, Square, RotateCcw, CheckCircle2, ArrowRightLeft, Undo2 } from 'lucide-react'

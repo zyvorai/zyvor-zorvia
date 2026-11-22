@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-# SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+# SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 # Lab-only: stand up a *second* Kubernetes API (k3d preferred, kind fallback),
 # mint a read-only kubeconfig, and print a fleet registry entry that is not the

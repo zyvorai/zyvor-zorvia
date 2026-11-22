@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 //! VM power scheduling -- start/stop/restart a VM on a recurring schedule.
 //! Real, disk-persisted, same shape as `crate::backup::schedule` (whose

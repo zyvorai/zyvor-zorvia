@@ -3,7 +3,7 @@
 Prices referenced here are the launch prices in [PRICING.md](PRICING.md).
 
 **Do I need a license?**
-Yes. Production Use requires a commercial license from Zyvor AI Labs Private Limited (sales@zyvor.dev); a 30-day trial key is available for production evaluation. See [LICENSE](../LICENSE) and [NOTICE](../NOTICE).
+Yes. Production Use requires a commercial license from Zyvor AI Labs Private Limited (sales@zyvor.dev); a 30-day trial is available on request (a paid evaluation Order at no charge). See [LICENSE](../LICENSE) and [NOTICE](../NOTICE).
 
 **What do I pay for, then?**
 The commercial license for Production Use, and services around the software: production support, deployment, migration, training and managed operations. Support is a paid service contract.

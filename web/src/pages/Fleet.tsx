@@ -1,4 +1,4 @@
-// Copyright 2026 Zyvor AI Labs · SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// Copyright 2026 Zyvor AI Labs · SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getFleet, type FleetSnapshot } from '../api/fleet'
 import { fleetIsStale, fleetRows, inventoryCount } from '../utils/fleet'

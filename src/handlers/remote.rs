@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 //! CLI for the experimental features that are reached through the REST API: DR pairs, volume
 //! encryption and rescue operations (`zorvia dr|volume|rescue ...`). Each command builds one

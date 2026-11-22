@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 //! Keeps the `secrets` RBAC rule (rescue reset-password's per-Job Secret)
 //! identical across every manifest that grants it. Text-based because the Helm

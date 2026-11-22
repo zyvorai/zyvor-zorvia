@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 //! Real, curated OS template catalog, backed by `crate::templates::TEMPLATES`
 //! -- ~30 pre-built `VMConfig`s (Ubuntu/Fedora/RHEL/Windows/Talos/etc, each

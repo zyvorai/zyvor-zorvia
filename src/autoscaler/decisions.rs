@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 //! Bounded in-memory record of the autoscaler loop's recent decisions, for the read-only
 //! status/decisions API, CLI and web panel. See docs/AUTOSCALER_LOOP.md.

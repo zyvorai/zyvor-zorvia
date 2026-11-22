@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 //! Rescue mode: resolves a stopped VM's own PVC and builds the Kubernetes
 //! Job that mounts it and runs `rescue-agent` (GuestKit) against it. Zorvia

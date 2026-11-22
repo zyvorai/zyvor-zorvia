@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 //! Authentication: JWT login, bootstrap admin DB, TOTP 2FA, scoped API tokens.
 //! OIDC is opt-in (`ZORVIA_OIDC_ENABLED=1`) with discovery, PKCE, token exchange, and JWKS.

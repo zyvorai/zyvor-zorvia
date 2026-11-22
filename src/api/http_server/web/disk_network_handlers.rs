@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 //! Disk resize (PVC grow) and real network interface listing — both exist
 //! today only as CLI commands (`zorvia disk-expand`, `zorvia network-list`)

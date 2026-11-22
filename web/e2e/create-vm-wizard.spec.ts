@@ -1,7 +1,7 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
-// Copyright 2026 Zyvor AI Labs · Zyvor Production License v1.0
+// Copyright 2026 Zyvor AI Labs · Zyvor Production Licence v2.0
 import { test, expect } from '@playwright/test'
 
 // Regression: the wizard's "Next" and "Create" buttons share one DOM slot. Without

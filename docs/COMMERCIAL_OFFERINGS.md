@@ -1,6 +1,6 @@
 # Commercial offerings
 
-Zorvia is source-available under the Zyvor Production License v1.0 and no capability is gated by a subscription. Contracts describe **purchased services and support coverage**. They never gate VM features.
+Zorvia is source-available under the Zyvor Production Licence v2.0 and no capability is gated by a subscription. Contracts describe **purchased services and support coverage**. They never gate VM features.
 
 > **Expiry safety rule.** An expired, cancelled or missing contract changes commercial service eligibility only. It never stops VMs, disables VM APIs or blocks access to your data.
 

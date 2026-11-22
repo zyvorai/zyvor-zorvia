@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 //! Kubernetes-backed [`CertSource`]. Only `tls.crt` and `ca.crt` of `kubernetes.io/tls`
 //! Secrets are copied out of the API response; every other key (notably `tls.key`) is

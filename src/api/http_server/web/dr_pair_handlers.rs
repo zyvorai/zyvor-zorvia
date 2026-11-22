@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 //! DR replication pairs (Experimental): `/v1/enterprise/dr/*`. The logic lives in
 //! `crate::dr::pairs`; this file gathers cluster facts, audits and serves the API.

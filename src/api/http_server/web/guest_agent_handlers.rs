@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 //! Read-only views into a running guest through the GuestKit (Zyvor) guest agent:
 //! agent version/health/snapshot readiness and the guest's own package, user,

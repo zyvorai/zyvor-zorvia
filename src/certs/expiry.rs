@@ -1,5 +1,5 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
 //! Expiry monitoring: alert once per threshold per certificate. The decision logic is
 //! pure ([`evaluate`]); [`check_once`] adds persistence and the notification list.

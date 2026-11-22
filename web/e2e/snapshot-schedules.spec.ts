@@ -1,7 +1,7 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
-// SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
+// SPDX-License-Identifier: LicenseRef-Zyvor-Production-2.0
 
-// Copyright 2026 Zyvor AI Labs · Zyvor Production License v1.0
+// Copyright 2026 Zyvor AI Labs · Zyvor Production Licence v2.0
 import { test, expect } from '@playwright/test'
 
 // The VM's Snapshots tab lists its snapshot schedules, an admin can add one (scoped to
