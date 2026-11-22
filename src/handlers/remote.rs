@@ -11,7 +11,8 @@
 //! a type whose `Debug` is redacted, and scrubbed from any error text before it is shown.
 
 use crate::cli::{
-    AutoscalerCommands, CertManagerCommands, CertsCommands, DrCommands, DrPairCommands, PoolCommands, RemoteArgs, RescueCommands, VolumeCommands, VolumeEncryptionCommands, WaitArgs,
+    AutoscalerCommands, CertManagerCommands, CertsCommands, DrCommands, DrPairCommands,
+    PoolCommands, RemoteArgs, RescueCommands, VolumeCommands, VolumeEncryptionCommands, WaitArgs,
 };
 use anyhow::{anyhow, bail, Result};
 use serde_json::{json, Map, Value};
@@ -561,7 +562,6 @@ impl Remote {
         let parsed: Option<Value> = serde_json::from_str(&text).ok();
         if status.is_success() {
             if text.trim().is_empty() {
-
                 // e.g. 204 No Content from a DELETE
                 return Ok(json!({ "ok": true, "status": status.as_u16() }));
             }
