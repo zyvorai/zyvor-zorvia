@@ -1,12 +1,12 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
 // SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
 
-import { featureJson } from ./experimental
+import { featureJson } from './experimental'
 
 /** Certificate lifecycle (Experimental, ZORVIA_EXPERIMENTAL=1, cluster.admin).
     See docs/CERTIFICATE_LIFECYCLE.md. Responses carry certificate metadata only,
     never PEM text or keys. */
-const BASE = /api/certificates
+const BASE = '/api/certificates'
 
 export interface CertificateInfo {
   source: 'tls-secret' | 'serving-cert' | 'ca-file'
