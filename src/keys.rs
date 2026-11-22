@@ -13,6 +13,9 @@
 //! * **Vault Transit**: `ZORVIA_VAULT_ADDR`, `ZORVIA_VAULT_TRANSIT_KEY`,
 //!   `ZORVIA_VAULT_TOKEN` or `ZORVIA_VAULT_TOKEN_FILE`, optional
 //!   `ZORVIA_VAULT_MOUNT` (default `transit`). The key never leaves Vault.
+//! * **Cloud KMS** (Experimental): AWS KMS (`ZORVIA_AWS_KMS_KEY_ID`) or Google Cloud
+//!   KMS (`ZORVIA_GCP_KMS_KEY`); see `volume_encryption::cloud_kms` and
+//!   docs/VOLUME_ENCRYPTION.md. Every seal/open is a network call to the KMS.
 //!
 //! A sealed value is `enc:v1:<key id>:<payload>`. It is bound to its owner (the user
 //! id is authenticated data) so a ciphertext copied onto another row does not
@@ -20,6 +23,7 @@
 //! pass seals those. There is never a silent fallback to plaintext once a provider is
 //! configured: a failed seal is an error.
 
+use crate::volume_encryption::cloud_kms::{self, CloudKms};
 use aes_gcm::aead::{Aead, KeyInit, Payload};
 use aes_gcm::{Aes256Gcm, Nonce};
 use anyhow::{anyhow, bail, Context, Result};
@@ -32,6 +36,8 @@ use std::time::Duration;
 
 pub const PREFIX: &str = "enc:v1:";
 const VAULT_ID: &str = "vault";
+/// Ids that name a kind of provider and so cannot be a local key id.
+const RESERVED_IDS: [&str; 3] = [VAULT_ID, cloud_kms::AWS_ID, cloud_kms::GCP_ID];
 
 pub fn is_sealed(s: &str) -> bool {
     s.starts_with(PREFIX)
@@ -43,6 +49,8 @@ pub enum KeyProvider {
         keys: HashMap<String, [u8; 32]>,
     },
     Vault(VaultTransit),
+    /// AWS KMS or Google Cloud KMS (Experimental).
+    Cloud(CloudKms),
 }
 
 pub struct VaultTransit {
@@ -78,7 +86,7 @@ fn aad(purpose: &str, owner: &str) -> Vec<u8> {
 /// Run a future from sync code (the user database is synchronous). Inside a
 /// multi-thread runtime this blocks the current worker; elsewhere it uses a
 /// throwaway runtime.
-fn block_on<F>(fut: F) -> F::Output
+pub(crate) fn block_on<F>(fut: F) -> F::Output
 where
     F: std::future::Future + Send,
     F::Output: Send,
@@ -195,10 +203,14 @@ impl KeyProvider {
         let env = |k: &str| std::env::var(k).ok().filter(|v| !v.trim().is_empty());
         let local = env("ZORVIA_KEY_FILE").is_some() || env("ZORVIA_KEY_HEX").is_some();
         let vault = env("ZORVIA_VAULT_ADDR").is_some();
-        if local && vault {
+        let cloud = !CloudKms::selected(&env).is_empty();
+        if [local, vault, cloud].iter().filter(|b| **b).count() > 1 {
             bail!(
-                "configure either a local key (ZORVIA_KEY_*) or Vault (ZORVIA_VAULT_*), not both"
+                "configure only one key provider: a local key (ZORVIA_KEY_*), Vault (ZORVIA_VAULT_*) or a cloud KMS (ZORVIA_AWS_KMS_* / ZORVIA_GCP_KMS_*)"
             );
+        }
+        if let Some(c) = CloudKms::from_env(&env)? {
+            return Ok(Some(Self::Cloud(c)));
         }
         if vault {
             let token = match (env("ZORVIA_VAULT_TOKEN"), env("ZORVIA_VAULT_TOKEN_FILE")) {
@@ -220,8 +232,10 @@ impl KeyProvider {
             return Ok(None);
         }
         let id = env("ZORVIA_KEY_ID").unwrap_or_else(|| "k1".into());
-        if !valid_id(&id) || id == VAULT_ID {
-            bail!("ZORVIA_KEY_ID must be letters, digits, '-' or '_' and not 'vault'");
+        if !valid_id(&id) || RESERVED_IDS.contains(&id.as_str()) {
+            bail!(
+                "ZORVIA_KEY_ID must be letters, digits, '-' or '_' and not 'vault', 'aws' or 'gcp'"
+            );
         }
         let hex = match (env("ZORVIA_KEY_FILE"), env("ZORVIA_KEY_HEX")) {
             (Some(f), _) => std::fs::read_to_string(&f).with_context(|| format!("read {f}"))?,
@@ -236,7 +250,7 @@ impl KeyProvider {
                     .split_once('=')
                     .ok_or_else(|| anyhow!("ZORVIA_KEY_PREVIOUS_FILES entries are id=path"))?;
                 let pid = pid.trim();
-                if !valid_id(pid) || pid == VAULT_ID || keys.contains_key(pid) {
+                if !valid_id(pid) || RESERVED_IDS.contains(&pid) || keys.contains_key(pid) {
                     bail!("previous key id '{pid}' is invalid or repeated");
                 }
                 let hex =
@@ -284,6 +298,11 @@ impl KeyProvider {
                 "{PREFIX}{VAULT_ID}:{}",
                 v.seal(purpose, owner, secret)?
             )),
+            Self::Cloud(c) => Ok(format!(
+                "{PREFIX}{}:{}",
+                c.id(),
+                c.seal(purpose, owner, secret)?
+            )),
         }
     }
 
@@ -297,7 +316,8 @@ impl KeyProvider {
             .ok_or_else(|| anyhow!("malformed sealed value"))?;
         match (self, id) {
             (Self::Vault(v), VAULT_ID) => v.open(purpose, owner, payload),
-            (Self::Local { keys, .. }, id) if id != VAULT_ID => {
+            (Self::Cloud(c), id) if id == c.id() => c.open(purpose, owner, payload),
+            (Self::Local { keys, .. }, id) if !RESERVED_IDS.contains(&id) => {
                 let key = keys
                     .get(id)
                     .ok_or_else(|| anyhow!("no key '{id}' is configured (was it rotated out?)"))?;
@@ -333,6 +353,7 @@ impl KeyProvider {
                 rest.split(':').next() != Some(current.as_str())
             }
             (Self::Vault(_), Some(rest)) => rest.split(':').next() != Some(VAULT_ID),
+            (Self::Cloud(c), Some(rest)) => rest.split(':').next() != Some(c.id()),
         }
     }
 }
@@ -354,6 +375,11 @@ pub fn init_from_env() -> Result<()> {
             v.addr,
             v.mount,
             v.key
+        ),
+        Some(KeyProvider::Cloud(c)) => log::info!(
+            "key provider: {} KMS key {} (Experimental)",
+            c.id(),
+            c.key_label()
         ),
         None => log::info!("key provider: none (TOTP secrets are stored unencrypted)"),
     }
