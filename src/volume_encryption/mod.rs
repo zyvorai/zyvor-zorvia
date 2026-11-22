@@ -18,6 +18,7 @@
 //! See docs/VOLUME_ENCRYPTION.md for what is and is not verified.
 
 pub mod cloud_kms;
+pub mod guest_luks;
 
 use crate::keys::KeyProvider;
 use anyhow::{anyhow, bail, Result};
@@ -33,6 +34,7 @@ pub const SECRET_PREFIX: &str = "zorvia-dek-";
 pub const ANN_VERSION: &str = "zorvia.io/dek-version";
 pub const ANN_PROVIDER: &str = "zorvia.io/dek-provider";
 pub const ANN_DEK_SECRET: &str = "zorvia.io/dek-secret";
+pub const ANN_MODE: &str = "zorvia.io/encryption-mode";
 pub const LABEL_MANAGED: &str = "zorvia.io/volume-encryption";
 
 fn zero(buf: &mut [u8]) {
@@ -158,7 +160,8 @@ pub enum Mode {
     /// The StorageClass encrypts (e.g. Ceph-CSI RBD with a KMS).
     #[default]
     StorageClass,
-    /// Documented only (docs/VOLUME_ENCRYPTION.md); apply refuses it.
+    /// LUKS inside the guest; the key is delivered by one-time token
+    /// ([`guest_luks`]). Experimental and partial.
     GuestLuks,
 }
 
@@ -176,6 +179,15 @@ pub struct EncryptRequest {
     /// Accept a StorageClass whose provisioner Zorvia cannot recognise as encrypting.
     #[serde(default)]
     pub acknowledge_unverified_encryption: bool,
+}
+
+impl Mode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Mode::StorageClass => "storage-class",
+            Mode::GuestLuks => "guest-luks",
+        }
+    }
 }
 
 impl EncryptRequest {
@@ -197,11 +209,6 @@ impl EncryptRequest {
         }
         if !matches!(crate::storage::parse_size_to_bytes(&self.size), Some(b) if b > 0) {
             p.push(format!("size '{}' is not a valid positive size", self.size));
-        }
-        if self.mode == Mode::GuestLuks {
-            p.push(
-                "mode guest_luks is documented only and not implemented; use storage_class".into(),
-            );
         }
         p
     }
@@ -252,6 +259,7 @@ pub fn secret_manifest(req: &EncryptRequest, wrapped: &str, version: u32, provid
             "annotations": {
                 ANN_VERSION: version.to_string(),
                 ANN_PROVIDER: provider,
+                ANN_MODE: req.mode.as_str(),
             },
         },
         "type": "Opaque",
@@ -269,7 +277,7 @@ pub fn data_volume_manifest(req: &EncryptRequest) -> Value {
             "labels": { LABEL_MANAGED: "true", "zorvia.io/vm": req.vm },
             "annotations": {
                 ANN_DEK_SECRET: dek_secret_name(&req.vm, &req.volume),
-                "zorvia.io/encryption": "storage-class",
+                "zorvia.io/encryption": req.mode.as_str(),
             },
         },
         "spec": {
@@ -394,7 +402,8 @@ mod tests {
         bad.vm = "Bad_Name".into();
         bad.size = "lots".into();
         bad.mode = Mode::GuestLuks;
-        assert_eq!(bad.problems().len(), 3);
+        // guest_luks is a valid mode now; only the name and size are wrong.
+        assert_eq!(bad.problems().len(), 2);
         assert!(serde_json::from_str::<EncryptRequest>(
             r#"{"namespace":"a","vm":"b","volume":"c","size":"1Gi","storage_class":"s","x":1}"#
         )

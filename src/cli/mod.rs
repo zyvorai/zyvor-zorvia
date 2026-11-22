@@ -158,12 +158,28 @@ pub enum Commands {
         cmd: VolumeCommands,
     },
 
+    /// Certificate inventory, expiry alerts and cert-manager renewal, via the REST API (Experimental)
+    Certs {
+        #[command(flatten)]
+        remote: RemoteArgs,
+        #[command(subcommand)]
+        cmd: CertsCommands,
+    },
+
     /// Offline guest-disk rescue operations, via the REST API (Experimental)
     Rescue {
         #[command(flatten)]
         remote: RemoteArgs,
         #[command(subcommand)]
         cmd: RescueCommands,
+    },
+
+    /// Autoscaler loop status and recent decisions, via the REST API (Experimental, read-only)
+    Autoscaler {
+        #[command(flatten)]
+        remote: RemoteArgs,
+        #[command(subcommand)]
+        cmd: AutoscalerCommands,
     },
 
     /// MCP server for AI assistants: a stdio bridge to a Zorvia API (see docs/MCP.md)
@@ -3387,6 +3403,16 @@ pub enum DrPairCommands {
         rto_seconds: Option<u64>,
     },
 
+    /// Delete a pair (the VMs and backups are not touched; refused while a failover or
+    /// failback is active). Needs --yes
+    Delete {
+        /// Pair name
+        name: String,
+        /// Confirm the deletion
+        #[arg(long)]
+        yes: bool,
+    },
+
     /// Show RPO/RTO health, lag and last success
     Status {
         /// Pair name
@@ -3425,6 +3451,48 @@ pub enum DrPairCommands {
 }
 
 #[derive(Subcommand, Debug)]
+pub enum CertsCommands {
+    /// List certificates (subject, issuer, SANs, expiry, key, flags); never prints keys
+    List {
+        /// Only this namespace (also hides Zorvia's own certificate files)
+        #[arg(long)]
+        namespace: Option<String>,
+        /// Only certificates expiring within this many days (or already expired)
+        #[arg(long)]
+        expiring_within_days: Option<i64>,
+    },
+
+    /// Expiry-monitoring settings and the last check
+    Status,
+
+    /// Recent expiry alerts
+    Alerts,
+
+    /// cert-manager Certificates and their Ready state
+    CertManager {
+        #[command(subcommand)]
+        cmd: CertManagerCommands,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum CertManagerCommands {
+    /// List cert-manager Certificates with Ready state
+    List,
+
+    /// Ask cert-manager to re-issue a Certificate (marks it Issuing, like `cmctl renew`)
+    Renew {
+        /// Certificate namespace
+        namespace: String,
+        /// Certificate name
+        name: String,
+        /// The exact phrase "renew <namespace>/<name>"
+        #[arg(long)]
+        confirm: String,
+    },
+}
+
+#[derive(Subcommand, Debug)]
 pub enum VolumeCommands {
     /// Envelope encryption of volumes (Experimental: needs ZORVIA_EXPERIMENTAL=1 on the server)
     Encryption {
@@ -3453,6 +3521,9 @@ pub enum VolumeEncryptionCommands {
         /// Accept a StorageClass whose provisioner Zorvia cannot verify as encrypting
         #[arg(long)]
         acknowledge_unverified_encryption: bool,
+        /// LUKS inside the guest instead of a StorageClass that encrypts (Experimental, partial)
+        #[arg(long)]
+        guest_luks: bool,
     },
 
     /// Wrap a key, create its Secret and the DataVolume (needs --yes)
@@ -3470,7 +3541,25 @@ pub enum VolumeEncryptionCommands {
         /// Accept a StorageClass whose provisioner Zorvia cannot verify as encrypting
         #[arg(long)]
         acknowledge_unverified_encryption: bool,
+        /// LUKS inside the guest instead of a StorageClass that encrypts (Experimental, partial)
+        #[arg(long)]
+        guest_luks: bool,
         /// Confirm the change
+        #[arg(long)]
+        yes: bool,
+    },
+
+    /// Issue a one-time guest-LUKS unlock token and the guest cloud-config (needs --yes).
+    /// The output contains a single-use bearer token; treat it as a secret
+    GuestToken {
+        /// VM name
+        vm: String,
+        /// Disk name
+        volume: String,
+        /// Token lifetime in seconds (30-900)
+        #[arg(long)]
+        ttl: Option<i64>,
+        /// Confirm
         #[arg(long)]
         yes: bool,
     },
@@ -3487,6 +3576,33 @@ pub enum VolumeEncryptionCommands {
     },
 }
 
+/// `--wait` for rescue operations: poll the job status until it finishes.
+#[derive(Args, Debug, Clone, Default)]
+pub struct WaitArgs {
+    /// Wait for the job to finish and print its final status
+    #[arg(long)]
+    pub wait: bool,
+    /// With --wait: give up after this many seconds (1..86400)
+    #[arg(long, default_value_t = 600, requires = "wait")]
+    pub timeout: u64,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum AutoscalerCommands {
+    /// Loop mode, leader state, targets and their hysteresis state
+    Status,
+
+    /// Recent decisions, newest first
+    Decisions {
+        /// Only this target id
+        #[arg(long)]
+        target: Option<String>,
+        /// Maximum number of decisions (1..=500)
+        #[arg(long, default_value_t = 50)]
+        limit: usize,
+    },
+}
+
 #[derive(Subcommand, Debug)]
 pub enum RescueCommands {
     /// Reset a guest user's password on a stopped VM. The password is read from a
@@ -3497,6 +3613,8 @@ pub enum RescueCommands {
         /// Guest user
         #[arg(long, default_value = "root")]
         user: String,
+        #[command(flatten)]
+        wait: WaitArgs,
     },
 
     /// Install packages into a stopped VM's disk
@@ -3506,12 +3624,16 @@ pub enum RescueCommands {
         /// Package names
         #[arg(required = true)]
         packages: Vec<String>,
+        #[command(flatten)]
+        wait: WaitArgs,
     },
 
     /// Collect a bounded, redacted summary of a stopped VM's disk
     Inspect {
         /// VM name (must be stopped)
         vm: String,
+        #[command(flatten)]
+        wait: WaitArgs,
     },
 
     /// Show the state and result of a rescue job

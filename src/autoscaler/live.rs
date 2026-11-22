@@ -35,6 +35,7 @@ impl LoadSource for MonitoringLoadSource {
             percent: sum / collected.len() as f64,
             // MetricsCollector fabricates usage today; flip to false only for a real source.
             simulated: true,
+            source: "simulated",
         })
     }
 }

@@ -294,6 +294,17 @@ impl PairStore {
         Ok(())
     }
 
+    /// Why a pair must not be deleted right now (a failover or failback is active).
+    pub fn delete_blocker(pair: &DrPair) -> Option<String> {
+        if pair.failover.as_ref().is_some_and(|f| f.state == "pending") {
+            return Some("a failover is in progress".into());
+        }
+        if pair.failback.as_ref().is_some_and(|f| f.state.is_active()) {
+            return Some("a failback is in progress".into());
+        }
+        None
+    }
+
     pub fn remove(&mut self, name: &str) -> bool {
         let n = self.pairs.len();
         self.pairs.retain(|p| p.name != name);
@@ -1415,6 +1426,43 @@ mod tests {
         DateTime::parse_from_rfc3339("2026-01-01T00:00:00Z")
             .unwrap()
             .with_timezone(&Utc)
+    }
+
+    #[test]
+    fn delete_blocked_while_failover_or_failback_active() {
+        let mut p = pair();
+        assert!(PairStore::delete_blocker(&p).is_none());
+        let fo = FailoverRecord {
+            requested_at: Utc::now(),
+            backup_op: "b".into(),
+            restore_op: "r".into(),
+            dr_vm: "x".into(),
+            dr_namespace: "y".into(),
+            state: "pending".into(),
+            completed_at: None,
+            error: None,
+        };
+        p.failover = Some(fo.clone());
+        assert!(PairStore::delete_blocker(&p).unwrap().contains("failover"));
+        p.failover = Some(FailoverRecord {
+            state: "succeeded".into(),
+            ..fo
+        });
+        assert!(PairStore::delete_blocker(&p).is_none());
+        p.failback = Some(FailbackRecord {
+            requested_at: Utc::now(),
+            updated_at: Utc::now(),
+            state: FailbackState::Restoring,
+            dr_backup_op: None,
+            restore_op: None,
+            start: false,
+            keep_dr_vm: true,
+            dr_vm_deleted: false,
+            completed_at: None,
+            error: None,
+            note: None,
+        });
+        assert!(PairStore::delete_blocker(&p).unwrap().contains("failback"));
     }
 
     fn pair() -> DrPair {

@@ -41,6 +41,7 @@ import {
   Boxes,
   DatabaseZap,
   KeyRound,
+  BadgeCheck,
   LifeBuoy,
 } from 'lucide-react'
 
@@ -151,6 +152,7 @@ export const TOP_MEGA_GROUPS: { label: string; items: NavItem[] }[] = [
       { label: 'HA Policy', path: '/app/ha-policy', icon: ShieldAlert, blurb: 'High-availability policies.' },
       { label: 'Placement Advisor', path: '/app/placement', icon: Scale, blurb: 'Where to schedule next.' },
       { label: 'Disaster Recovery', path: '/app/dr-pairs', icon: LifeBuoy, blurb: 'Replication pairs, RPO/RTO and failover (experimental).', adminOnly: true },
+      { label: 'Autoscaler', path: '/app/autoscaler', icon: Gauge, blurb: 'Loop targets and recent decisions (experimental).', adminOnly: true },
       { label: 'Warm Pools', path: '/app/warm-pools', icon: Layers3, blurb: 'Pre-warmed capacity pools.' },
     ],
   },
@@ -173,6 +175,7 @@ export const TOP_MEGA_GROUPS: { label: string; items: NavItem[] }[] = [
         blurb: 'Users, roles, and MFA.',
         adminOnly: true,
       },
+      { label: 'Certificates', path: '/app/certificates', icon: BadgeCheck, blurb: 'TLS inventory, expiry alerts, cert-manager renew (experimental).', adminOnly: true },
       { label: 'Compliance', path: '/app/compliance', icon: ClipboardList, blurb: 'Compliance posture board.' },
       { label: 'Security', path: '/app/security', icon: ShieldQuestion, blurb: 'Security findings and risk.' },
     ],

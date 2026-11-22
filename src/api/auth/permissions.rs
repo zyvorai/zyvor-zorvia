@@ -114,6 +114,11 @@ pub fn required_permission(method: &str, path: &str) -> Option<ApiPermission> {
         return Some(ApiPermission::ClusterAdmin);
     }
 
+    // Certificate inventory (cluster-wide Secret metadata) and cert-manager renewals.
+    if path == "/certificates" || path.starts_with("/certificates/") {
+        return Some(ApiPermission::ClusterAdmin);
+    }
+
     // Data-key management for encrypted volumes.
     if path == "/volume-encryption" || path.starts_with("/volume-encryption/") {
         return Some(ApiPermission::ClusterAdmin);
@@ -133,6 +138,11 @@ pub fn required_permission(method: &str, path: &str) -> Option<ApiPermission> {
     // DR replication pairs expose backup/restore operation ids and drive failover:
     // admin-only for every method.
     if path == "/v1/enterprise/dr" || path.starts_with("/v1/enterprise/dr/") {
+        return Some(ApiPermission::ClusterAdmin);
+    }
+
+    // Autoscaler loop decisions reveal target names and load: admin-only.
+    if path == "/v1/autoscaler" || path.starts_with("/v1/autoscaler/") {
         return Some(ApiPermission::ClusterAdmin);
     }
 
@@ -492,6 +502,19 @@ mod tests {
     }
 
     #[test]
+    fn certificate_routes_are_cluster_admin_for_every_method() {
+        for (m, p) in [
+            ("GET", "/certificates/status"),
+            ("GET", "/certificates/inventory"),
+            ("GET", "/certificates/alerts"),
+            ("GET", "/certificates/cert-manager"),
+            ("POST", "/certificates/cert-manager/renew"),
+        ] {
+            assert_eq!(required_permission(m, p), Some(ApiPermission::ClusterAdmin));
+        }
+    }
+
+    #[test]
     fn operations_routes_are_cluster_admin_for_every_method() {
         for (m, p) in [
             ("GET", "/operations"),
@@ -698,6 +721,8 @@ mod tests {
     fn dr_pairs_are_admin_only_even_on_get() {
         for (m, p) in [
             ("GET", "/v1/enterprise/dr/pairs"),
+            ("GET", "/v1/autoscaler/status"),
+            ("GET", "/v1/autoscaler/decisions"),
             ("POST", "/v1/enterprise/dr/pairs/web/failover"),
             ("GET", "/v1/enterprise/dr/alerts"),
         ] {

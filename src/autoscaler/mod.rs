@@ -7,6 +7,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+pub mod decisions;
 pub mod live;
 pub mod reconcile;
 #[cfg(feature = "web")]

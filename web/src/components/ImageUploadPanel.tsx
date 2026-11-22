@@ -5,8 +5,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Upload, Loader2, CheckCircle2, X } from 'lucide-react'
 import { Card, CardBody } from './ui'
 import ExperimentalDisabledNotice, { ExperimentalBadge, INPUT_CLASS } from './ExperimentalDisabledNotice'
-import { probeImageUploadDisabled, uploadImage, validateImage, type UploadResult, type ValidateResult } from '../api/imageUpload'
-import { IMAGE_FORMATS, formatPercent, uploadFormProblem } from '../utils/imageUpload'
+import { getUploadConfig, probeImageUploadDisabled, uploadImage, validateImage, type UploadResult, type ValidateResult } from '../api/imageUpload'
+import { IMAGE_FORMATS, formatCap, formatPercent, uploadFormProblem } from '../utils/imageUpload'
 import { isExperimentalDisabled } from '../utils/experimental'
 import { formatBytes } from '../utils/format'
 import { formatUserError } from '../utils/apiError'
@@ -31,12 +31,14 @@ export default function ImageUploadPanel({ onUploaded }: { onUploaded?: () => vo
   const [busy, setBusy] = useState<'validate' | 'upload' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<UploadResult | null>(null)
+  const [maxBytes, setMaxBytes] = useState<number | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     if (!canWrite) return
     let alive = true
     probeImageUploadDisabled().then((m) => alive && setDisabled(m))
+    getUploadConfig().then((c) => alive && setMaxBytes(c ? c.max_bytes : null))
     return () => {
       alive = false
     }
@@ -92,6 +94,7 @@ export default function ImageUploadPanel({ onUploaded }: { onUploaded?: () => vo
         sha256: sha256 || undefined,
         onProgress: (loaded, total) => setProgress({ loaded, total }),
         signal: ctl.signal,
+        maxBytes,
       })
       setResult(r)
       toast.success(`Uploaded ${r.name} (${formatBytes(r.bytes)}, ${r.format})`)
@@ -115,8 +118,8 @@ export default function ImageUploadPanel({ onUploaded }: { onUploaded?: () => vo
           <ExperimentalBadge />
         </div>
         <p className="text-xs text-[var(--zf-muted)]">
-          Creates a CDI DataVolume and streams the file through the upload proxy. The server enforces a size cap (default
-          20 GiB) and aborts the upload if it is exceeded. qcow2, vmdk, vhdx, vhd and vdi are converted to raw by CDI.
+          Creates a CDI DataVolume and streams the file through the upload proxy. The server enforces a size cap (
+          <span data-testid="upload-cap">{maxBytes ? formatCap(maxBytes) : 'default 20 GiB'}</span>) and aborts the upload if it is exceeded. qcow2, vmdk, vhdx, vhd and vdi are converted to raw by CDI.
           PVC size must cover the virtual disk size, not just the file size.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

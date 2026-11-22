@@ -325,7 +325,13 @@ impl UserDb {
     /// Find or create a local user for a verified OIDC subject.
     /// Username is stable (`oidc:<sub>`) so JIT users participate in token_version revocation.
     pub fn upsert_oidc_user(&self, subject: &str, role: Role) -> Result<User> {
-        let username = format!("oidc:{}", subject);
+        self.upsert_federated_user("oidc", subject, role)
+    }
+
+    /// Same, for any federated protocol; `prefix` (`oidc`, `saml`) namespaces the username so a
+    /// subject from one IdP type can never map onto another's user.
+    pub fn upsert_federated_user(&self, prefix: &str, subject: &str, role: Role) -> Result<User> {
+        let username = format!("{prefix}:{subject}");
         if let Some(existing) = self.get_by_username(&username)? {
             return Ok(existing);
         }

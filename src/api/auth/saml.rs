@@ -1,19 +1,17 @@
 // Copyright 2026 Zyvor AI Labs · https://zyvor.dev
 // SPDX-License-Identifier: LicenseRef-Zyvor-Production-1.0
 
-//! SAML 2.0 SSO building blocks (Experimental, partial).
+//! SAML 2.0 SSO (Experimental).
 //!
-//! Opt-in via `ZORVIA_SAML_ENABLED=1`. What is implemented: configuration, SP metadata,
-//! SP-initiated AuthnRequest with the HTTP-Redirect binding, the pending-request store,
-//! the assertion replay cache, the strict claim validation, and group-attribute role
-//! mapping (shared with OIDC).
+//! Opt-in via `ZORVIA_SAML_ENABLED=1`. Implemented here: configuration, SP metadata,
+//! SP-initiated AuthnRequest (HTTP-Redirect), the pending-request store, the assertion replay
+//! cache, strict claim validation and group-attribute role mapping (shared with OIDC).
 //!
-//! What is deliberately NOT implemented: XML-DSig verification of the IdP response
-//! (exclusive C14N, reference/digest checks, signature-wrapping defence). No vetted
-//! pure-Rust crate was acceptable (see docs/SAML.md), and this module does not hand-roll
-//! canonicalization or signature crypto. Consequently the ACS endpoint fails closed with
-//! 501 and **never** mints a session; [`VerifiedAssertion`] is the type a signature
-//! verifier must produce, and nothing in this module can construct trust from raw XML.
+//! Response signature verification is NOT hand-rolled: it is delegated to libxmlsec1 through
+//! the `samael` crate and exists only when built with the `saml` cargo feature (off by
+//! default; needs system libxmlsec1, see docs/SAML.md). Without the feature the ACS endpoint
+//! fails closed with 501 and never mints a session. [`VerifiedAssertion`] is only ever built
+//! from XML that xmlsec verified against a configured IdP certificate.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -43,6 +41,8 @@ pub struct SamlConfig {
     pub idp_sso_url: String,
     pub groups_attribute: String,
     pub clock_skew_secs: i64,
+    /// DER X.509 certificates the IdP signs with (several allowed, for key rollover).
+    pub idp_certs_der: Vec<Vec<u8>>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -70,6 +70,57 @@ fn require_url(name: &str, v: &str) -> Result<(), SamlError> {
         )));
     }
     Ok(())
+}
+
+const MAX_CERT_FILE_BYTES: u64 = 256 * 1024;
+
+/// Parse one or more PEM certificates into DER; every block must be a real X.509 certificate.
+pub fn parse_pem_certs(pem: &str) -> Result<Vec<Vec<u8>>, SamlError> {
+    let certs = openssl::x509::X509::stack_from_pem(pem.as_bytes())
+        .map_err(|_| SamlError::Config("IdP certificate is not valid PEM X.509".into()))?;
+    if certs.is_empty() {
+        return Err(SamlError::Config("no IdP certificate found in PEM".into()));
+    }
+    certs
+        .iter()
+        .map(|c| {
+            c.to_der()
+                .map_err(|_| SamlError::Config("cannot encode IdP certificate".into()))
+        })
+        .collect()
+}
+
+fn load_idp_certs(get: &impl Fn(&str) -> Option<String>) -> Result<Vec<Vec<u8>>, SamlError> {
+    let inline = get("ZORVIA_SAML_IDP_CERT_PEM").filter(|v| !v.trim().is_empty());
+    let file = get("ZORVIA_SAML_IDP_CERT_FILE").filter(|v| !v.trim().is_empty());
+    let pem = match (inline, file) {
+        (Some(p), _) => p,
+        (None, Some(f)) => {
+            let path = f.trim();
+            let too_big = std::fs::metadata(path)
+                .map(|m| m.len() > MAX_CERT_FILE_BYTES)
+                .unwrap_or(false);
+            if too_big {
+                return Err(SamlError::Config(
+                    "ZORVIA_SAML_IDP_CERT_FILE is too large".into(),
+                ));
+            }
+            std::fs::read_to_string(path).map_err(|e| {
+                SamlError::Config(format!("cannot read ZORVIA_SAML_IDP_CERT_FILE: {e}"))
+            })?
+        }
+        (None, None) => {
+            // Without the `saml` feature nothing can verify a response anyway.
+            return if cfg!(feature = "saml") {
+                Err(SamlError::Config(
+                    "ZORVIA_SAML_IDP_CERT_PEM or ZORVIA_SAML_IDP_CERT_FILE is required".into(),
+                ))
+            } else {
+                Ok(Vec::new())
+            };
+        }
+    };
+    parse_pem_certs(&pem)
 }
 
 impl SamlConfig {
@@ -113,6 +164,7 @@ impl SamlConfig {
                         ))
                     })?,
             },
+            idp_certs_der: load_idp_certs(&get)?,
         };
         require_url("ZORVIA_SAML_ACS_URL", &cfg.acs_url)?;
         require_url("ZORVIA_SAML_IDP_SSO_URL", &cfg.idp_sso_url)?;
@@ -208,8 +260,7 @@ pub fn redirect_url(cfg: &SamlConfig, xml: &str, relay_state: &str) -> Option<St
 }
 
 /// Facts from an assertion whose XML signature has ALREADY been verified against a
-/// configured IdP certificate by a vetted verifier (none is wired in yet). Never build
-/// this from unverified XML.
+/// configured IdP certificate by xmlsec (see `verify`). Never build this from unverified XML.
 #[derive(Debug, Clone, Default)]
 pub struct VerifiedAssertion {
     pub assertion_id: String,
@@ -374,17 +425,270 @@ pub async fn saml_login_handler(State(auth): State<SharedAuth>) -> Response {
     }
 }
 
-/// Fails closed: XML-DSig verification is not implemented, so no response is trusted.
-pub async fn saml_acs_handler(State(auth): State<SharedAuth>) -> Response {
+#[derive(Debug, serde::Deserialize)]
+pub struct AcsForm {
+    #[serde(rename = "SAMLResponse")]
+    pub saml_response: String,
+}
+
+type AcsInput = Result<axum::extract::Form<AcsForm>, axum::extract::rejection::FormRejection>;
+
+/// Without the `saml` feature there is no signature verifier: fail closed.
+#[cfg(not(feature = "saml"))]
+pub async fn saml_acs_handler(State(auth): State<SharedAuth>, _form: AcsInput) -> Response {
     if auth.saml.is_none() {
         return off();
     }
-    log::warn!("SAML ACS hit but response signature verification is not implemented; refusing");
+    log::warn!("SAML ACS hit but this build has no `saml` feature; refusing");
     (
         StatusCode::NOT_IMPLEMENTED,
-        "SAML response verification is not implemented in this build; no session was created",
+        "SAML response verification is not available: this build was compiled without the `saml` \
+         cargo feature (needs system libxmlsec1); no session was created",
     )
         .into_response()
+}
+
+#[cfg(feature = "saml")]
+pub async fn saml_acs_handler(State(auth): State<SharedAuth>, form: AcsInput) -> Response {
+    use axum::response::Redirect;
+    let Some(s) = auth.saml.as_ref() else {
+        return off();
+    };
+    let Ok(axum::extract::Form(form)) = form else {
+        return (StatusCode::BAD_REQUEST, "missing SAMLResponse").into_response();
+    };
+    let reject = |e: SamlError| {
+        log::warn!("{e}");
+        (StatusCode::UNAUTHORIZED, "SAML sign-in failed").into_response()
+    };
+    let verified = match verify::verify_response(&s.cfg, &form.saml_response) {
+        Ok(v) => v,
+        Err(e) => return reject(e),
+    };
+    let policy = auth.oidc_groups.as_ref();
+    let id = match validate_assertion(&s.cfg, policy, &verified, now_unix(), &s.pending, &s.replay)
+    {
+        Ok(i) => i,
+        Err(e) => return reject(e),
+    };
+    let token = match super::handlers::finish_federated_login(
+        &auth,
+        "saml",
+        &id.name_id,
+        &id.name_id,
+        id.decision,
+    ) {
+        Ok(t) => t,
+        Err(resp) => return resp,
+    };
+    // Fragment, not query: never sent to a server, logged, or put in a Referer header.
+    Redirect::to(&format!(
+        "/sign-in#oidc_token={}",
+        urlencoding::encode(&token)
+    ))
+    .into_response()
+}
+
+#[cfg(feature = "saml")]
+pub mod verify {
+    //! XML-DSig verification through samael/libxmlsec1.
+    //!
+    //! xmlsec verifies every `Signature` against the configured IdP certificates and then
+    //! *reduces* the document to only the verified content (no unsigned ancestors); this
+    //! module parses and consumes only that reduced XML, which is what defeats signature
+    //! wrapping: unsigned elements are never read. At least one valid signature (on the
+    //! Response or on the Assertion) is mandatory; SHA-1/MD5 signatures and digests are not on
+    //! the allow-list and are rejected.
+
+    use super::{SamlConfig, SamlError, VerifiedAssertion};
+    use base64::engine::general_purpose::STANDARD;
+    use base64::Engine;
+    use samael::crypto::{
+        AllowedSignatureAlgorithm as Alg, CertificateDer, Crypto, CryptoProvider, ReduceMode,
+    };
+    use samael::schema::{Assertion, Response};
+    use std::collections::HashMap;
+
+    /// Upper bound on the base64 SAMLResponse form field.
+    pub const MAX_RESPONSE_B64: usize = 512 * 1024;
+    const BEARER: &str = "urn:oasis:names:tc:SAML:2.0:cm:bearer";
+    const SUCCESS: &str = "urn:oasis:names:tc:SAML:2.0:status:Success";
+
+    /// SHA-2 family only. SHA-1 and MD5 are deliberately absent, and samael cannot be asked for them.
+    pub const ALLOWED_ALGORITHMS: &[Alg] = &[
+        Alg::RsaSha256,
+        Alg::RsaSha384,
+        Alg::RsaSha512,
+        Alg::EcdsaSha256,
+        Alg::EcdsaSha384,
+        Alg::EcdsaSha512,
+    ];
+
+    fn bad(m: &'static str) -> SamlError {
+        SamlError::Invalid(m)
+    }
+
+    /// Local name of the root element of well-formed XML (prefix stripped).
+    fn root_local_name(xml: &str) -> Option<&str> {
+        let mut rest = xml;
+        loop {
+            let i = rest.find('<')?;
+            rest = &rest[i + 1..];
+            if rest.starts_with('?') || rest.starts_with('!') {
+                continue;
+            }
+            let end = rest.find(|c: char| c.is_whitespace() || c == '>' || c == '/')?;
+            let name = &rest[..end];
+            return Some(name.rsplit(':').next().unwrap_or(name));
+        }
+    }
+
+    pub fn verify_response(cfg: &SamlConfig, b64: &str) -> Result<VerifiedAssertion, SamlError> {
+        if b64.len() > MAX_RESPONSE_B64 {
+            return Err(bad("SAMLResponse too large"));
+        }
+        let compact: String = b64.chars().filter(|c| !c.is_whitespace()).collect();
+        let raw = STANDARD
+            .decode(compact.as_bytes())
+            .map_err(|_| bad("SAMLResponse is not base64"))?;
+        let xml = String::from_utf8(raw).map_err(|_| bad("SAMLResponse is not UTF-8"))?;
+        verify_xml(cfg, &xml)
+    }
+
+    pub fn verify_xml(cfg: &SamlConfig, xml: &str) -> Result<VerifiedAssertion, SamlError> {
+        // No DTDs / entities: nothing legitimate needs them, and they enable XXE/bombs.
+        let lower = xml.to_ascii_lowercase();
+        if lower.contains("<!doctype") || lower.contains("<!entity") {
+            return Err(bad("DTD/entity declarations are not allowed"));
+        }
+        if cfg.idp_certs_der.is_empty() {
+            return Err(bad("no IdP certificate configured"));
+        }
+        let certs: Vec<CertificateDer> = cfg
+            .idp_certs_der
+            .iter()
+            .cloned()
+            .map(CertificateDer::from)
+            .collect();
+        // Zero signatures, a bad signature, a foreign certificate, or a disallowed algorithm all
+        // surface here as one opaque error.
+        let reduced = Crypto::reduce_xml_to_signed_with_allowed_algorithms(
+            xml,
+            &certs,
+            ReduceMode::ValidateAndMarkNoAncestors,
+            Some(ALLOWED_ALGORITHMS),
+        )
+        .map_err(|_| bad("signature verification failed"))?;
+
+        match root_local_name(&reduced) {
+            Some("Response") => {
+                let r: Response = reduced
+                    .parse()
+                    .map_err(|_| bad("malformed signed Response"))?;
+                if r.encrypted_assertion.is_some() {
+                    return Err(bad("encrypted assertions are not supported"));
+                }
+                if r.status
+                    .as_ref()
+                    .and_then(|s| s.status_code.value.as_deref())
+                    != Some(SUCCESS)
+                {
+                    return Err(bad("response status is not Success"));
+                }
+                let a = r.assertion.ok_or_else(|| bad("no signed assertion"))?;
+                if let Some(ri) = r.issuer.as_ref().and_then(|i| i.value.as_deref()) {
+                    if Some(ri) != a.issuer.value.as_deref() {
+                        return Err(bad("response/assertion issuer differ"));
+                    }
+                }
+                to_verified(cfg, &a, r.destination, r.in_response_to)
+            }
+            Some("Assertion") => {
+                let a: Assertion = reduced
+                    .parse()
+                    .map_err(|_| bad("malformed signed Assertion"))?;
+                to_verified(cfg, &a, None, None)
+            }
+            _ => Err(bad("unexpected signed element")),
+        }
+    }
+
+    /// `resp_destination` / `resp_irt` come from a *signed* Response element, or are `None` when
+    /// only the assertion was signed; then the (signed) SubjectConfirmationData supplies them.
+    fn to_verified(
+        cfg: &SamlConfig,
+        a: &Assertion,
+        resp_destination: Option<String>,
+        resp_irt: Option<String>,
+    ) -> Result<VerifiedAssertion, SamlError> {
+        let subject = a.subject.as_ref().ok_or_else(|| bad("missing Subject"))?;
+        let name_id = subject
+            .name_id
+            .as_ref()
+            .map(|n| n.value.trim().to_string())
+            .ok_or_else(|| bad("missing NameID"))?;
+        let scd = subject
+            .subject_confirmations
+            .iter()
+            .flatten()
+            .filter(|c| c.method.as_deref() == Some(BEARER))
+            .find_map(|c| c.subject_confirmation_data.as_ref())
+            .ok_or_else(|| bad("no bearer SubjectConfirmationData"))?;
+        if let (Some(d), Some(r)) = (&resp_destination, &scd.recipient) {
+            if d != r {
+                return Err(bad("destination mismatch"));
+            }
+        }
+        if let (Some(x), Some(y)) = (&resp_irt, &scd.in_response_to) {
+            if x != y {
+                return Err(bad("InResponseTo mismatch"));
+            }
+        }
+        let cond = a
+            .conditions
+            .as_ref()
+            .ok_or_else(|| bad("missing Conditions"))?;
+        // Every AudienceRestriction must name this SP; the validator then compares against it.
+        let restrictions = cond.audience_restrictions.as_deref().unwrap_or_default();
+        let audiences = if !restrictions.is_empty()
+            && restrictions
+                .iter()
+                .all(|r| r.audience.contains(&cfg.sp_entity_id))
+        {
+            vec![cfg.sp_entity_id.clone()]
+        } else {
+            Vec::new()
+        };
+        let not_on_or_after = [cond.not_on_or_after, scd.not_on_or_after]
+            .into_iter()
+            .flatten()
+            .map(|t| t.timestamp())
+            .min();
+        let mut attributes: HashMap<String, Vec<String>> = HashMap::new();
+        for st in a.attribute_statements.iter().flatten() {
+            for at in &st.attributes {
+                if let Some(n) = &at.name {
+                    attributes
+                        .entry(n.clone())
+                        .or_default()
+                        .extend(at.values.iter().filter_map(|v| v.value.clone()));
+                }
+            }
+        }
+        Ok(VerifiedAssertion {
+            assertion_id: a.id.clone(),
+            issuer: a.issuer.value.clone().unwrap_or_default(),
+            destination: resp_destination
+                .or_else(|| scd.recipient.clone())
+                .unwrap_or_default(),
+            in_response_to: resp_irt.or_else(|| scd.in_response_to.clone()),
+            audiences,
+            not_before: cond.not_before.map(|t| t.timestamp()),
+            not_on_or_after,
+            name_id,
+            attributes,
+        })
+    }
 }
 
 pub struct SamlState {
@@ -418,7 +722,49 @@ mod tests {
             idp_sso_url: "https://idp.example/sso".into(),
             groups_attribute: "groups".into(),
             clock_skew_secs: 60,
+            idp_certs_der: Vec::new(),
         }
+    }
+
+    /// Self-signed RSA-2048 test certificate: (cert PEM, private key).
+    pub(super) fn test_cert() -> (String, openssl::pkey::PKey<openssl::pkey::Private>) {
+        use openssl::asn1::Asn1Time;
+        use openssl::bn::BigNum;
+        use openssl::hash::MessageDigest;
+        use openssl::pkey::PKey;
+        use openssl::rsa::Rsa;
+        use openssl::x509::{X509Builder, X509NameBuilder};
+        let key = PKey::from_rsa(Rsa::generate(2048).unwrap()).unwrap();
+        let mut n = X509NameBuilder::new().unwrap();
+        n.append_entry_by_text("CN", "test-idp").unwrap();
+        let n = n.build();
+        let mut b = X509Builder::new().unwrap();
+        b.set_version(2).unwrap();
+        b.set_serial_number(&BigNum::from_u32(1).unwrap().to_asn1_integer().unwrap())
+            .unwrap();
+        b.set_subject_name(&n).unwrap();
+        b.set_issuer_name(&n).unwrap();
+        b.set_pubkey(&key).unwrap();
+        b.set_not_before(&Asn1Time::days_from_now(0).unwrap())
+            .unwrap();
+        b.set_not_after(&Asn1Time::days_from_now(30).unwrap())
+            .unwrap();
+        b.sign(&key, MessageDigest::sha256()).unwrap();
+        let pem = String::from_utf8(b.build().to_pem().unwrap()).unwrap();
+        (pem, key)
+    }
+
+    #[test]
+    fn pem_certs_are_validated() {
+        let (pem, _) = test_cert();
+        assert_eq!(parse_pem_certs(&pem).unwrap().len(), 1);
+        let two = format!("{pem}{pem}");
+        assert_eq!(parse_pem_certs(&two).unwrap().len(), 2);
+        assert!(parse_pem_certs("").is_err());
+        assert!(
+            parse_pem_certs("-----BEGIN CERTIFICATE-----\nAAAA\n-----END CERTIFICATE-----\n")
+                .is_err()
+        );
     }
 
     fn good(pending: &PendingRequests) -> VerifiedAssertion {
@@ -646,6 +992,9 @@ mod tests {
                     ("ZORVIA_SAML_IDP_ENTITY_ID", "idp"),
                     ("ZORVIA_SAML_IDP_SSO_URL", "https://idp/sso"),
                 ];
+                if k == "ZORVIA_SAML_IDP_CERT_PEM" && !extra.iter().any(|(n, _)| *n == k) {
+                    return Some(test_cert().0);
+                }
                 extra
                     .iter()
                     .chain(base.iter())
@@ -659,5 +1008,331 @@ mod tests {
         );
         assert!(SamlConfig::from_lookup(env(&[("ZORVIA_SAML_CLOCK_SKEW_SECS", "9999")])).is_err());
         assert!(SamlConfig::from_lookup(env(&[("ZORVIA_SAML_IDP_ENTITY_ID", " ")])).is_err());
+    }
+}
+
+#[cfg(all(test, feature = "saml"))]
+mod verify_tests {
+    use super::tests::test_cert;
+    use super::*;
+    use samael::crypto::{Crypto, CryptoProvider};
+
+    const NOW: i64 = 1_800_000_000;
+    const RSA_SHA256: &str = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+    const SHA256: &str = "http://www.w3.org/2001/04/xmlenc#sha256";
+    const RSA_SHA1: &str = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
+    const SHA1: &str = "http://www.w3.org/2000/09/xmldsig#sha1";
+
+    fn cfg_with(cert_pem: &str) -> SamlConfig {
+        SamlConfig {
+            sp_entity_id: "https://zorvia.example/saml".into(),
+            acs_url: "https://zorvia.example/api/v1/auth/saml/acs".into(),
+            idp_entity_id: "https://idp.example/entity".into(),
+            idp_sso_url: "https://idp.example/sso".into(),
+            groups_attribute: "groups".into(),
+            clock_skew_secs: 60,
+            idp_certs_der: parse_pem_certs(cert_pem).unwrap(),
+        }
+    }
+
+    fn ts(t: i64) -> String {
+        chrono::DateTime::from_timestamp(t, 0)
+            .unwrap()
+            .format("%Y-%m-%dT%H:%M:%SZ")
+            .to_string()
+    }
+
+    #[derive(Clone, Copy, PartialEq)]
+    enum Sign {
+        None,
+        Assertion,
+        Response,
+    }
+
+    struct Fx {
+        name: &'static str,
+        audience: &'static str,
+        not_on_or_after: i64,
+        sign: Sign,
+        sig_alg: &'static str,
+        dig_alg: &'static str,
+    }
+
+    impl Fx {
+        fn ok(sign: Sign) -> Self {
+            Fx {
+                name: "alice@example.com",
+                audience: "https://zorvia.example/saml",
+                not_on_or_after: NOW + 300,
+                sign,
+                sig_alg: RSA_SHA256,
+                dig_alg: SHA256,
+            }
+        }
+    }
+
+    fn sig_template(id: &str, f: &Fx) -> String {
+        format!(
+            concat!(
+                "<ds:Signature xmlns:ds=\"http://www.w3.org/2000/09/xmldsig#\"><ds:SignedInfo>",
+                "<ds:CanonicalizationMethod Algorithm=\"http://www.w3.org/2001/10/xml-exc-c14n#\"/>",
+                "<ds:SignatureMethod Algorithm=\"{sa}\"/><ds:Reference URI=\"#{id}\"><ds:Transforms>",
+                "<ds:Transform Algorithm=\"http://www.w3.org/2000/09/xmldsig#enveloped-signature\"/>",
+                "<ds:Transform Algorithm=\"http://www.w3.org/2001/10/xml-exc-c14n#\"/></ds:Transforms>",
+                "<ds:DigestMethod Algorithm=\"{da}\"/><ds:DigestValue></ds:DigestValue></ds:Reference>",
+                "</ds:SignedInfo><ds:SignatureValue></ds:SignatureValue></ds:Signature>"
+            ),
+            sa = f.sig_alg,
+            da = f.dig_alg,
+            id = id
+        )
+    }
+
+    fn assertion(f: &Fx, id: &str, template: &str) -> String {
+        format!(
+            concat!(
+                "<saml:Assertion xmlns:saml=\"urn:oasis:names:tc:SAML:2.0:assertion\" ID=\"{id}\" ",
+                "Version=\"2.0\" IssueInstant=\"{iat}\"><saml:Issuer>https://idp.example/entity</saml:Issuer>{sig}",
+                "<saml:Subject><saml:NameID>{name}</saml:NameID>",
+                "<saml:SubjectConfirmation Method=\"urn:oasis:names:tc:SAML:2.0:cm:bearer\">",
+                "<saml:SubjectConfirmationData NotOnOrAfter=\"{noa}\" ",
+                "Recipient=\"https://zorvia.example/api/v1/auth/saml/acs\" InResponseTo=\"_req1\"/>",
+                "</saml:SubjectConfirmation></saml:Subject>",
+                "<saml:Conditions NotBefore=\"{nb}\" NotOnOrAfter=\"{noa}\"><saml:AudienceRestriction>",
+                "<saml:Audience>{aud}</saml:Audience></saml:AudienceRestriction></saml:Conditions>",
+                "<saml:AttributeStatement><saml:Attribute Name=\"groups\">",
+                "<saml:AttributeValue>zorvia-admins</saml:AttributeValue></saml:Attribute></saml:AttributeStatement>",
+                "</saml:Assertion>"
+            ),
+            id = id,
+            iat = ts(NOW - 10),
+            sig = template,
+            name = f.name,
+            noa = ts(f.not_on_or_after),
+            nb = ts(NOW - 30),
+            aud = f.audience
+        )
+    }
+
+    fn response_around(inner: &str, template: &str) -> String {
+        format!(
+            concat!(
+                "<samlp:Response xmlns:samlp=\"urn:oasis:names:tc:SAML:2.0:protocol\" ",
+                "xmlns:saml=\"urn:oasis:names:tc:SAML:2.0:assertion\" ID=\"_resp1\" Version=\"2.0\" ",
+                "IssueInstant=\"{iat}\" Destination=\"https://zorvia.example/api/v1/auth/saml/acs\" ",
+                "InResponseTo=\"_req1\"><saml:Issuer>https://idp.example/entity</saml:Issuer>{sig}",
+                "<samlp:Status><samlp:StatusCode Value=\"urn:oasis:names:tc:SAML:2.0:status:Success\"/>",
+                "</samlp:Status>{inner}</samlp:Response>"
+            ),
+            iat = ts(NOW - 10),
+            sig = template,
+            inner = inner
+        )
+    }
+
+    fn sign(xml: &str, key: &openssl::pkey::PKey<openssl::pkey::Private>) -> String {
+        Crypto::sign_xml(xml, &key.private_key_to_der().unwrap()).unwrap()
+    }
+
+    fn build(f: &Fx, key: &openssl::pkey::PKey<openssl::pkey::Private>) -> String {
+        let xml = match f.sign {
+            Sign::None => response_around(&assertion(f, "_a1", ""), ""),
+            Sign::Assertion => response_around(&assertion(f, "_a1", &sig_template("_a1", f)), ""),
+            Sign::Response => response_around(&assertion(f, "_a1", ""), &sig_template("_resp1", f)),
+        };
+        if f.sign == Sign::None {
+            xml
+        } else {
+            sign(&xml, key)
+        }
+    }
+
+    fn run(cfg: &SamlConfig, xml: &str) -> Result<SamlIdentity, SamlError> {
+        let v = verify::verify_xml(cfg, xml)?;
+        let (p, r) = (PendingRequests::default(), ReplayCache::default());
+        assert!(p.insert("_req1", NOW - 5));
+        validate_assertion(cfg, None, &v, NOW, &p, &r)
+    }
+
+    #[test]
+    fn valid_assertion_and_response_signatures_are_accepted() {
+        let (pem, key) = test_cert();
+        let cfg = cfg_with(&pem);
+        for sign in [Sign::Assertion, Sign::Response] {
+            let id = run(&cfg, &build(&Fx::ok(sign), &key)).unwrap();
+            assert_eq!(id.name_id, "alice@example.com");
+        }
+        // Groups attribute survives verification.
+        let v = verify::verify_xml(&cfg, &build(&Fx::ok(Sign::Assertion), &key)).unwrap();
+        assert_eq!(v.attributes["groups"], vec!["zorvia-admins".to_string()]);
+    }
+
+    #[test]
+    fn base64_form_field_path_works_and_size_is_capped() {
+        use base64::Engine;
+        let (pem, key) = test_cert();
+        let cfg = cfg_with(&pem);
+        let xml = build(&Fx::ok(Sign::Assertion), &key);
+        let b64 = base64::engine::general_purpose::STANDARD.encode(xml);
+        assert!(verify::verify_response(&cfg, &b64).is_ok());
+        let wrapped = b64
+            .as_bytes()
+            .chunks(76)
+            .map(|c| std::str::from_utf8(c).unwrap())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(verify::verify_response(&cfg, &wrapped).is_ok());
+        assert!(verify::verify_response(&cfg, &"A".repeat(verify::MAX_RESPONSE_B64 + 1)).is_err());
+        assert!(verify::verify_response(&cfg, "not base64!").is_err());
+    }
+
+    #[test]
+    fn tampered_content_is_rejected() {
+        let (pem, key) = test_cert();
+        let cfg = cfg_with(&pem);
+        for sign in [Sign::Assertion, Sign::Response] {
+            let xml = build(&Fx::ok(sign), &key);
+            let t = xml.replace("alice@example.com", "mallory@example.com");
+            assert_ne!(t, xml);
+            assert!(matches!(
+                verify::verify_xml(&cfg, &t),
+                Err(SamlError::Invalid(m)) if m.contains("signature")
+            ));
+            // Escalating the group after signing also breaks the digest.
+            assert!(
+                verify::verify_xml(&cfg, &xml.replace("zorvia-admins", "zorvia-root")).is_err()
+            );
+        }
+    }
+
+    #[test]
+    fn wrong_certificate_is_rejected() {
+        let (_, key) = test_cert();
+        let (other_pem, _) = test_cert();
+        let cfg = cfg_with(&other_pem);
+        let xml = build(&Fx::ok(Sign::Assertion), &key);
+        assert!(verify::verify_xml(&cfg, &xml).is_err());
+    }
+
+    #[test]
+    fn unsigned_response_is_rejected() {
+        let (pem, key) = test_cert();
+        let cfg = cfg_with(&pem);
+        assert!(matches!(
+            verify::verify_xml(&cfg, &build(&Fx::ok(Sign::None), &key)),
+            Err(SamlError::Invalid(m)) if m.contains("signature")
+        ));
+        // A signature element with no value / a stripped signature is no better.
+        let signed = build(&Fx::ok(Sign::Assertion), &key);
+        let start = signed.find("<ds:Signature").unwrap();
+        let end = signed.find("</ds:Signature>").unwrap() + "</ds:Signature>".len();
+        let stripped = format!("{}{}", &signed[..start], &signed[end..]);
+        assert!(verify::verify_xml(&cfg, &stripped).is_err());
+        // No certificate configured: fail closed.
+        let mut none = cfg.clone();
+        none.idp_certs_der.clear();
+        assert!(verify::verify_xml(&none, &signed).is_err());
+    }
+
+    #[test]
+    fn sha1_signatures_are_rejected_by_default() {
+        let (pem, key) = test_cert();
+        let cfg = cfg_with(&pem);
+        let mut f = Fx::ok(Sign::Assertion);
+        f.sig_alg = RSA_SHA1;
+        f.dig_alg = SHA1;
+        // Sanity: the fixture really is signed with SHA-1.
+        let xml = build(&f, &key);
+        assert!(xml.contains("rsa-sha1"));
+        assert!(verify::verify_xml(&cfg, &xml).is_err());
+        // SHA-256 signature with a SHA-1 digest is rejected too.
+        let mut g = Fx::ok(Sign::Assertion);
+        g.dig_alg = SHA1;
+        assert!(verify::verify_xml(&cfg, &build(&g, &key)).is_err());
+    }
+
+    #[test]
+    fn signature_wrapping_never_yields_the_unsigned_identity() {
+        let (pem, key) = test_cert();
+        let cfg = cfg_with(&pem);
+        // A genuine assertion signed for alice.
+        let alice = Fx::ok(Sign::Assertion);
+        let signed_assertion = sign(
+            &assertion(&alice, "_a1", &sig_template("_a1", &alice)),
+            &key,
+        );
+        let signed_assertion = signed_assertion
+            .split_once("?>")
+            .map(|(_, r)| r.trim().to_string())
+            .unwrap_or(signed_assertion);
+        // Attacker prepends an unsigned assertion for mallory where a consumer would look first,
+        // and keeps the signed one elsewhere in the (unsigned) Response.
+        let mallory = Fx {
+            name: "mallory@example.com",
+            ..Fx::ok(Sign::None)
+        };
+        let evil = assertion(&mallory, "_evil", "");
+        for xml in [
+            response_around(&format!("{evil}{signed_assertion}"), ""),
+            response_around(&format!("{signed_assertion}{evil}"), ""),
+            response_around(
+                &format!("<samlp:Extensions xmlns:samlp=\"urn:oasis:names:tc:SAML:2.0:protocol\">{signed_assertion}</samlp:Extensions>{evil}"),
+                "",
+            ),
+        ] {
+            match verify::verify_xml(&cfg, &xml) {
+                Ok(v) => assert_eq!(v.name_id, "alice@example.com", "consumed unsigned content"),
+                Err(_) => {}
+            }
+        }
+        // Reusing a response signature over a different ID (signature points at "_a1" but the
+        // consumed assertion has another ID) must not verify.
+        let ok = build(&Fx::ok(Sign::Assertion), &key);
+        let swapped = ok.replace("ID=\"_a1\"", "ID=\"_other\"");
+        assert!(verify::verify_xml(&cfg, &swapped).is_err());
+    }
+
+    #[test]
+    fn doctype_and_entities_are_refused() {
+        let (pem, key) = test_cert();
+        let cfg = cfg_with(&pem);
+        let xml = build(&Fx::ok(Sign::Assertion), &key);
+        let with_dtd = format!("<!DOCTYPE x [<!ENTITY e \"v\">]>{xml}");
+        assert!(matches!(
+            verify::verify_xml(&cfg, &with_dtd),
+            Err(SamlError::Invalid(m)) if m.contains("DTD")
+        ));
+    }
+
+    #[test]
+    fn replay_expired_and_wrong_audience_after_verification() {
+        let (pem, key) = test_cert();
+        let cfg = cfg_with(&pem);
+        let (p, r) = (PendingRequests::default(), ReplayCache::default());
+        let xml = build(&Fx::ok(Sign::Response), &key);
+        assert!(p.insert("_req1", NOW - 5));
+        let v = verify::verify_xml(&cfg, &xml).unwrap();
+        assert!(validate_assertion(&cfg, None, &v, NOW, &p, &r).is_ok());
+        // The same signed response again, even with a fresh request ID, is a replay.
+        assert!(p.insert("_req1", NOW));
+        let v = verify::verify_xml(&cfg, &xml).unwrap();
+        assert_eq!(
+            validate_assertion(&cfg, None, &v, NOW, &p, &r),
+            Err(SamlError::Replay)
+        );
+
+        let mut expired = Fx::ok(Sign::Assertion);
+        expired.not_on_or_after = NOW - 3600;
+        assert!(matches!(
+            run(&cfg, &build(&expired, &key)),
+            Err(SamlError::Invalid(m)) if m.contains("expired")
+        ));
+
+        let mut aud = Fx::ok(Sign::Assertion);
+        aud.audience = "https://someone-else";
+        assert!(matches!(
+            run(&cfg, &build(&aud, &key)),
+            Err(SamlError::Invalid(m)) if m.contains("audience")
+        ));
     }
 }

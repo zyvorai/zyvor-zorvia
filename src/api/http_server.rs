@@ -99,10 +99,18 @@ pub mod web {
         create_import_handler, get_wave_handler, list_imports_handler, preflight_import_handler,
     };
 
+    #[path = "certificate_handlers.rs"]
+    mod certificate_handlers;
+    use certificate_handlers::{
+        certmanager_list_handler, certmanager_renew_handler, certs_alerts_handler,
+        certs_inventory_handler, certs_status_handler, spawn_cert_expiry_loop,
+    };
+
     #[path = "volume_encryption_handlers.rs"]
     mod volume_encryption_handlers;
     use volume_encryption_handlers::{
-        apply_handler as ve_apply_handler, plan_handler as ve_plan_handler,
+        apply_handler as ve_apply_handler, guest_redeem_handler as ve_guest_redeem_handler,
+        guest_token_handler as ve_guest_token_handler, plan_handler as ve_plan_handler,
         rotate_handler as ve_rotate_handler, status_handler as ve_status_handler,
     };
 
@@ -174,7 +182,8 @@ pub mod web {
     #[path = "image_upload_handlers.rs"]
     mod image_upload_handlers;
     use image_upload_handlers::{
-        get_upload_status_handler, upload_image_handler, validate_image_handler,
+        get_upload_config_handler, get_upload_status_handler, upload_image_handler,
+        validate_image_handler,
     };
     #[path = "autoscaler_loop_handlers.rs"]
     mod autoscaler_loop_handlers;
@@ -554,8 +563,29 @@ pub mod web {
                 | "/api/v1/commercial/catalog"
                 | "/api/v1/instance"
                 | "/api/instance"
-        ) || path.starts_with("/api/v1/auth/oidc/")
+        ) || path.starts_with("/api/volume-encryption/guest-luks/redeem/")
+            || path.starts_with("/api/v1/auth/oidc/")
             || path.starts_with("/api/v1/auth/saml/")
+    }
+
+    #[cfg(test)]
+    mod public_path_tests {
+        use super::is_public_path;
+
+        #[test]
+        fn only_the_guest_redeem_route_is_public_in_volume_encryption() {
+            assert!(is_public_path(
+                "/api/volume-encryption/guest-luks/redeem/prod/db1/data"
+            ));
+            for p in [
+                "/api/volume-encryption/guest-luks/token",
+                "/api/volume-encryption/apply",
+                "/api/volume-encryption/rotate",
+                "/api/volume-encryption/status",
+            ] {
+                assert!(!is_public_path(p), "{p}");
+            }
+        }
     }
 
     // ── Rate limiting middleware ──────────────────────────────────
@@ -729,10 +759,26 @@ pub mod web {
             .route("/vm-imports/preflight", post(preflight_import_handler))
             .route("/vm-imports/waves/{wave_id}", get(get_wave_handler))
             // Volume envelope encryption (Experimental)
+            .route("/certificates/status", get(certs_status_handler))
+            .route("/certificates/inventory", get(certs_inventory_handler))
+            .route("/certificates/alerts", get(certs_alerts_handler))
+            .route("/certificates/cert-manager", get(certmanager_list_handler))
+            .route(
+                "/certificates/cert-manager/renew",
+                post(certmanager_renew_handler),
+            )
             .route("/volume-encryption/status", get(ve_status_handler))
             .route("/volume-encryption/plan", post(ve_plan_handler))
             .route("/volume-encryption/apply", post(ve_apply_handler))
             .route("/volume-encryption/rotate", post(ve_rotate_handler))
+            .route(
+                "/volume-encryption/guest-luks/token",
+                post(ve_guest_token_handler),
+            )
+            .route(
+                "/volume-encryption/guest-luks/redeem/{namespace}/{vm}/{volume}",
+                post(ve_guest_redeem_handler),
+            )
             // Off-cluster backups: catalog, restore, recovery drills
             .route(
                 "/backups/offcluster",
@@ -1402,6 +1448,11 @@ pub mod web {
                 "/v1/enterprise/cross-cluster-dr/run",
                 post(enterprise_cross_cluster_dr_run),
             )
+            .route("/v1/autoscaler/status", get(autoscaler_status_handler))
+            .route(
+                "/v1/autoscaler/decisions",
+                get(autoscaler_decisions_handler),
+            )
             .route(
                 "/v1/enterprise/dr/pairs",
                 get(list_dr_pairs_handler).post(create_dr_pair_handler),
@@ -1685,6 +1736,7 @@ pub mod web {
                 "/images/uploads/{name}",
                 post(upload_image_handler).get(get_upload_status_handler),
             )
+            .route("/images/upload-config", get(get_upload_config_handler))
             .route("/images/validate", post(validate_image_handler))
             .with_state(state.clone());
         let api = api_core.merge(mcp_routes).merge(upload_routes);
@@ -1740,6 +1792,7 @@ pub mod web {
         spawn_alert_evaluation_loop(state.clone());
         spawn_warm_pool_loop(state.clone());
         spawn_dr_replication_loop(state.clone());
+        spawn_cert_expiry_loop(state.clone());
         let app = build_router(state);
         let addr = format!("{}:{}", host, port);
 
@@ -1924,9 +1977,15 @@ pub mod web {
         crate::api::auth::saml::saml_login_handler(axum::extract::State(auth)).await
     }
 
-    async fn auth_saml_acs(State(state): State<SharedState>) -> impl IntoResponse {
+    async fn auth_saml_acs(
+        State(state): State<SharedState>,
+        form: Result<
+            axum::extract::Form<crate::api::auth::saml::AcsForm>,
+            axum::extract::rejection::FormRejection,
+        >,
+    ) -> impl IntoResponse {
         let auth = auth_shared(&state).await;
-        crate::api::auth::saml::saml_acs_handler(axum::extract::State(auth)).await
+        crate::api::auth::saml::saml_acs_handler(axum::extract::State(auth), form).await
     }
 
     async fn auth_oidc_callback(

@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { apiErrorCode, experimentalDisabledMessage } from './experimental'
-import { formatPercent, uploadErrorMessage, uploadFormProblem, uploadQuery } from './imageUpload'
+import { formatCap, formatPercent, uploadErrorMessage, uploadFormProblem, uploadQuery } from './imageUpload'
 import { canConfirmFailover, formatDuration, healthBadge, lagPercent, pairFormProblem, type PairForm } from './drPairs'
 import {
   encryptFormProblem,
@@ -61,6 +61,9 @@ describe('image upload helpers', () => {
   })
   it('explains the size cap and other server errors', () => {
     expect(uploadErrorMessage(413, 'IMAGE_TOO_LARGE', '')).toMatch(/20 GiB/)
+    expect(uploadErrorMessage(413, 'IMAGE_TOO_LARGE', '', 5 * 1024 ** 3)).toMatch(/5 GiB\)/)
+    expect(uploadErrorMessage(413, 'IMAGE_TOO_LARGE', '', 1536 * 1024 ** 2)).toMatch(/1\.5 GiB/)
+    expect(formatCap(20 * 1024 ** 3)).toBe('20 GiB')
     expect(uploadErrorMessage(413, null, '')).toMatch(/reverse-proxy/)
     expect(uploadErrorMessage(422, 'CHECKSUM_MISMATCH', '')).toMatch(/SHA-256/)
     expect(uploadErrorMessage(400, 'INVALID_IMAGE', 'declared qcow2')).toMatch(/declared qcow2/)

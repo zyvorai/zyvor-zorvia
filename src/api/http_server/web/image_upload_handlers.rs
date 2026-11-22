@@ -152,6 +152,19 @@ pub async fn upload_image_handler(
     }
 }
 
+/// The effective upload size cap, so clients can show the real limit.
+pub fn upload_config_json(max_bytes: u64) -> serde_json::Value {
+    json!({ "max_bytes": max_bytes, "default_max_bytes": image_upload::DEFAULT_MAX_BYTES })
+}
+
+/// `GET /images/upload-config` -> `{max_bytes, default_max_bytes}`.
+pub async fn get_upload_config_handler() -> impl IntoResponse {
+    if let Some(r) = gate() {
+        return r;
+    }
+    Json(upload_config_json(image_upload::max_bytes_from_env())).into_response()
+}
+
 #[derive(Debug, Deserialize)]
 pub struct UploadStatusQuery {
     #[serde(default)]
@@ -217,5 +230,17 @@ pub async fn validate_image_handler(
         }))
         .into_response(),
         Err(msg) => Json(json!({ "valid": false, "error": msg })).into_response(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn upload_config_reports_cap_and_default() {
+        let v = upload_config_json(5 * 1024 * 1024 * 1024);
+        assert_eq!(v["max_bytes"], 5u64 * 1024 * 1024 * 1024);
+        assert_eq!(v["default_max_bytes"], image_upload::DEFAULT_MAX_BYTES);
     }
 }
