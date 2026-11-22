@@ -28,12 +28,22 @@
 
 ## What's new
 
-**Unreleased, seven Experimental features** (all opt-in behind `ZORVIA_EXPERIMENTAL=1`, mock-tested, none run against a live cluster yet; see [docs/FEATURE_MATURITY.md](docs/FEATURE_MATURITY.md)):
-[disk image upload](docs/IMAGE_UPLOAD.md), an [autoscaler loop](docs/AUTOSCALER_LOOP.md) (recommends only until it has a real metrics source),
-[SAML groundwork](docs/SAML.md) (login does **not** work yet: no signature verification), extended [rescue mode](docs/RESCUE.md)
-(reset-password, install-packages, inspect), golden-image [scan and sign gates](docs/GOLDEN_IMAGES.md),
-[volume envelope encryption](docs/VOLUME_ENCRYPTION.md) (the CSI driver does not consume the key) and
-[DR replication pairs](docs/DR_REPLICATION.md). Upgrade notes: [docs/UPGRADE.md](docs/UPGRADE.md).
+**v0.8.0, the experimental-features release**: nine groups of Experimental features, all opt-in. Each needs `ZORVIA_EXPERIMENTAL=1`
+and most also their own switch (named in [docs/FEATURE_MATURITY.md](docs/FEATURE_MATURITY.md)); an install that sets neither is unchanged.
+They are verified by unit tests, mock servers and fake stores only: none has been run against a live cluster, a real IdP or a real cloud KMS.
+
+- [Disk image upload](docs/IMAGE_UPLOAD.md) through the CDI upload proxy (CLI and web).
+- [Autoscaler loop](docs/AUTOSCALER_LOOP.md): recommendation-only by default, with a read-only decisions log, telemetry from the metrics API or Prometheus, `zorvia autoscaler`, and an `/app/autoscaler` page.
+- [SAML SSO](docs/SAML.md): signature verification exists only in a build with the `saml` cargo feature (off by default, not in the published image); otherwise login returns 501. Not tested against a real IdP.
+- [Rescue mode](docs/RESCUE.md) extras: reset-password, install-packages, inspect (with `zorvia rescue`).
+- Golden-image [scan and sign gates](docs/GOLDEN_IMAGES.md), including private registries and HTTP(S) sources.
+- [Volume envelope encryption](docs/VOLUME_ENCRYPTION.md): local key, Vault Transit, AWS KMS and Google Cloud KMS wrappers (cloud KMS never tried against a real endpoint), plus guest LUKS with one-time-token key delivery (its unauthenticated redeem route needs a security review). The CSI driver does not consume the key.
+- [DR replication pairs](docs/DR_REPLICATION.md) with failover and failback (`zorvia dr`).
+- [Resource pools](docs/RESOURCE_POOLS.md): label-based VM groups with advisory limits (`zorvia inventory pool`).
+- [Certificate lifecycle](docs/CERTIFICATE_LIFECYCLE.md): inventory, expiry alerts, cert-manager renew (`zorvia certs`).
+
+Also new: scheduled per-VM snapshots with retention ([docs/SNAPSHOTS.md](docs/SNAPSHOTS.md)), and the CLI for these features ([docs/CLI_REMOTE.md](docs/CLI_REMOTE.md)).
+Upgrade notes: [docs/UPGRADE.md](docs/UPGRADE.md).
 
 **v0.7.0, the MCP release**: AI assistants (Claude Desktop/Code and other MCP clients) can list, create, power-cycle and snapshot VMs
 through an opt-in `/api/mcp` endpoint or the `zorvia mcp` bridge, acting with their own scoped token ([docs/MCP.md](docs/MCP.md)).
@@ -191,7 +201,7 @@ From a checkout, with SSH access (and passwordless `sudo`) to a fresh Linux host
 
 # host that already has a KubeVirt cluster: just (re)deploy the published image, ~1 minute
 ./deploy/remote-deploy.sh <host> <user> --image          # ghcr.io/zyvorai/zorvia:latest
-./deploy/remote-deploy.sh <host> <user> --image=ghcr.io/zyvorai/zorvia:0.7.4   # pin a release
+./deploy/remote-deploy.sh <host> <user> --image=ghcr.io/zyvorai/zorvia:0.8.0   # pin a release
 ```
 
 Nothing is compiled on the host. The script prints the console URL (`https://<host>:30152`) and the generated
@@ -269,8 +279,8 @@ No `unsafe` on the product path. CORS off unless configured. TLS verification en
 |---|---|---|
 | **GA** | Real backend, persistence, RBAC, tests, upgrade path | VM lifecycle, snapshots and restore, live migration, web console and auth, audit trail |
 | **Beta** | Operational with documented limitations | Helm chart, OIDC, PostgreSQL store and two replicas, off-cluster S3 backups, guest agent integration, pod ops, schedulers, Rook-Ceph and Atlas storage |
-| **Experimental** | Behind `ZORVIA_EXPERIMENTAL=1`; no production promise | GPU/SR-IOV/NUMA, VMware import via h2kvm Jobs, fleet multi-cluster, golden-image pipeline, cross-cluster DR |
-| **Model only** | Internal types / demos — not marketed as working | AI troubleshooting, DR replication pairs, incremental backup fields |
+| **Experimental** | Behind `ZORVIA_EXPERIMENTAL=1`; no production promise | GPU/SR-IOV/NUMA, VMware import via h2kvm Jobs, fleet multi-cluster, golden-image pipeline, cross-cluster DR, DR replication pairs, resource pools, certificate lifecycle, volume encryption, disk image upload, autoscaler, SAML |
+| **Model only** | Internal types / demos — not marketed as working | AI troubleshooting, incremental backup fields |
 
 ---
 

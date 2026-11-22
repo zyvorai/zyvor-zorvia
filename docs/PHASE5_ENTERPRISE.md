@@ -71,7 +71,7 @@ curl -sk -X POST https://HOST:30152/api/v1/enterprise/s3-backup/plan \
 }
 ```
 
-**Golden pipeline run** (applies CDI DataVolume + DataSource)
+**Golden pipeline run** (applies CDI DataVolume, runs the operator-configured scan/sign gate Jobs, then promotes the DataSource; see [GOLDEN_IMAGES.md](GOLDEN_IMAGES.md))
 
 ```json
 {

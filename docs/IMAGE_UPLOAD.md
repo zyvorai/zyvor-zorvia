@@ -25,8 +25,8 @@ The token is never logged, stored or returned. TLS verification is never disable
 ## CLI
 
 ```bash
-zorvia guest image-upload ./ubuntu.qcow2 --name ubuntu-24 --size 20Gi \
-  --sha256 <hex> --proxy-url https://cdi-upload.example.com -n vms
+zorvia --namespace vms guest image-upload ./ubuntu.qcow2 --name ubuntu-24 --size 20Gi \
+  --sha256 <hex> --proxy-url https://cdi-upload.example.com
 zorvia guest image-upload ./disk.img --name x --size 10Gi --validate-only   # no cluster
 ```
 

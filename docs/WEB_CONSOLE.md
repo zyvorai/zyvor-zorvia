@@ -76,6 +76,7 @@ Useful env on the API pod:
 | `/app/dr-pairs` | Experimental DR replication pairs: RPO/RTO status, failover dry run and confirmed failover (admin-only; see [DR_REPLICATION.md](DR_REPLICATION.md)) |
 | `/app/volume-encryption` | Experimental volume encryption: provider status, plan, apply, rotate (admin-only; see [VOLUME_ENCRYPTION.md](VOLUME_ENCRYPTION.md)) |
 | `/app/certificates` | Experimental certificate lifecycle: inventory, expiry status and alerts, cert-manager Ready state and renew (admin-only; see [CERTIFICATE_LIFECYCLE.md](CERTIFICATE_LIFECYCLE.md)) |
+| `/app/autoscaler` | Experimental autoscaler: loop mode, targets and recent decisions, read-only (admin-only; see [AUTOSCALER_LOOP.md](AUTOSCALER_LOOP.md)) |
 | `/app/events` | Live VM event stream in a black Terminal.app window |
 
 Top nav: **Dashboard · Virtual Machines · Pods** (admin) as direct links, then the

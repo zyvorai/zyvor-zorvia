@@ -5,7 +5,7 @@
 #     -f charts/zorvia/values-production.yaml \
 #     -f charts/zorvia/values-openshift.yaml \
 #     --set openshift.route.host=zorvia.apps.example.com \
-#     --set image.repository=ghcr.io/zyvorai/zorvia --set image.tag=0.7.4 --set image.pullPolicy=IfNotPresent
+#     --set image.repository=ghcr.io/zyvorai/zorvia --set image.tag=0.8.0 --set image.pullPolicy=IfNotPresent
 #
 # Untested against a live OpenShift Virtualization cluster — see
 # docs/adopt-existing-kubevirt-cluster.md.
