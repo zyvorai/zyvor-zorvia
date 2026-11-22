@@ -728,7 +728,7 @@ mod tests {
             .collect();
         assert_eq!(by["vms"], LimitState::Exceeded);
         assert_eq!(by["vcpus"], LimitState::Ok);
-        assert_eq!(by["memory_mib"], LimitState::Ok); // exactly at the limit is not exceeded
+        assert_eq!(by["memory_mib"], LimitState::Near); // exactly at the limit is not exceeded, but it is near
         assert_eq!(r.members.len(), 3);
     }
 
