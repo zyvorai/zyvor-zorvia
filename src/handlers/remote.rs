@@ -11,16 +11,7 @@
 //! a type whose `Debug` is redacted, and scrubbed from any error text before it is shown.
 
 use crate::cli::{
-    DrCommands, DrPairCommands, PoolCommands, RemoteArgs, RescueCommands, VolumeCommands,
-
-    AutoscalerCommands, DrCommands, DrPairCommands, RemoteArgs, RescueCommands, VolumeCommands,
-    VolumeEncryptionCommands,
-
-    DrCommands, DrPairCommands, RemoteArgs, RescueCommands, VolumeCommands,
-    VolumeEncryptionCommands, WaitArgs,
-
-    CertManagerCommands, CertsCommands, DrCommands, DrPairCommands, RemoteArgs, RescueCommands,
-    VolumeCommands, VolumeEncryptionCommands,
+    AutoscalerCommands, CertManagerCommands, CertsCommands, DrCommands, DrPairCommands, PoolCommands, RemoteArgs, RescueCommands, VolumeCommands, VolumeEncryptionCommands, WaitArgs,
 };
 use anyhow::{anyhow, bail, Result};
 use serde_json::{json, Map, Value};
