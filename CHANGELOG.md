@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-22
+
 ### Added
 - Resource pools (Experimental, `ZORVIA_EXPERIMENTAL=1`): named VM sets via `pool.zorvia.io/<name>` labels with optional max VMs / vCPUs / memory limits stored in the state store, a read-only usage report, a datacenter > cluster > folder > pool view, `/v1/inventory/pools` API (cluster.admin, audited) and `zorvia inventory pool ...`. Limits are advisory: VM create returns `pool_warnings` and never blocks. Fake-data unit tests only, no web page. See docs/RESOURCE_POOLS.md.
 
