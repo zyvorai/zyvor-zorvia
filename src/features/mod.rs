@@ -200,6 +200,18 @@ pub const FEATURES: &[Feature] = &[
         notes: "Requires ZORVIA_EXPERIMENTAL=1; pool.zorvia.io/<name> VM labels plus limits in the state store; read-only usage report and datacenter > cluster > folder > pool view; limits advisory at create (warning only), never enforced; cluster.admin only; unit-tested with fake VM data, not run against a live cluster; see docs/RESOURCE_POOLS.md",
     },
     Feature {
+        id: "cert-lifecycle",
+        name: "Certificate lifecycle (inventory, expiry alerts, cert-manager renew)",
+        maturity: Maturity::Experimental,
+        notes: "Requires ZORVIA_EXPERIMENTAL=1; reads kubernetes.io/tls Secrets (tls.crt/ca.crt only) and the serving cert and CA files named in Zorvia config, threshold alerts (default 30/14/7/1 days) from the leader-gated scheduler, cert-manager Ready state and an audited renew (Issuing condition, like cmctl renew); unit-tested with generated certificates and a fake store, not run against a live cluster or cert-manager - docs/CERTIFICATE_LIFECYCLE.md",
+    },
+    Feature {
+        id: "guest-luks",
+        name: "Guest LUKS volume encryption with one-time-token key delivery (partial)",
+        maturity: Maturity::Experimental,
+        notes: "Gated by the volume-encryption experimental flag; token service, redeem endpoint and key-free cloud-init templates; no automatic token delivery on every start, never run in a guest, in-memory single-replica tokens — docs/VOLUME_ENCRYPTION.md",
+    },
+    Feature {
         id: "golden-image-pipeline",
         name: "Golden-image build/scan/sign/promote",
         maturity: Maturity::Experimental,

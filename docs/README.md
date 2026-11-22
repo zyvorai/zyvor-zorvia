@@ -32,6 +32,7 @@ Start here: root [README.md](../README.md) (hero, gallery, quick start) · live 
 | [AUTOSCALER_LOOP.md](AUTOSCALER_LOOP.md) | Autoscaler reconcile loop, recommendation-only by default (Experimental) |
 | [SAML.md](SAML.md) | SAML 2.0 groundwork: metadata, login request, assertion validator; login not functional yet (Experimental) |
 | [VOLUME_ENCRYPTION.md](VOLUME_ENCRYPTION.md) | Envelope data keys for volumes wrapped by the key provider (Experimental) |
+| [CERTIFICATE_LIFECYCLE.md](CERTIFICATE_LIFECYCLE.md) | Certificate inventory, expiry alerts and cert-manager renew (Experimental) |
 | [DR_REPLICATION.md](DR_REPLICATION.md) | Durable DR replication pairs, RPO/RTO status, dry-run-first failover (Experimental) |
 | [PODS.md](PODS.md) | Pods page: all-namespace inventory, Terminal.app logs + exec, WebSocket protocol, RBAC, audit |
 | [RESOURCE_POOLS.md](RESOURCE_POOLS.md) | Resource pools: label-based VM groups, advisory limits, usage report, pool hierarchy (Experimental) |

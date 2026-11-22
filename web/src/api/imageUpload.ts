@@ -32,6 +32,8 @@ export interface UploadOptions {
   sha256?: string
   onProgress?: (loaded: number, total: number) => void
   signal?: AbortSignal
+  /** Server cap, used only to word a too-large error. */
+  maxBytes?: number | null
 }
 
 /** Header-only check: sends at most the first ~33 KiB (docs/IMAGE_UPLOAD.md). */
@@ -94,11 +96,24 @@ export function uploadImage(name: string, file: File, opts: UploadOptions): Prom
       } catch {
         /* non-JSON body */
       }
-      reject(new Error(uploadErrorMessage(xhr.status, apiErrorCode(body), msg)))
+      reject(new Error(uploadErrorMessage(xhr.status, apiErrorCode(body), msg, opts.maxBytes)))
     }
     opts.signal?.addEventListener('abort', () => xhr.abort())
     xhr.send(file)
   })
+}
+
+export interface UploadConfig {
+  max_bytes: number
+  default_max_bytes: number
+}
+
+/** The server's effective upload size cap, or null when it cannot be read. */
+export async function getUploadConfig(): Promise<UploadConfig | null> {
+  const res = await apiFetch(`${API_BASE}/images/upload-config`).catch(() => null)
+  if (!res || !res.ok) return null
+  const j = (await res.json().catch(() => null)) as Partial<UploadConfig> | null
+  return j && typeof j.max_bytes === 'number' && j.max_bytes > 0 ? (j as UploadConfig) : null
 }
 
 export interface UploadStatus {

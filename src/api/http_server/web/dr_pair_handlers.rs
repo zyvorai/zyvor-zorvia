@@ -221,11 +221,12 @@ pub async fn delete_dr_pair_handler(
         return r;
     }
     let res = PairStore::update(&path(), |s| {
-        if s.remove(&name) {
-            Ok(())
-        } else {
-            Err("not found".to_string())
+        let p = s.get(&name).ok_or_else(|| "not found".to_string())?;
+        if let Some(why) = PairStore::delete_blocker(p) {
+            return Err(format!("active: {why}; wait for it to finish or cancel it"));
         }
+        s.remove(&name);
+        Ok(())
     });
     record_audit(
         &state,
@@ -240,6 +241,7 @@ pub async fn delete_dr_pair_handler(
     match res {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
         Err(e) if e == "not found" => bad(404, "NOT_FOUND", "No such DR pair"),
+        Err(e) if e.starts_with("active: ") => bad(409, "PAIR_BUSY", &e["active: ".len()..]),
         Err(e) => bad(500, "PERSIST_FAILED", &e),
     }
 }

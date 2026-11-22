@@ -11,8 +11,8 @@
 //! a type whose `Debug` is redacted, and scrubbed from any error text before it is shown.
 
 use crate::cli::{
-    DrCommands, DrPairCommands, PoolCommands, RemoteArgs, RescueCommands, VolumeCommands,
-    VolumeEncryptionCommands,
+    AutoscalerCommands, CertManagerCommands, CertsCommands, DrCommands, DrPairCommands,
+    PoolCommands, RemoteArgs, RescueCommands, VolumeCommands, VolumeEncryptionCommands, WaitArgs,
 };
 use anyhow::{anyhow, bail, Result};
 use serde_json::{json, Map, Value};
@@ -20,6 +20,10 @@ use serde_json::{json, Map, Value};
 const DR_BASE: &str = "/api/v1/enterprise/dr";
 const VE_BASE: &str = "/api/volume-encryption";
 const POOL_BASE: &str = "/api/v1/inventory/pools";
+
+const AS_BASE: &str = "/api/v1/autoscaler";
+
+const CERT_BASE: &str = "/api/certificates";
 
 /// A secret string whose `Debug`/`Display` never show the value.
 pub struct Secret(String);
@@ -89,6 +93,27 @@ fn check_name(what: &str, s: &str) -> Result<()> {
 
 // ---------------------------------------------------------------- request construction
 
+/// Read-only autoscaler loop views. `target` must be a DNS-1123 label (what the server accepts).
+pub fn autoscaler_request(cmd: &AutoscalerCommands) -> Result<Req> {
+    Ok(match cmd {
+        AutoscalerCommands::Status => get(format!("{AS_BASE}/status")),
+        AutoscalerCommands::Decisions { target, limit } => {
+            if !(1..=500).contains(limit) {
+                bail!("--limit must be between 1 and 500");
+            }
+            let mut path = format!("{AS_BASE}/decisions?limit={limit}");
+            if let Some(t) = target {
+                check_name("target", t)?;
+                if t.contains('.') || t.len() > 63 {
+                    bail!("target '{t}' must be a DNS-1123 label (lowercase letters, digits, '-')");
+                }
+                path.push_str(&format!("&target={t}"));
+            }
+            get(path)
+        }
+    })
+}
+
 pub fn dr_request(cmd: &DrPairCommands) -> Result<Req> {
     Ok(match cmd {
         DrPairCommands::List => get(format!("{DR_BASE}/pairs")),
@@ -121,6 +146,16 @@ pub fn dr_request(cmd: &DrPairCommands) -> Result<Req> {
                 b.insert("rto_seconds".into(), json!(r));
             }
             post(format!("{DR_BASE}/pairs"), Value::Object(b))
+        }
+        DrPairCommands::Delete { name, yes } => {
+            check_name("pair name", name)?;
+            if !*yes {
+                bail!(
+                    "deleting pair {name} forgets its RPO tracking and failover history \
+                     (the VMs and backups are not touched); re-run with --yes to confirm"
+                );
+            }
+            delete(format!("{DR_BASE}/pairs/{name}"))
         }
         DrPairCommands::Status { name } => {
             check_name("pair name", name)?;
@@ -257,6 +292,7 @@ pub fn volume_request(cmd: &VolumeEncryptionCommands, namespace: &str) -> Result
             size,
             storage_class,
             acknowledge_unverified_encryption,
+            guest_luks,
         }
         | VolumeEncryptionCommands::Apply {
             vm,
@@ -264,6 +300,7 @@ pub fn volume_request(cmd: &VolumeEncryptionCommands, namespace: &str) -> Result
             size,
             storage_class,
             acknowledge_unverified_encryption,
+            guest_luks,
             ..
         } => {
             ident(vm, volume)?;
@@ -280,11 +317,27 @@ pub fn volume_request(cmd: &VolumeEncryptionCommands, namespace: &str) -> Result
                 "volume": volume,
                 "size": size,
                 "storage_class": storage_class,
-                "mode": "storage_class",
+                "mode": if *guest_luks { "guest_luks" } else { "storage_class" },
                 "acknowledge_unverified_encryption": acknowledge_unverified_encryption,
             });
             let verb = if is_apply { "apply" } else { "plan" };
             post(format!("{VE_BASE}/{verb}"), body)
+        }
+        VolumeEncryptionCommands::GuestToken {
+            vm,
+            volume,
+            ttl,
+            yes,
+        } => {
+            ident(vm, volume)?;
+            if !yes {
+                bail!("this mints a single-use unlock credential; add --yes to confirm");
+            }
+            let mut body = json!({ "namespace": namespace, "vm": vm, "volume": volume });
+            if let Some(t) = ttl {
+                body["ttl_seconds"] = json!(t);
+            }
+            post(format!("{VE_BASE}/guest-luks/token"), body)
         }
         VolumeEncryptionCommands::Rotate { vm, volume, yes } => {
             ident(vm, volume)?;
@@ -299,10 +352,57 @@ pub fn volume_request(cmd: &VolumeEncryptionCommands, namespace: &str) -> Result
     })
 }
 
+pub fn certs_request(cmd: &CertsCommands) -> Result<Req> {
+    Ok(match cmd {
+        CertsCommands::List { namespace, .. } => match namespace {
+            Some(ns) => {
+                check_name("namespace", ns)?;
+                get(format!("{CERT_BASE}/inventory?namespace={ns}"))
+            }
+            None => get(format!("{CERT_BASE}/inventory")),
+        },
+        CertsCommands::Status => get(format!("{CERT_BASE}/status")),
+        CertsCommands::Alerts => get(format!("{CERT_BASE}/alerts")),
+        CertsCommands::CertManager { cmd } => match cmd {
+            CertManagerCommands::List => get(format!("{CERT_BASE}/cert-manager")),
+            CertManagerCommands::Renew {
+                namespace,
+                name,
+                confirm,
+            } => {
+                check_name("namespace", namespace)?;
+                check_name("certificate name", name)?;
+                let phrase = format!("renew {namespace}/{name}");
+                if confirm != &phrase {
+                    bail!("--confirm must be exactly \"{phrase}\"");
+                }
+                post(
+                    format!("{CERT_BASE}/cert-manager/renew"),
+                    json!({ "namespace": namespace, "name": name, "confirm": phrase }),
+                )
+            }
+        },
+    })
+}
+
+/// Keep certificates expiring within `days` (or already expired); the server has no such filter.
+pub fn filter_expiring(inventory: &mut Value, days: i64) {
+    if let Some(list) = inventory
+        .get_mut("certificates")
+        .and_then(Value::as_array_mut)
+    {
+        list.retain(|c| {
+            c.get("days_remaining")
+                .and_then(Value::as_i64)
+                .is_some_and(|d| d <= days)
+        });
+    }
+}
+
 pub fn rescue_request(cmd: &RescueCommands, password: Option<&Secret>) -> Result<Req> {
     use crate::kube::rescue::logic;
     Ok(match cmd {
-        RescueCommands::ResetPassword { vm, user } => {
+        RescueCommands::ResetPassword { vm, user, .. } => {
             check_name("vm", vm)?;
             logic::validate_username(user).map_err(|e| anyhow!("{e}"))?;
             let pw = password.ok_or_else(|| anyhow!("no password supplied"))?;
@@ -312,7 +412,7 @@ pub fn rescue_request(cmd: &RescueCommands, password: Option<&Secret>) -> Result
                 json!({ "operation": "reset-password", "user": user.trim(), "password": pw.expose() }),
             )
         }
-        RescueCommands::InstallPackages { vm, packages } => {
+        RescueCommands::InstallPackages { vm, packages, .. } => {
             check_name("vm", vm)?;
             let pkgs = logic::validate_packages(packages).map_err(|e| anyhow!("{e}"))?;
             post(
@@ -320,7 +420,7 @@ pub fn rescue_request(cmd: &RescueCommands, password: Option<&Secret>) -> Result
                 json!({ "operation": "install-packages", "packages": pkgs }),
             )
         }
-        RescueCommands::Inspect { vm } => {
+        RescueCommands::Inspect { vm, .. } => {
             check_name("vm", vm)?;
             post(
                 format!("/api/vms/{vm}/rescue"),
@@ -401,6 +501,35 @@ impl Remote {
         })
     }
 
+    /// Polls a rescue job until it is `succeeded` or `failed`, or `timeout` passes.
+    /// Returns the last status body. A failed job is an error after the status is printed.
+    pub async fn wait_rescue(
+        &self,
+        vm: &str,
+        job: &str,
+        timeout: std::time::Duration,
+        interval: std::time::Duration,
+    ) -> Result<Value> {
+        let req = get(format!("/api/vms/{vm}/rescue/{job}"));
+        let deadline = std::time::Instant::now() + timeout;
+        loop {
+            let v = self.send(&req, &[]).await?;
+            match v.get("state").and_then(Value::as_str) {
+                Some("succeeded") | Some("failed") => return Ok(v),
+                _ => {}
+            }
+            if std::time::Instant::now() + interval > deadline {
+                bail!(
+                    "timed out after {}s waiting for job {job}; last state: {}. \
+                     Check later with: zorvia rescue status {vm} {job}",
+                    timeout.as_secs(),
+                    v.get("state").and_then(Value::as_str).unwrap_or("unknown")
+                );
+            }
+            tokio::time::sleep(interval).await;
+        }
+    }
+
     /// Sends `req`; returns the response `data` (or the whole body). `redact` strings are removed
     /// from every error message.
     pub async fn send(&self, req: &Req, redact: &[&str]) -> Result<Value> {
@@ -433,6 +562,7 @@ impl Remote {
         let parsed: Option<Value> = serde_json::from_str(&text).ok();
         if status.is_success() {
             if text.trim().is_empty() {
+                // e.g. 204 No Content from a DELETE
                 return Ok(json!({ "ok": true, "status": status.as_u16() }));
             }
             let v =
@@ -564,9 +694,30 @@ pub async fn run_pool(remote: RemoteArgs, cmd: PoolCommands) -> Result<()> {
 }
 
 #[cfg(feature = "web")]
+pub async fn run_autoscaler(remote: RemoteArgs, cmd: AutoscalerCommands) -> Result<()> {
+    finish(&remote, autoscaler_request(&cmd)?, &[]).await
+}
+
+#[cfg(feature = "web")]
 pub async fn run_volume(remote: RemoteArgs, cmd: VolumeCommands, namespace: &str) -> Result<()> {
     let VolumeCommands::Encryption { cmd } = cmd;
     finish(&remote, volume_request(&cmd, namespace)?, &[]).await
+}
+
+#[cfg(feature = "web")]
+pub async fn run_certs(remote: RemoteArgs, cmd: CertsCommands) -> Result<()> {
+    let req = certs_request(&cmd)?;
+    let r = Remote::new(&remote)?;
+    let mut v = r.send(&req, &[]).await?;
+    if let CertsCommands::List {
+        expiring_within_days: Some(d),
+        ..
+    } = &cmd
+    {
+        filter_expiring(&mut v, *d);
+    }
+    println!("{}", render(&v, &remote.output)?);
+    Ok(())
 }
 
 #[cfg(feature = "web")]
@@ -577,7 +728,46 @@ pub async fn run_rescue(remote: RemoteArgs, cmd: RescueCommands) -> Result<()> {
     };
     let req = rescue_request(&cmd, password.as_ref())?;
     let redact: Vec<&str> = password.iter().map(Secret::expose).collect();
-    finish(&remote, req, &redact).await
+    let wait = match &cmd {
+        RescueCommands::ResetPassword { wait, .. }
+        | RescueCommands::InstallPackages { wait, .. }
+        | RescueCommands::Inspect { wait, .. } => wait.clone(),
+        RescueCommands::Status { .. } => WaitArgs::default(),
+    };
+    if !wait.wait {
+        return finish(&remote, req, &redact).await;
+    }
+    if !(1..=86_400).contains(&wait.timeout) {
+        bail!("--timeout must be between 1 and 86400 seconds");
+    }
+    let vm = match &cmd {
+        RescueCommands::ResetPassword { vm, .. }
+        | RescueCommands::InstallPackages { vm, .. }
+        | RescueCommands::Inspect { vm, .. } => vm.clone(),
+        RescueCommands::Status { vm, .. } => vm.clone(),
+    };
+    let r = Remote::new(&remote)?;
+    let queued = r.send(&req, &redact).await?;
+    let job = queued
+        .get("job_name")
+        .and_then(Value::as_str)
+        .ok_or_else(|| anyhow!("server did not return a job name"))?
+        .to_string();
+    check_name("job", &job)?;
+    eprintln!("queued job {job}; waiting up to {}s ...", wait.timeout);
+    let last = r
+        .wait_rescue(
+            &vm,
+            &job,
+            std::time::Duration::from_secs(wait.timeout),
+            std::time::Duration::from_secs(2),
+        )
+        .await?;
+    println!("{}", render(&last, &remote.output)?);
+    if last.get("state").and_then(Value::as_str) == Some("failed") {
+        bail!("rescue job {job} failed");
+    }
+    Ok(())
 }
 
 #[cfg(not(feature = "web"))]
@@ -589,7 +779,15 @@ pub async fn run_pool(_: RemoteArgs, _: PoolCommands) -> Result<()> {
     bail!("this build has no HTTP client; rebuild with the default `web` feature")
 }
 #[cfg(not(feature = "web"))]
+pub async fn run_autoscaler(_: RemoteArgs, _: AutoscalerCommands) -> Result<()> {
+    bail!("this build has no HTTP client; rebuild with the default `web` feature")
+}
+#[cfg(not(feature = "web"))]
 pub async fn run_volume(_: RemoteArgs, _: VolumeCommands, _: &str) -> Result<()> {
+    bail!("this build has no HTTP client; rebuild with the default `web` feature")
+}
+#[cfg(not(feature = "web"))]
+pub async fn run_certs(_: RemoteArgs, _: CertsCommands) -> Result<()> {
     bail!("this build has no HTTP client; rebuild with the default `web` feature")
 }
 #[cfg(not(feature = "web"))]
@@ -824,6 +1022,130 @@ mod tests {
         .is_err());
     }
 
+    fn certs_cmd(args: &[&str]) -> CertsCommands {
+        match *parse(args).unwrap().command {
+            Commands::Certs { cmd, .. } => cmd,
+            _ => panic!("not a certs command"),
+        }
+    }
+
+    #[test]
+    fn certs_requests() {
+        let r = certs_request(&certs_cmd(&["certs", "list"])).unwrap();
+        assert_eq!(
+            (r.method, r.path.as_str()),
+            ("GET", "/api/certificates/inventory")
+        );
+        let r = certs_request(&certs_cmd(&["certs", "list", "--namespace", "prod"])).unwrap();
+        assert_eq!(r.path, "/api/certificates/inventory?namespace=prod");
+        assert!(certs_request(&certs_cmd(&["certs", "list", "--namespace", "a/../b"])).is_err());
+        assert_eq!(
+            certs_request(&certs_cmd(&["certs", "status"]))
+                .unwrap()
+                .path,
+            "/api/certificates/status"
+        );
+        assert_eq!(
+            certs_request(&certs_cmd(&["certs", "alerts"]))
+                .unwrap()
+                .path,
+            "/api/certificates/alerts"
+        );
+        assert_eq!(
+            certs_request(&certs_cmd(&["certs", "cert-manager", "list"]))
+                .unwrap()
+                .path,
+            "/api/certificates/cert-manager"
+        );
+    }
+
+    #[test]
+    fn certs_renew_needs_the_exact_phrase() {
+        let wrong = certs_cmd(&[
+            "certs",
+            "cert-manager",
+            "renew",
+            "web",
+            "site",
+            "--confirm",
+            "yes",
+        ]);
+        assert!(certs_request(&wrong).is_err());
+        let other = certs_cmd(&[
+            "certs",
+            "cert-manager",
+            "renew",
+            "web",
+            "site",
+            "--confirm",
+            "renew web/other",
+        ]);
+        assert!(certs_request(&other).is_err());
+        let ok = certs_cmd(&[
+            "certs",
+            "cert-manager",
+            "renew",
+            "web",
+            "site",
+            "--confirm",
+            "renew web/site",
+        ]);
+        let r = certs_request(&ok).unwrap();
+        assert_eq!(
+            (r.method, r.path.as_str()),
+            ("POST", "/api/certificates/cert-manager/renew")
+        );
+        assert_eq!(
+            r.body.unwrap(),
+            json!({"namespace":"web","name":"site","confirm":"renew web/site"})
+        );
+        assert!(clap::Parser::try_parse_from(
+            ["zorvia", "certs", "cert-manager", "renew", "a", "b"]
+                .iter()
+                .copied()
+        )
+        .map(|_: Cli| ())
+        .is_err());
+    }
+
+    #[test]
+    fn expiring_filter_keeps_soon_and_expired() {
+        let mut inv = json!({"certificates":[
+            {"name":"a","days_remaining":-3},
+            {"name":"b","days_remaining":10},
+            {"name":"c","days_remaining":400}],
+            "summary":{"total":3}});
+        filter_expiring(&mut inv, 30);
+        let names: Vec<_> = inv["certificates"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c["name"].as_str().unwrap())
+            .collect();
+        assert_eq!(names, ["a", "b"]);
+    }
+
+    #[tokio::test]
+    async fn certs_list_round_trips_against_a_mock_and_disabled_is_explained() {
+        let (url, seen) = mock(200, json!({"certificates": [], "summary": {"total": 0}})).await;
+        let req = certs_request(&certs_cmd(&["certs", "list"])).unwrap();
+        let v = remote(&url).send(&req, &[]).await.unwrap();
+        assert_eq!(v["summary"]["total"], 0);
+        {
+            let s = seen.lock().unwrap();
+            assert_eq!(s[0].path, "/api/certificates/inventory");
+            assert_eq!(s[0].auth, "Bearer tok-123");
+        }
+        let (url, _) = mock(
+            403,
+            json!({"success": false, "error": {"code": "EXPERIMENTAL_DISABLED",
+                "message": "cert-lifecycle is Experimental; set ZORVIA_EXPERIMENTAL=1 to enable"}}),
+        )
+        .await;
+        let err = remote(&url).send(&req, &[]).await.unwrap_err().to_string();
+        assert!(err.contains("ZORVIA_EXPERIMENTAL=1"), "{err}");
+    }
+
     #[test]
     fn volume_encryption_requests() {
         let r = volume_request(&ve_cmd(&["volume", "encryption", "status"]), "default").unwrap();
@@ -866,6 +1188,37 @@ mod tests {
         with_yes.push("--yes");
         let r = volume_request(&ve_cmd(&with_yes), "prod").unwrap();
         assert_eq!(r.path, "/api/volume-encryption/apply");
+        let gl = ve_cmd(&[
+            "volume",
+            "encryption",
+            "plan",
+            "web",
+            "data",
+            "--size",
+            "1Gi",
+            "--storage-class",
+            "s",
+            "--guest-luks",
+        ]);
+        assert_eq!(
+            volume_request(&gl, "prod").unwrap().body.unwrap()["mode"],
+            "guest_luks"
+        );
+        let tok = [
+            "volume",
+            "encryption",
+            "guest-token",
+            "web",
+            "data",
+            "--ttl",
+            "120",
+        ];
+        assert!(volume_request(&ve_cmd(&tok), "prod").is_err());
+        let mut tok_yes = tok.to_vec();
+        tok_yes.push("--yes");
+        let r = volume_request(&ve_cmd(&tok_yes), "prod").unwrap();
+        assert_eq!(r.path, "/api/volume-encryption/guest-luks/token");
+        assert_eq!(r.body.unwrap()["ttl_seconds"], 120);
         assert!(volume_request(
             &ve_cmd(&["volume", "encryption", "rotate", "web", "data"]),
             "p"
@@ -880,6 +1233,76 @@ mod tests {
             r.body.unwrap(),
             json!({"namespace":"p","vm":"web","volume":"data"})
         );
+    }
+
+    fn as_cmd(args: &[&str]) -> AutoscalerCommands {
+        match *parse(args).unwrap().command {
+            Commands::Autoscaler { cmd, .. } => cmd,
+            _ => panic!("not an autoscaler command"),
+        }
+    }
+
+    #[test]
+    fn autoscaler_requests() {
+        let r = autoscaler_request(&as_cmd(&["autoscaler", "status"])).unwrap();
+        assert_eq!(
+            (r.method, r.path.as_str()),
+            ("GET", "/api/v1/autoscaler/status")
+        );
+        let r = autoscaler_request(&as_cmd(&["autoscaler", "decisions"])).unwrap();
+        assert_eq!(r.path, "/api/v1/autoscaler/decisions?limit=50");
+        let r = autoscaler_request(&as_cmd(&[
+            "autoscaler",
+            "decisions",
+            "--target",
+            "web",
+            "--limit",
+            "10",
+        ]))
+        .unwrap();
+        assert_eq!(r.path, "/api/v1/autoscaler/decisions?limit=10&target=web");
+        assert!(r.body.is_none());
+        for bad in [
+            &["autoscaler", "decisions", "--limit", "0"][..],
+            &["autoscaler", "decisions", "--limit", "501"][..],
+            &["autoscaler", "decisions", "--target", "a/b"][..],
+            &["autoscaler", "decisions", "--target", "a&limit=1"][..],
+            &["autoscaler", "decisions", "--target", "a.b"][..],
+        ] {
+            assert!(autoscaler_request(&as_cmd(bad)).is_err(), "{bad:?}");
+        }
+    }
+
+    #[tokio::test]
+    async fn autoscaler_against_mock_server() {
+        let body = json!({"success": true, "data": {"enabled": true, "decisions": [
+            {"seq": 2, "target": "web", "decision": "scale_up", "outcome": "recommended"}]}});
+        let (url, seen) = mock(200, body).await;
+        let req =
+            autoscaler_request(&as_cmd(&["autoscaler", "decisions", "--target", "web"])).unwrap();
+        let v = remote(&url).send(&req, &[]).await.unwrap();
+        assert_eq!(v["decisions"][0]["target"], "web");
+        let s = seen.lock().unwrap();
+        assert_eq!(s[0].method, "GET");
+        assert_eq!(s[0].path, "/api/v1/autoscaler/decisions");
+        assert_eq!(s[0].auth, "Bearer tok-123");
+        assert!(s[0].body.is_empty());
+        drop(s);
+        let out = render(&v, "table").unwrap();
+        assert!(out.contains("scale_up"), "{out}");
+    }
+
+    #[tokio::test]
+    async fn autoscaler_disabled_is_reported_clearly() {
+        let (url, _) = mock(
+            403,
+            json!({"success": false, "error": {"code": "EXPERIMENTAL_DISABLED",
+                "message": "The autoscaler loop view is Experimental"}}),
+        )
+        .await;
+        let req = autoscaler_request(&as_cmd(&["autoscaler", "status"])).unwrap();
+        let e = remote(&url).send(&req, &[]).await.unwrap_err().to_string();
+        assert!(e.contains("Experimental and disabled"), "{e}");
     }
 
     #[tokio::test]
@@ -1014,6 +1437,94 @@ mod tests {
         let cmd = rescue_cmd(&["rescue", "reset-password", "vm1", "--user", "root"]);
         assert!(rescue_request(&cmd, Some(&Secret::new(String::new()))).is_err());
         assert!(rescue_request(&cmd, None).is_err());
+    }
+
+    #[test]
+    fn dr_delete_needs_yes_and_uses_delete() {
+        let c = dr_cmd(&["dr", "pair", "delete", "web"]);
+        assert!(dr_request(&c).is_err());
+        let c = dr_cmd(&["dr", "pair", "delete", "web", "--yes"]);
+        let r = dr_request(&c).unwrap();
+        assert_eq!(
+            (r.method, r.path.as_str()),
+            ("DELETE", "/api/v1/enterprise/dr/pairs/web")
+        );
+        assert!(dr_request(&dr_cmd(&["dr", "pair", "delete", "../x", "--yes"])).is_err());
+    }
+
+    #[test]
+    fn rescue_wait_flags_parse() {
+        assert!(parse(&["rescue", "inspect", "vm1", "--timeout", "5"]).is_err());
+        match rescue_cmd(&["rescue", "inspect", "vm1", "--wait", "--timeout", "30"]) {
+            RescueCommands::Inspect { wait, .. } => {
+                assert!(wait.wait);
+                assert_eq!(wait.timeout, 30);
+            }
+            _ => panic!(),
+        }
+        match rescue_cmd(&["rescue", "inspect", "vm1"]) {
+            RescueCommands::Inspect { wait, .. } => assert!(!wait.wait),
+            _ => panic!(),
+        }
+    }
+
+    #[tokio::test]
+    async fn delete_with_empty_204_body_succeeds() {
+        use axum::routing::delete as del;
+        let app = axum::Router::new().route(
+            "/api/v1/enterprise/dr/pairs/web",
+            del(|| async { axum::http::StatusCode::NO_CONTENT }),
+        );
+        let l = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = l.local_addr().unwrap();
+        tokio::spawn(async move {
+            axum::serve(l, app).await.unwrap();
+        });
+        let c = dr_cmd(&["dr", "pair", "delete", "web", "--yes"]);
+        let v = remote(&format!("http://{addr}"))
+            .send(&dr_request(&c).unwrap(), &[])
+            .await
+            .unwrap();
+        assert_eq!(v["ok"], true);
+    }
+
+    #[tokio::test]
+    async fn wait_rescue_polls_until_terminal_and_times_out() {
+        use axum::routing::get as gt;
+        let n = Arc::new(Mutex::new(0u32));
+        let n2 = n.clone();
+        let app = axum::Router::new().route(
+            "/api/vms/vm1/rescue/job-1",
+            gt(move || {
+                let n = n2.clone();
+                async move {
+                    let mut g = n.lock().unwrap();
+                    *g += 1;
+                    let st = if *g >= 3 { "succeeded" } else { "running" };
+                    axum::Json(json!({ "state": st, "result": null }))
+                }
+            }),
+        );
+        let l = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = l.local_addr().unwrap();
+        tokio::spawn(async move {
+            axum::serve(l, app).await.unwrap();
+        });
+        let r = remote(&format!("http://{addr}"));
+        let ms = std::time::Duration::from_millis;
+        let v = r
+            .wait_rescue("vm1", "job-1", std::time::Duration::from_secs(5), ms(5))
+            .await
+            .unwrap();
+        assert_eq!(v["state"], "succeeded");
+        assert_eq!(*n.lock().unwrap(), 3);
+
+        let (url, _) = mock(200, json!({"state": "running"})).await;
+        let e = remote(&url)
+            .wait_rescue("vm1", "job-1", ms(30), ms(10))
+            .await
+            .unwrap_err();
+        assert!(e.to_string().contains("timed out"), "{e}");
     }
 
     #[test]

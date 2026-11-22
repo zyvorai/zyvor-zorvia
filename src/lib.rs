@@ -36,6 +36,8 @@
 pub mod ai;
 #[cfg(feature = "web")]
 pub mod atlas;
+#[cfg(feature = "web")]
+pub mod certs;
 pub mod cli;
 #[cfg(feature = "web")]
 pub mod commercial;
@@ -1473,6 +1475,11 @@ pub async fn run(mut cli: Cli) -> Result<()> {
             handlers::remote::run_volume(remote, cmd, &cli.namespace).await?
         }
         Commands::Rescue { remote, cmd } => handlers::remote::run_rescue(remote, cmd).await?,
+        Commands::Autoscaler { remote, cmd } => {
+            handlers::remote::run_autoscaler(remote, cmd).await?
+        }
+
+        Commands::Certs { remote, cmd } => handlers::remote::run_certs(remote, cmd).await?,
 
         Commands::Api(cmd) => match cmd {
             ApiCommands::ApiServe {

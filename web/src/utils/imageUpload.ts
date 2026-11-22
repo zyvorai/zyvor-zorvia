@@ -37,14 +37,33 @@ export function uploadQuery(o: {
   return p.toString()
 }
 
-/** Plain-language message for an upload failure status/code. The size cap is
-    server-side (ZORVIA_IMAGE_UPLOAD_MAX_BYTES, default 20 GiB) and not exposed
-    by the API, so the message names the default rather than a live value. */
-export function uploadErrorMessage(status: number, code: string | null, serverMessage: string): string {
+/** Human size for the cap (binary units, e.g. 20 GiB). */
+export function formatCap(bytes: number): string {
+  const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB']
+  let v = bytes
+  let i = 0
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024
+    i++
+  }
+  return `${Number.isInteger(v) ? v : v.toFixed(1)} ${units[i]}`
+}
+
+/** Plain-language message for an upload failure status/code. `maxBytes` is the
+    server's real cap from /images/upload-config; when unknown the message
+    falls back to naming the default. */
+export function uploadErrorMessage(
+  status: number,
+  code: string | null,
+  serverMessage: string,
+  maxBytes?: number | null,
+): string {
   const detail = serverMessage ? ` ${serverMessage}` : ''
   switch (code) {
     case 'IMAGE_TOO_LARGE':
-      return `Image is larger than the server's upload cap (20 GiB unless ZORVIA_IMAGE_UPLOAD_MAX_BYTES was changed). The upload was aborted and the DataVolume removed.${detail}`
+      return `Image is larger than the server's upload cap (${
+        maxBytes ? formatCap(maxBytes) : '20 GiB unless ZORVIA_IMAGE_UPLOAD_MAX_BYTES was changed'
+      }). The upload was aborted and the DataVolume removed.${detail}`
     case 'CHECKSUM_MISMATCH':
       return `The SHA-256 you gave does not match the bytes received; nothing was kept.${detail}`
     case 'INVALID_IMAGE':

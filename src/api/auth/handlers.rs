@@ -1086,6 +1086,71 @@ fn cookie_value<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
         .map(|(_, v)| v)
 }
 
+/// Shared tail of every federated (OIDC, SAML) login: apply the group decision, JIT-provision
+/// the user under `<prefix>:<subject>`, sync role/namespaces, and mint the session JWT.
+/// `prefix` keeps the identity namespaces of different IdP protocols apart.
+#[allow(clippy::result_large_err)]
+pub(crate) fn finish_federated_login(
+    auth: &AuthState,
+    prefix: &str,
+    subject: &str,
+    display: &str,
+    decision: Option<super::groups::Decision>,
+) -> Result<String, axum::response::Response> {
+    let (initial_role, sync) = match decision {
+        None => (Role::User, None),
+        Some(super::groups::Decision::Allow { role, namespaces }) => {
+            (role.clone(), Some((role, namespaces)))
+        }
+        Some(super::groups::Decision::Deny) => {
+            // No matching group: no access, and any session this user holds is revoked.
+            if let Ok(Some(existing)) = auth.db.get_by_username(&format!("{prefix}:{subject}")) {
+                let _ = auth.db.bump_token_version(&existing.id);
+            }
+            log::warn!("{prefix} login denied: no group of subject {subject} maps to a role");
+            return Err(err(
+                StatusCode::FORBIDDEN,
+                "Your identity provider groups do not grant access to Zorvia",
+            )
+            .into_response());
+        }
+    };
+    let user = match auth.db.upsert_federated_user(prefix, subject, initial_role) {
+        Ok(u) => u,
+        Err(e) => {
+            log::error!("{prefix} JIT user upsert failed: {e:#}");
+            return Err(err(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to provision user",
+            )
+            .into_response());
+        }
+    };
+    let user = match sync {
+        Some((role, namespaces)) => match sync_oidc_user(&auth.db, user, role, namespaces) {
+            Ok(u) => u,
+            Err(e) => {
+                log::error!("{prefix} group sync failed: {e:#}");
+                return Err(err(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Failed to apply group mapping",
+                )
+                .into_response());
+            }
+        },
+        None => user,
+    };
+    if !user.enabled {
+        return Err(err(StatusCode::FORBIDDEN, "This account has been disabled").into_response());
+    }
+    auth.jwt
+        .generate(&user.id, display, user.role.clone(), user.token_version)
+        .map_err(|e| {
+            log::error!("{prefix} JWT mint failed: {e:#}");
+            err(StatusCode::INTERNAL_SERVER_ERROR, "Failed to mint session").into_response()
+        })
+}
+
 #[derive(Debug, Deserialize)]
 pub struct OidcCallbackQuery {
     pub code: Option<String>,
@@ -1182,66 +1247,9 @@ pub async fn oidc_callback_handler(
         .oidc_groups
         .as_ref()
         .map(|p| p.decide(&super::groups::groups_from_claims(&claims.extra, &p.claim)));
-    let (initial_role, sync) = match decision {
-        None => (Role::User, None),
-        Some(super::groups::Decision::Allow { role, namespaces }) => {
-            (role.clone(), Some((role, namespaces)))
-        }
-        Some(super::groups::Decision::Deny) => {
-            // No matching group: no access, and any session this user holds is revoked.
-            if let Ok(Some(existing)) = auth.db.get_by_username(&format!("oidc:{}", claims.sub)) {
-                let _ = auth.db.bump_token_version(&existing.id);
-            }
-            log::warn!(
-                "OIDC login denied: no group of subject {} maps to a role",
-                claims.sub
-            );
-            return err(
-                StatusCode::FORBIDDEN,
-                "Your identity provider groups do not grant access to Zorvia",
-            )
-            .into_response();
-        }
-    };
-    let user = match auth.db.upsert_oidc_user(&claims.sub, initial_role) {
-        Ok(u) => u,
-        Err(e) => {
-            log::error!("OIDC JIT user upsert failed: {e:#}");
-            return err(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Failed to provision user",
-            )
-            .into_response();
-        }
-    };
-    let user = match sync {
-        Some((role, namespaces)) => match sync_oidc_user(&auth.db, user, role, namespaces) {
-            Ok(u) => u,
-            Err(e) => {
-                log::error!("OIDC group sync failed: {e:#}");
-                return err(
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Failed to apply group mapping",
-                )
-                .into_response();
-            }
-        },
-        None => user,
-    };
-    if !user.enabled {
-        return err(StatusCode::FORBIDDEN, "This account has been disabled").into_response();
-    }
-
-    let token = match auth
-        .jwt
-        .generate(&user.id, &display, user.role.clone(), user.token_version)
-    {
+    let token = match finish_federated_login(&auth, "oidc", &claims.sub, &display, decision) {
         Ok(t) => t,
-        Err(e) => {
-            log::error!("OIDC JWT mint failed: {e:#}");
-            return err(StatusCode::INTERNAL_SERVER_ERROR, "Failed to mint session")
-                .into_response();
-        }
+        Err(resp) => return resp,
     };
 
     // Fragment, not query: it is never sent to a server, logged, or put in a

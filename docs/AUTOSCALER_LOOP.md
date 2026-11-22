@@ -13,6 +13,7 @@ recommends or performs a scale action. **Off by default.**
 | `ZORVIA_AUTOSCALER_APPLY=1` | Actually scale. Without it the loop is recommendation-only (default). |
 | `ZORVIA_AUTOSCALER_INTERVAL_SECS` | Tick interval, default 60, clamped 10..3600. |
 | `ZORVIA_AUTOSCALER_PROMETHEUS_URL` | Optional Prometheus fallback load source (see Load sources). |
+| `ZORVIA_AUTOSCALER_PROMETHEUS_TOKEN_FILE` | Optional path to a file holding a bearer token for Prometheus. Read on every request (rotation needs no restart), sent only over https (a non-https URL with this set disables the Prometheus source), never logged; there is deliberately no plain env var for the token. Max 8 KiB, one token, no whitespace. |
 | `ZORVIA_AUTOSCALER_METRICS_MAX_AGE_SECS` | Samples older than this are stale and ignored. Default 120, clamped 30..900. |
 
 ## Targets
@@ -64,6 +65,32 @@ than 60s in the future), several virt-launcher pods for one VM (e.g. mid-migrati
 response: the source returns an error, the reconciler logs it and skips that target for the tick.
 It does not touch the hysteresis streaks and never scales. For a pool, every member VM must have
 fresh data or the whole target is skipped.
+
+## Seeing decisions (read-only API, CLI, web)
+
+Today's decisions used to appear only in logs and the audit trail. The loop now also keeps a
+bounded in-memory record of each tick's outcome per target: timestamp, target, metric
+(`cpu`/`memory`), load percent, load source (`metrics_api`, `prometheus`, `simulated`),
+decision (`scale_up`, `scale_down`, `hold`, `skipped`), outcome (`applied`, `recommended`,
+`failed`, `held`, `skipped`), from/to sizes and a short reason (`cooldown`, `within dead band`,
+`at bound`, `load unavailable: ...`, ...).
+
+- Up to 100 records per target (oldest dropped), at most 100 targets. Consecutive identical
+  hold/skip ticks are folded into one record with a `count`, so steady-state ticks cannot push
+  real scale decisions out. Reasons are one line, 200 characters, with URLs replaced by `<url>`.
+- API (cluster.admin, `ZORVIA_EXPERIMENTAL=1`; otherwise 403 `EXPERIMENTAL_DISABLED`):
+  `GET /api/v1/autoscaler/status` (loop mode, leader, last tick, targets with policy and
+  hysteresis streaks) and `GET /api/v1/autoscaler/decisions?limit=50&target=web` (newest first,
+  `limit` 1..=500, `target` a DNS-1123 label of a configured target, else 404). When the loop is
+  not running, both answer 200 with `enabled: false` and a `disabled_reason`.
+- CLI: `zorvia autoscaler status` and `zorvia autoscaler decisions [--target ID] [--limit N]`
+  (see CLI_REMOTE.md). Web: `/app/autoscaler` (admin), with the same experimental, disabled
+  state as the other experimental pages.
+- Nothing secret is stored or returned: target ids/namespaces/names, numbers and the reasons
+  above only. `metric_vms` and executor error detail beyond the first line are not exposed.
+- **Limits.** Memory only: lost on restart and not persisted (no `state_docs` persistence).
+  Per process: only the leader ticks, so a follower's log is empty and the view shows the
+  replica that answered. Mock/unit tested only; not exercised against a live cluster.
 
 ## Limits (read before relying on it)
 

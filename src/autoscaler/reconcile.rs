@@ -14,6 +14,9 @@ use anyhow::{bail, Result};
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
+
+use super::decisions::{DecisionKind, DecisionLog, Observation, Outcome};
 
 pub const MAX_TARGETS: usize = 100;
 pub const MAX_BOUND: u32 = 1000;
@@ -201,6 +204,9 @@ pub struct LoadSample {
     pub percent: f64,
     /// True when the number is not real telemetry. Simulated load is never acted on.
     pub simulated: bool,
+    /// Where the number came from (`metrics_api`, `prometheus`, `simulated`); shown in the
+    /// decisions API.
+    pub source: &'static str,
 }
 
 #[allow(async_fn_in_trait)]
@@ -315,13 +321,33 @@ pub fn decide(
     }
 }
 
-#[derive(Default)]
 pub struct Reconciler {
     states: HashMap<String, TargetState>,
     warned_simulated: bool,
+    log: Arc<DecisionLog>,
+}
+
+impl Default for Reconciler {
+    /// A reconciler with its own private decision log (the loop uses [`Self::with_log`]).
+    fn default() -> Self {
+        Self::with_log(Arc::new(DecisionLog::default()))
+    }
 }
 
 impl Reconciler {
+    /// A reconciler that records every tick's decisions into `log`.
+    pub fn with_log(log: Arc<DecisionLog>) -> Self {
+        Self {
+            states: HashMap::new(),
+            warned_simulated: false,
+            log,
+        }
+    }
+
+    pub fn log(&self) -> &Arc<DecisionLog> {
+        &self.log
+    }
+
     pub fn state(&self, id: &str) -> Option<&TargetState> {
         self.states.get(id)
     }
@@ -345,14 +371,30 @@ impl Reconciler {
         S: EventSink,
     {
         let mut out = Vec::new();
+        let dlog = self.log.clone();
+        dlog.note_tick(now, is_leader);
         if !is_leader {
             return out;
         }
         for t in targets {
+            let skip = |load: Option<f64>, source: &'static str, why: &str| {
+                dlog.push(Observation {
+                    now,
+                    target: t,
+                    load_percent: load,
+                    source,
+                    decision: DecisionKind::Skipped,
+                    outcome: Outcome::Skipped,
+                    from: None,
+                    to: None,
+                    reason: why,
+                });
+            };
             let sample = match metrics.load(t).await {
                 Ok(s) => s,
                 Err(e) => {
                     log::warn!("autoscaler: load for '{}' unavailable: {e}", t.id);
+                    skip(None, "unknown", &format!("load unavailable: {e}"));
                     continue;
                 }
             };
@@ -360,16 +402,36 @@ impl Reconciler {
                 Ok(c) => c,
                 Err(e) => {
                     log::warn!("autoscaler: current size of '{}' unavailable: {e}", t.id);
+                    skip(
+                        Some(sample.percent),
+                        sample.source,
+                        &format!("current size unavailable: {e}"),
+                    );
                     continue;
                 }
             };
             let st = self.states.entry(t.id.clone()).or_default();
+            let decision = decide(t, st, current, sample.percent, now);
+            dlog.note_state(&t.id, st.up_streak, st.down_streak, st.last_action);
             let Decision::Scale {
                 direction,
                 from,
                 to,
-            } = decide(t, st, current, sample.percent, now)
+            } = decision
             else {
+                if let Decision::Hold(why) = decision {
+                    dlog.push(Observation {
+                        now,
+                        target: t,
+                        load_percent: Some(sample.percent),
+                        source: sample.source,
+                        decision: DecisionKind::Hold,
+                        outcome: Outcome::Held,
+                        from: Some(current),
+                        to: None,
+                        reason: why,
+                    });
+                }
                 continue;
             };
             // Cooldown starts on any recommendation/attempt so a failure is not hammered.
@@ -416,6 +478,25 @@ impl Reconciler {
                 mode,
                 detail,
             };
+            dlog.note_state(&t.id, st.up_streak, st.down_streak, st.last_action);
+            dlog.push(Observation {
+                now,
+                target: t,
+                load_percent: Some(sample.percent),
+                source: sample.source,
+                decision: match direction {
+                    Direction::Up => DecisionKind::ScaleUp,
+                    Direction::Down => DecisionKind::ScaleDown,
+                },
+                outcome: match mode {
+                    Mode::Recommended => Outcome::Recommended,
+                    Mode::Applied => Outcome::Applied,
+                    Mode::Failed => Outcome::Failed,
+                },
+                from: Some(from),
+                to: Some(to),
+                reason: &ev.detail,
+            });
             sink.record(&ev).await;
             out.push(ev);
         }
@@ -602,6 +683,11 @@ mod tests {
             Ok(LoadSample {
                 percent: l.remove(0),
                 simulated: self.simulated,
+                source: if self.simulated {
+                    "simulated"
+                } else {
+                    "metrics_api"
+                },
             })
         }
     }
@@ -799,5 +885,80 @@ mod tests {
         assert_eq!(parse_targets(&format!("[{one}]")).unwrap().len(), 1);
         assert!(parse_targets(&format!("[{one},{one}]")).is_err());
         assert!(parse_targets("nope").is_err());
+    }
+
+    #[tokio::test]
+    async fn every_tick_outcome_lands_in_the_decision_log() {
+        use crate::autoscaler::decisions::{DecisionKind, Outcome};
+        let mut r = Reconciler::default();
+        // 3 high samples -> recommendation (dry-run), then a no-data tick, then a dead-band hold.
+        let f = fakes(vec![95.0, 95.0, 95.0, 50.0], false, false);
+        let ts = [target()];
+        for i in 0..5 {
+            r.tick(
+                t0() + Duration::seconds(i),
+                true,
+                &DRY,
+                &ts,
+                &f.0,
+                &f.1,
+                &f.2,
+            )
+            .await;
+        }
+        let recs = r.log().recent(100, Some("web"));
+        // newest first: skipped (no data), hold (dead band), recommended, 2 folded/hold waits
+        assert_eq!(recs[0].decision, DecisionKind::Skipped);
+        assert_eq!(recs[0].outcome, Outcome::Skipped);
+        assert!(recs[0].reason.contains("load unavailable"));
+        assert_eq!(recs[1].reason, "within dead band");
+        let rec = recs
+            .iter()
+            .find(|x| x.outcome == Outcome::Recommended)
+            .unwrap();
+        assert_eq!((rec.from, rec.to), (Some(3), Some(4)));
+        assert_eq!(rec.source, "metrics_api");
+        assert_eq!(rec.load_percent, Some(95.0));
+        assert!(rec.reason.contains("dry-run"));
+        let waits: u32 = recs
+            .iter()
+            .filter(|x| x.reason == "waiting for consecutive samples")
+            .map(|x| x.count)
+            .sum();
+        assert_eq!(waits, 2);
+        assert!(recs.windows(2).all(|w| w[0].seq > w[1].seq));
+    }
+
+    #[tokio::test]
+    async fn follower_records_no_decisions_but_notes_the_tick() {
+        let mut r = Reconciler::default();
+        let f = fakes(vec![95.0; 3], false, false);
+        r.tick(t0(), false, &DRY, &[target()], &f.0, &f.1, &f.2)
+            .await;
+        assert!(r.log().recent(10, None).is_empty());
+        assert_eq!(r.log().status().0.leader, Some(false));
+    }
+
+    #[tokio::test]
+    async fn failed_apply_is_logged_as_failed() {
+        use crate::autoscaler::decisions::Outcome;
+        let mut r = Reconciler::default();
+        let f = fakes(vec![95.0; 3], false, true);
+        let ts = [target()];
+        for i in 0..3 {
+            r.tick(
+                t0() + Duration::seconds(i),
+                true,
+                &APPLY,
+                &ts,
+                &f.0,
+                &f.1,
+                &f.2,
+            )
+            .await;
+        }
+        let failed = r.log().recent(10, None);
+        assert_eq!(failed[0].outcome, Outcome::Failed);
+        assert!(!failed[0].reason.contains("secret-ish"));
     }
 }

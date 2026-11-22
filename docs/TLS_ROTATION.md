@@ -28,5 +28,6 @@ env:
 
 ## What this does not cover
 
-Expiry monitoring (Zorvia does not parse the certificate or alert before it expires: use cert-manager or your
-monitoring), the CA bundle used for *outgoing* connections, and client-certificate (mTLS) authentication.
+Client-certificate (mTLS) authentication. Expiry monitoring, a certificate inventory and a cert-manager renew action
+are the Experimental [certificate lifecycle](CERTIFICATE_LIFECYCLE.md) feature (off by default); without it Zorvia does not
+alert before a certificate expires.

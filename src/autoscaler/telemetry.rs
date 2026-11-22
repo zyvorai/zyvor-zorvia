@@ -8,6 +8,10 @@
 //! 2. **Prometheus** (optional, `ZORVIA_AUTOSCALER_PROMETHEUS_URL`) with KubeVirt `kubevirt_vmi_*`
 //!    metrics, used only when the metrics API gave no usable answer.
 //!
+//!    If the Prometheus endpoint needs authentication, `ZORVIA_AUTOSCALER_PROMETHEUS_TOKEN_FILE`
+//!    names a file holding a bearer token. It is read on every request (so rotation needs no
+//!    restart), only ever sent over https, never logged, and never accepted from a plain env var.
+//!
 //! A sample from here is always `simulated: false`. Missing, stale, ambiguous or malformed
 //! data is an `Err`, which the reconciler treats as "no decision" for that tick (it never
 //! scales on it). Not verified against a live cluster; see docs/AUTOSCALER_LOOP.md.
@@ -351,30 +355,79 @@ pub fn parse_prom_response(body: &[u8], now: DateTime<Utc>, max_age: Duration) -
     check_percent(val)
 }
 
+/// Largest token file accepted.
+const MAX_TOKEN_BYTES: u64 = 8 * 1024;
+
+/// Reads the bearer token from `path` and builds a sensitive `Authorization` header.
+/// Refuses to do so unless `base` is https. Errors never contain the token.
+pub fn bearer_header(
+    base: &reqwest::Url,
+    path: &std::path::Path,
+) -> Result<reqwest::header::HeaderValue> {
+    if base.scheme() != "https" {
+        bail!(
+            "refusing to send the Prometheus token over {}",
+            base.scheme()
+        );
+    }
+    let meta = std::fs::metadata(path).map_err(|e| {
+        anyhow!(
+            "cannot read Prometheus token file: {}",
+            e.kind().to_string().to_lowercase()
+        )
+    })?;
+    if !meta.is_file() || meta.len() > MAX_TOKEN_BYTES {
+        bail!("Prometheus token file is not a regular file of at most 8 KiB");
+    }
+    let raw = std::fs::read_to_string(path)
+        .map_err(|_| anyhow!("Prometheus token file is unreadable or not UTF-8"))?;
+    let token = raw.trim();
+    if token.is_empty() {
+        bail!("Prometheus token file is empty");
+    }
+    if token.chars().any(|c| c.is_control() || c.is_whitespace()) {
+        bail!("Prometheus token file must contain a single token");
+    }
+    let mut v = reqwest::header::HeaderValue::from_str(&format!("Bearer {token}"))
+        .map_err(|_| anyhow!("Prometheus token is not a valid header value"))?;
+    v.set_sensitive(true);
+    Ok(v)
+}
+
 struct PromSource {
     http: reqwest::Client,
     base: reqwest::Url,
+    token_file: Option<std::path::PathBuf>,
 }
 
 impl PromSource {
-    fn new(base: reqwest::Url) -> Result<Self> {
+    fn new(base: reqwest::Url, token_file: Option<std::path::PathBuf>) -> Result<Self> {
         let http = reqwest::Client::builder()
             .timeout(PROM_TIMEOUT)
             .connect_timeout(PROM_CONNECT_TIMEOUT)
             .redirect(reqwest::redirect::Policy::none())
             .no_proxy()
             .build()?;
-        Ok(Self { http, base })
+        Ok(Self {
+            http,
+            base,
+            token_file,
+        })
     }
 
     async fn query(&self, q: &str) -> Result<Vec<u8>> {
         let mut url = self.base.clone();
         let path = format!("{}/api/v1/query", url.path().trim_end_matches('/'));
         url.set_path(&path);
-        let mut resp = self
-            .http
-            .get(url)
-            .query(&[("query", q)])
+        let mut rb = self.http.get(url).query(&[("query", q)]);
+        if let Some(tf) = &self.token_file {
+            // Re-read per request so a rotated token is picked up without a restart.
+            rb = rb.header(
+                reqwest::header::AUTHORIZATION,
+                bearer_header(&self.base, tf)?,
+            );
+        }
+        let mut resp = rb
             .send()
             .await
             .map_err(|e| anyhow!("prometheus request failed: {}", e.without_url()))?;
@@ -428,6 +481,8 @@ impl PromSource {
 pub struct TelemetryConfig {
     pub max_age: Duration,
     pub prometheus: Option<reqwest::Url>,
+    /// File holding a bearer token for the Prometheus endpoint (never the token itself).
+    pub prometheus_token_file: Option<std::path::PathBuf>,
 }
 
 impl TelemetryConfig {
@@ -443,9 +498,19 @@ impl TelemetryConfig {
                 Some(raw) => Some(validate_prometheus_url(&raw)?),
                 None => None,
             };
+        let prometheus_token_file = get("ZORVIA_AUTOSCALER_PROMETHEUS_TOKEN_FILE")
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .map(std::path::PathBuf::from);
+        if let (Some(u), Some(_)) = (&prometheus, &prometheus_token_file) {
+            if u.scheme() != "https" {
+                bail!("ZORVIA_AUTOSCALER_PROMETHEUS_TOKEN_FILE needs an https Prometheus URL");
+            }
+        }
         Ok(Self {
             max_age: Duration::seconds(secs),
             prometheus,
+            prometheus_token_file,
         })
     }
 }
@@ -467,6 +532,7 @@ impl TelemetryLoadSource<KubeSizing> {
             TelemetryConfig {
                 max_age: Duration::seconds(DEFAULT_MAX_AGE_SECS),
                 prometheus: None,
+                prometheus_token_file: None,
             }
         });
         Self::new(kube.client(), KubeSizing(kube.clone()), cfg)
@@ -475,13 +541,16 @@ impl TelemetryLoadSource<KubeSizing> {
 
 impl<Z: VmSizing> TelemetryLoadSource<Z> {
     pub fn new(client: kube::Client, sizing: Z, cfg: TelemetryConfig) -> Self {
-        let prom = cfg.prometheus.and_then(|u| match PromSource::new(u) {
-            Ok(p) => Some(p),
-            Err(e) => {
-                log::error!("autoscaler telemetry: cannot build Prometheus client: {e}");
-                None
-            }
-        });
+        let token_file = cfg.prometheus_token_file;
+        let prom = cfg
+            .prometheus
+            .and_then(|u| match PromSource::new(u, token_file) {
+                Ok(p) => Some(p),
+                Err(e) => {
+                    log::error!("autoscaler telemetry: cannot build Prometheus client: {e}");
+                    None
+                }
+            });
         Self {
             client,
             sizing,
@@ -492,17 +561,22 @@ impl<Z: VmSizing> TelemetryLoadSource<Z> {
 
     async fn load_at(&self, t: &LoopTarget, now: DateTime<Utc>) -> Result<LoadSample> {
         let first = metrics_api_load(&self.client, &self.sizing, t, now, self.max_age).await;
-        let pct = match (first, &self.prom) {
-            (Ok(p), _) => p,
+        let (pct, source) = match (first, &self.prom) {
+            (Ok(p), _) => (p, "metrics_api"),
             (Err(e), None) => return Err(e),
-            (Err(e1), Some(prom)) => prom
-                .load(&self.sizing, t, now, self.max_age)
-                .await
-                .map_err(|e2| anyhow!("no real telemetry: metrics API: {e1}; prometheus: {e2}"))?,
+            (Err(e1), Some(prom)) => (
+                prom.load(&self.sizing, t, now, self.max_age)
+                    .await
+                    .map_err(|e2| {
+                        anyhow!("no real telemetry: metrics API: {e1}; prometheus: {e2}")
+                    })?,
+                "prometheus",
+            ),
         };
         Ok(LoadSample {
             percent: pct,
             simulated: false,
+            source,
         })
     }
 }
@@ -649,8 +723,69 @@ mod tests {
             TelemetryConfig {
                 max_age: Duration::seconds(120),
                 prometheus: with_prom.then(|| format!("http://{addr}").parse().unwrap()),
+                prometheus_token_file: None,
             },
         )
+    }
+
+    #[test]
+    fn token_file_config_and_header() {
+        let dir = tempfile::tempdir().unwrap();
+        let f = dir.path().join("tok");
+        let fs = f.to_str().unwrap().to_string();
+        let https: reqwest::Url = "https://prom.example.com".parse().unwrap();
+        let http: reqwest::Url = "http://127.0.0.1:9090".parse().unwrap();
+
+        // https is required, even to loopback
+        std::fs::write(&f, "s3cret\n").unwrap();
+        let e = bearer_header(&http, &f).unwrap_err().to_string();
+        assert!(e.contains("refusing") && !e.contains("s3cret"));
+
+        let h = bearer_header(&https, &f).unwrap();
+        assert_eq!(h.to_str().unwrap(), "Bearer s3cret");
+        assert!(h.is_sensitive());
+        assert!(!format!("{h:?}").contains("s3cret"));
+
+        // rotation: the next call sees the new token
+        std::fs::write(&f, "rotated").unwrap();
+        assert_eq!(
+            bearer_header(&https, &f).unwrap().to_str().unwrap(),
+            "Bearer rotated"
+        );
+
+        // bad contents / missing file never echo the contents
+        for bad in ["", "  \n", "two words", "a\r\nb"] {
+            std::fs::write(&f, bad).unwrap();
+            assert!(bearer_header(&https, &f).is_err(), "{bad:?}");
+        }
+        assert!(bearer_header(&https, &dir.path().join("nope")).is_err());
+
+        // config: the path comes from the env getter; non-https is rejected up front
+        let get = |url: &'static str| {
+            let fs = fs.clone();
+            move |k: &str| match k {
+                "ZORVIA_AUTOSCALER_PROMETHEUS_URL" => Some(url.to_string()),
+                "ZORVIA_AUTOSCALER_PROMETHEUS_TOKEN_FILE" => Some(fs.clone()),
+                _ => None,
+            }
+        };
+        let c = TelemetryConfig::from_getter(get("https://prom.example.com")).unwrap();
+        assert_eq!(c.prometheus_token_file.as_deref(), Some(f.as_path()));
+        assert!(TelemetryConfig::from_getter(get("http://127.0.0.1:9090")).is_err());
+        let none = TelemetryConfig::from_getter(|_| None).unwrap();
+        assert!(none.prometheus_token_file.is_none());
+    }
+
+    #[tokio::test]
+    async fn token_never_sent_over_http() {
+        let (addr, seen) = serve(Mock::new(pm("2000000000n", 10), prom("40", 10))).await;
+        let dir = tempfile::tempdir().unwrap();
+        let f = dir.path().join("tok");
+        std::fs::write(&f, "s3cret").unwrap();
+        let p = PromSource::new(format!("http://{addr}").parse().unwrap(), Some(f)).unwrap();
+        let e = p.query("up").await.unwrap_err().to_string();
+        assert!(e.contains("refusing") && !e.contains("s3cret"));
+        assert!(seen.lock().unwrap().is_empty(), "no request must be made");
     }
 
     #[test]
@@ -870,7 +1005,7 @@ mod tests {
         let mut m = Mock::new(String::new(), prom(PROM_OK, 5));
         m.prom_status = 500;
         let (addr, _) = serve(m).await;
-        let p = PromSource::new(format!("http://{addr}").parse().unwrap()).unwrap();
+        let p = PromSource::new(format!("http://{addr}").parse().unwrap(), None).unwrap();
         assert!(p
             .query("up")
             .await
@@ -880,7 +1015,7 @@ mod tests {
 
         let big = format!("{{\"pad\":\"{}\"}}", "a".repeat(PROM_MAX_BODY + 10));
         let (addr, _) = serve(Mock::new(String::new(), big)).await;
-        let p = PromSource::new(format!("http://{addr}").parse().unwrap()).unwrap();
+        let p = PromSource::new(format!("http://{addr}").parse().unwrap(), None).unwrap();
         assert!(p
             .query("up")
             .await
@@ -904,7 +1039,7 @@ mod tests {
         let l = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = l.local_addr().unwrap();
         tokio::spawn(async move { axum::serve(l, app).await.unwrap() });
-        let p = PromSource::new(format!("http://{addr}").parse().unwrap()).unwrap();
+        let p = PromSource::new(format!("http://{addr}").parse().unwrap(), None).unwrap();
         assert!(p
             .query("up")
             .await

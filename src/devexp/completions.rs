@@ -231,6 +231,43 @@ mod tests {
         });
     }
 
+    /// The completions come from the clap `Cli`, so the API-backed command groups must appear
+    /// in every generated script (dr pair, volume encryption, rescue and their subcommands).
+    #[test]
+    fn test_completions_include_api_command_groups() {
+        run_with_large_stack(|| {
+            for shell in [
+                CompletionShell::Bash,
+                CompletionShell::Zsh,
+                CompletionShell::Fish,
+            ] {
+                let out = CompletionGenerator::new(shell.clone()).generate();
+                for word in [
+                    "dr",
+                    "pair",
+                    "failover",
+                    "failback-plan",
+                    "resume",
+                    "delete",
+                    "volume",
+                    "encryption",
+                    "rotate",
+                    "rescue",
+                    "reset-password",
+                    "install-packages",
+                    "inspect",
+                    "--wait",
+                    "wait",
+                ] {
+                    assert!(
+                        out.contains(word),
+                        "{shell} completions are missing '{word}'"
+                    );
+                }
+            }
+        });
+    }
+
     #[test]
     fn test_install_instructions() {
         let bash = CompletionShell::Bash.install_instructions();

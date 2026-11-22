@@ -40,13 +40,14 @@ All under `/api`, `POST` needs `vm.create` (same as other `/images/*` writes), a
 |-------|---------|
 | `POST /images/uploads/{name}?size=&namespace=&storage_class=&format=&sha256=` | Raw image as the request body; streamed through to CDI. `201` with name, format, bytes, sha256. Errors: `400 INVALID_IMAGE`, `413 IMAGE_TOO_LARGE`, `422 CHECKSUM_MISMATCH`, `502 UPLOAD_FAILED`, `503 UPLOAD_PROXY_NOT_CONFIGURED` |
 | `GET /images/uploads/{name}?namespace=` | DataVolume phase and progress |
+| `GET /images/upload-config` | The effective size cap: `{max_bytes, default_max_bytes}` (the web panel shows `max_bytes`) |
 | `POST /images/validate?format=` | Send the first ~33 KiB of an image; returns the detected format |
 
 These routes are registered outside the 30 s request timeout that wraps the rest of `/api`. A reverse proxy in front of Zorvia must also allow large bodies and long requests.
 
 ## Web console
 
-`/app/disk-images` has an upload panel (user/admin role): choose a file, name, PVC size and optional format, namespace, StorageClass and SHA-256; **Validate only** sends just the first ~33 KiB to `/images/validate`; **Upload** streams the file with a progress bar (bytes sent to Zorvia; the request finishes once CDI accepts the image). Size-cap, checksum and proxy errors get plain-language messages. When the API answers 403 `EXPERIMENTAL_DISABLED` the panel shows an experimental, disabled notice instead.
+`/app/disk-images` has an upload panel (user/admin role): choose a file, name, PVC size and optional format, namespace, StorageClass and SHA-256; **Validate only** sends just the first ~33 KiB to `/images/validate`; **Upload** streams the file with a progress bar (bytes sent to Zorvia; the request finishes once CDI accepts the image). The panel shows the server's real size cap (from `/images/upload-config`). Size-cap, checksum and proxy errors get plain-language messages. When the API answers 403 `EXPERIMENTAL_DISABLED` the panel shows an experimental, disabled notice instead.
 
 ## Not done
 

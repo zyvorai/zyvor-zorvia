@@ -66,6 +66,9 @@ const PodLogsPage = lazy(() => import('./pages/PodLogsPage'))
 const DataBridge = lazy(() => import('./pages/DataBridge'))
 const DrPairs = lazy(() => import('./pages/DrPairs'))
 const VolumeEncryption = lazy(() => import('./pages/VolumeEncryption'))
+const Autoscaler = lazy(() => import('./pages/Autoscaler'))
+
+const Certificates = lazy(() => import('./pages/Certificates'))
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, loading } = useAuth()
@@ -131,6 +134,9 @@ function ConsoleRoutes() {
             <Route path="golden-images" element={<GoldenImages />} />
             <Route path="dr-pairs" element={<AdminRoute><DrPairs /></AdminRoute>} />
             <Route path="volume-encryption" element={<AdminRoute><VolumeEncryption /></AdminRoute>} />
+            <Route path="autoscaler" element={<AdminRoute><Autoscaler /></AdminRoute>} />
+
+            <Route path="certificates" element={<AdminRoute><Certificates /></AdminRoute>} />
             <Route path="backup-scheduler" element={<BackupScheduler />} />
             <Route path="placement" element={<PlacementAdvisor />} />
             <Route path="ha-policy" element={<HaPolicy />} />

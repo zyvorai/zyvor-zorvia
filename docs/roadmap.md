@@ -15,7 +15,7 @@ Capabilities that need genuinely new infrastructure (not yet shipped):
 | Area | What's planned | Why it's not here yet |
 |------|-----------------|------------------------|
 | Disaster recovery | Site failover, cross-site replication | Needs a real DR/replication engine (`dr-replication` is model-only) |
-| Certificates & encryption | Cert lifecycle, disk/volume encryption (KMS) | Needs PKI and key-management integration from scratch |
+| Certificates & encryption | Cert lifecycle (inventory, expiry alerts, cert-manager renew: Experimental, see CERTIFICATE_LIFECYCLE.md), disk/volume encryption (KMS) | Issuance and alert delivery (email/webhook) are not built; KMS needs key-management integration from scratch |
 | Image upload / convert | Upload a disk image from your browser, format conversion | Needs a CDI upload-proxy client (TLS, multipart streaming) |
 | Autoscaling | Policy-driven automatic VM scaling | Policy engine exists; needs an execution loop against real load |
 | Datacenters & resource pools | vCenter-style hierarchical grouping | Label-based datacenter/cluster/folder inventory exists; resource pools (labels + advisory limits) are Experimental, see [RESOURCE_POOLS.md](RESOURCE_POOLS.md); no Kubernetes primitive, so limits are not enforced |

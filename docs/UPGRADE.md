@@ -7,6 +7,8 @@
 2. **Rescue reset-password needs new RBAC.** The Zorvia ServiceAccount gains `secrets` `create`, `delete` and `patch` in its namespace (Helm: `charts/zorvia/templates/rbac.yaml`; manifests: `deploy/k8s.yaml`, `deploy/k3s-zorvia-web.yaml`). Existing installs must re-apply the RBAC. Only the new experimental rescue operations use it.
 3. **Volume encryption** also stores wrapped data keys in Secrets (`zorvia-dek-<vm>-<volume>`), so it needs the same Secret permissions. See [VOLUME_ENCRYPTION.md](VOLUME_ENCRYPTION.md).
 
+4. **Certificate lifecycle** (optional) needs `get`/`list` on `secrets` (cluster-wide or per namespace), `list` on `namespaces`, and for cert-manager `get`/`list` on `certificates` plus `update` on `certificates/status`. The chart does not grant these; see [CERTIFICATE_LIFECYCLE.md](CERTIFICATE_LIFECYCLE.md).
+
 ### Behaviour to know
 - All seven new features are off unless `ZORVIA_EXPERIMENTAL=1` plus the feature's own switch (see [FEATURE_MATURITY.md](FEATURE_MATURITY.md)); nothing changes for an install that sets neither.
 - **SAML:** `ZORVIA_SAML_ENABLED=1` exposes metadata and a login redirect, but the ACS endpoint answers 501 and creates no session. Keep using OIDC.
