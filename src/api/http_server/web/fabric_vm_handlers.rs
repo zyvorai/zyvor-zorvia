@@ -537,6 +537,15 @@ pub async fn fabric_create_vm(
         return (st, j).into_response();
     }
 
+    // Resource pool limits are advisory: warnings go in the response, never block creation.
+    let pool_warnings = super::resource_pool_handlers::create_advisory(
+        &client,
+        req.labels.as_ref(),
+        cpus,
+        req.memory.max(256),
+    )
+    .await;
+
     let create_result = client.create_vm(&config).await;
     record_audit(
         &state,
@@ -644,6 +653,11 @@ pub async fn fabric_create_vm(
                                 }))
                                 .collect::<Vec<_>>()),
                         );
+                    }
+                    if !pool_warnings.is_empty() {
+                        if let Some(obj) = body.as_object_mut() {
+                            obj.insert("pool_warnings".into(), json!(pool_warnings));
+                        }
                     }
                     (StatusCode::CREATED, Json(body)).into_response()
                 }

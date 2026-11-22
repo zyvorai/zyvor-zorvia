@@ -9,3 +9,4 @@ pub mod activity;
 pub mod inventory;
 pub mod maintenance;
 pub mod metadata;
+pub mod pools;

@@ -245,6 +245,11 @@ pub fn required_permission(method: &str, path: &str) -> Option<ApiPermission> {
         return Some(ApiPermission::ClusterAdmin);
     }
 
+    // Resource pools list and relabel VMs of every namespace: admin-only even on GET.
+    if path.starts_with("/v1/inventory/pools") {
+        return Some(ApiPermission::ClusterAdmin);
+    }
+
     // The maintenance plan lists every VM on a node and where it would go.
     if path == "/v1/maintenance/plan" {
         return Some(ApiPermission::ClusterAdmin);
@@ -695,6 +700,20 @@ mod tests {
             ("GET", "/v1/enterprise/dr/pairs"),
             ("POST", "/v1/enterprise/dr/pairs/web/failover"),
             ("GET", "/v1/enterprise/dr/alerts"),
+        ] {
+            assert_eq!(required_permission(m, p), Some(ApiPermission::ClusterAdmin));
+        }
+    }
+
+    #[test]
+    fn resource_pools_are_admin_only_even_on_get() {
+        for (m, p) in [
+            ("GET", "/v1/inventory/pools"),
+            ("POST", "/v1/inventory/pools"),
+            ("GET", "/v1/inventory/pools/hierarchy"),
+            ("GET", "/v1/inventory/pools/web/report"),
+            ("POST", "/v1/inventory/pools/web/assign"),
+            ("DELETE", "/v1/inventory/pools/web"),
         ] {
             assert_eq!(required_permission(m, p), Some(ApiPermission::ClusterAdmin));
         }

@@ -1179,6 +1179,9 @@ pub async fn run(mut cli: Cli) -> Result<()> {
                 )
                 .await?
             }
+            InventoryCommands::Pool { remote, cmd } => {
+                handlers::remote::run_pool(remote, cmd).await?
+            }
             InventoryCommands::Activity {
                 all_namespaces,
                 target,
@@ -1867,6 +1870,7 @@ pub async fn run(mut cli: Cli) -> Result<()> {
                         "inventory-datacenter-set",
                         "inventory-cluster-set",
                         "inventory-folder-set",
+                        "pool",
                         "activity",
                     ],
                 ),

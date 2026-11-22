@@ -18,7 +18,7 @@ Capabilities that need genuinely new infrastructure (not yet shipped):
 | Certificates & encryption | Cert lifecycle, disk/volume encryption (KMS) | Needs PKI and key-management integration from scratch |
 | Image upload / convert | Upload a disk image from your browser, format conversion | Needs a CDI upload-proxy client (TLS, multipart streaming) |
 | Autoscaling | Policy-driven automatic VM scaling | Policy engine exists; needs an execution loop against real load |
-| Datacenters & resource pools | vCenter-style hierarchical grouping | No equivalent Kubernetes primitive to build on yet |
+| Datacenters & resource pools | vCenter-style hierarchical grouping | Label-based datacenter/cluster/folder inventory exists; resource pools (labels + advisory limits) are Experimental, see [RESOURCE_POOLS.md](RESOURCE_POOLS.md); no Kubernetes primitive, so limits are not enforced |
 | Enterprise SSO | OIDC/SAML with PKCE + JWKS | OIDC Beta via `ZORVIA_OIDC_ENABLED=1`; SAML not yet |
 | S3 immutable backup / Transiva / GPU-NUMA | Phase 5 plan APIs | [docs/PHASE5_ENTERPRISE.md](PHASE5_ENTERPRISE.md) |
 

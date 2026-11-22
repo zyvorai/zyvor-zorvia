@@ -11,7 +11,7 @@
 //! a type whose `Debug` is redacted, and scrubbed from any error text before it is shown.
 
 use crate::cli::{
-    DrCommands, DrPairCommands, RemoteArgs, RescueCommands, VolumeCommands,
+    DrCommands, DrPairCommands, PoolCommands, RemoteArgs, RescueCommands, VolumeCommands,
     VolumeEncryptionCommands,
 };
 use anyhow::{anyhow, bail, Result};
@@ -19,6 +19,7 @@ use serde_json::{json, Map, Value};
 
 const DR_BASE: &str = "/api/v1/enterprise/dr";
 const VE_BASE: &str = "/api/volume-encryption";
+const POOL_BASE: &str = "/api/v1/inventory/pools";
 
 /// A secret string whose `Debug`/`Display` never show the value.
 pub struct Secret(String);
@@ -49,6 +50,14 @@ pub struct Req {
 fn get(path: String) -> Req {
     Req {
         method: "GET",
+        path,
+        body: None,
+    }
+}
+
+fn delete(path: String) -> Req {
+    Req {
+        method: "DELETE",
         path,
         body: None,
     }
@@ -159,6 +168,77 @@ pub fn dr_request(cmd: &DrPairCommands) -> Result<Req> {
                 format!("{DR_BASE}/pairs/{name}/resume"),
                 json!({ "confirm": phrase }),
             )
+        }
+    })
+}
+
+pub fn pool_request(cmd: &PoolCommands) -> Result<Req> {
+    let assign = |pool: &String, vm: &String, namespace: &Option<String>, remove: bool| {
+        check_name("pool", pool)?;
+        check_name("vm", vm)?;
+        let mut b = Map::new();
+        b.insert("vm".into(), json!(vm));
+        if let Some(ns) = namespace {
+            check_name("namespace", ns)?;
+            b.insert("namespace".into(), json!(ns));
+        }
+        if remove {
+            b.insert("remove".into(), json!(true));
+        }
+        Ok::<Req, anyhow::Error>(post(format!("{POOL_BASE}/{pool}/assign"), Value::Object(b)))
+    };
+    Ok(match cmd {
+        PoolCommands::List => get(POOL_BASE.to_string()),
+        PoolCommands::Create {
+            name,
+            description,
+            max_vms,
+            max_vcpus,
+            max_memory_mib,
+        } => {
+            check_name("pool", name)?;
+            let mut b = Map::new();
+            b.insert("name".into(), json!(name));
+            if let Some(d) = description {
+                b.insert("description".into(), json!(d));
+            }
+            for (key, v) in [
+                ("max_vms", max_vms),
+                ("max_vcpus", max_vcpus),
+                ("max_memory_mib", max_memory_mib),
+            ] {
+                if let Some(v) = v {
+                    if *v == 0 {
+                        bail!("--{} must be at least 1", key.replace('_', "-"));
+                    }
+                    b.insert(key.into(), json!(v));
+                }
+            }
+            post(POOL_BASE.to_string(), Value::Object(b))
+        }
+        PoolCommands::Show { name } => {
+            check_name("pool", name)?;
+            get(format!("{POOL_BASE}/{name}"))
+        }
+        PoolCommands::Report { name } => {
+            check_name("pool", name)?;
+            get(format!("{POOL_BASE}/{name}/report"))
+        }
+        PoolCommands::Hierarchy => get(format!("{POOL_BASE}/hierarchy")),
+        PoolCommands::Assign {
+            pool,
+            vm,
+            namespace,
+        } => assign(pool, vm, namespace, false)?,
+        PoolCommands::Unassign {
+            pool,
+            vm,
+            namespace,
+        } => assign(pool, vm, namespace, true)?,
+        PoolCommands::Delete { name, unassign } => {
+            check_name("pool", name)?;
+            let q = if *unassign { "?unassign=true" } else { "" };
+            delete(format!("{POOL_BASE}/{name}{q}"))
         }
     })
 }
@@ -327,6 +407,7 @@ impl Remote {
         let url = format!("{}{}", self.base, req.path);
         let mut rb = match req.method {
             "GET" => self.client.get(&url),
+            "DELETE" => self.client.delete(&url),
             _ => self.client.post(&url),
         }
         .bearer_auth(&self.token);
@@ -351,6 +432,9 @@ impl Remote {
         let text = resp.text().await.unwrap_or_default();
         let parsed: Option<Value> = serde_json::from_str(&text).ok();
         if status.is_success() {
+            if text.trim().is_empty() {
+                return Ok(json!({ "ok": true, "status": status.as_u16() }));
+            }
             let v =
                 parsed.ok_or_else(|| anyhow!("server answered {status} with a non-JSON body"))?;
             return Ok(match v.get("data") {
@@ -475,6 +559,11 @@ pub async fn run_dr(remote: RemoteArgs, cmd: DrCommands) -> Result<()> {
 }
 
 #[cfg(feature = "web")]
+pub async fn run_pool(remote: RemoteArgs, cmd: PoolCommands) -> Result<()> {
+    finish(&remote, pool_request(&cmd)?, &[]).await
+}
+
+#[cfg(feature = "web")]
 pub async fn run_volume(remote: RemoteArgs, cmd: VolumeCommands, namespace: &str) -> Result<()> {
     let VolumeCommands::Encryption { cmd } = cmd;
     finish(&remote, volume_request(&cmd, namespace)?, &[]).await
@@ -493,6 +582,10 @@ pub async fn run_rescue(remote: RemoteArgs, cmd: RescueCommands) -> Result<()> {
 
 #[cfg(not(feature = "web"))]
 pub async fn run_dr(_: RemoteArgs, _: DrCommands) -> Result<()> {
+    bail!("this build has no HTTP client; rebuild with the default `web` feature")
+}
+#[cfg(not(feature = "web"))]
+pub async fn run_pool(_: RemoteArgs, _: PoolCommands) -> Result<()> {
     bail!("this build has no HTTP client; rebuild with the default `web` feature")
 }
 #[cfg(not(feature = "web"))]
@@ -956,5 +1049,87 @@ mod tests {
             .unwrap()
             .to_string()
             .contains("ZORVIA_TOKEN"));
+    }
+
+    fn pool_cmd(args: &[&str]) -> PoolCommands {
+        let mut v = vec!["inventory", "pool"];
+        v.extend_from_slice(args);
+        match *parse(&v).unwrap().command {
+            Commands::Inventory(crate::cli::InventoryCommands::Pool { cmd, .. }) => cmd,
+            _ => panic!("not a pool command"),
+        }
+    }
+
+    #[test]
+    fn pool_requests_map_to_the_api() {
+        let r = pool_request(&pool_cmd(&["list"])).unwrap();
+        assert_eq!(
+            (r.method, r.path.as_str()),
+            ("GET", "/api/v1/inventory/pools")
+        );
+        let r = pool_request(&pool_cmd(&["hierarchy"])).unwrap();
+        assert_eq!(r.path, "/api/v1/inventory/pools/hierarchy");
+        let r = pool_request(&pool_cmd(&["report", "web"])).unwrap();
+        assert_eq!(r.path, "/api/v1/inventory/pools/web/report");
+        let r = pool_request(&pool_cmd(&[
+            "create",
+            "web",
+            "--max-vms",
+            "5",
+            "--max-memory-mib",
+            "8192",
+            "--description",
+            "web tier",
+        ]))
+        .unwrap();
+        assert_eq!(r.method, "POST");
+        assert_eq!(
+            r.body.unwrap(),
+            json!({"name":"web","description":"web tier","max_vms":5,"max_memory_mib":8192})
+        );
+        let r = pool_request(&pool_cmd(&["assign", "web", "vm1", "--namespace", "ns"])).unwrap();
+        assert_eq!(r.path, "/api/v1/inventory/pools/web/assign");
+        assert_eq!(r.body.unwrap(), json!({"vm":"vm1","namespace":"ns"}));
+        let r = pool_request(&pool_cmd(&["unassign", "web", "vm1"])).unwrap();
+        assert_eq!(r.body.unwrap(), json!({"vm":"vm1","remove":true}));
+        let r = pool_request(&pool_cmd(&["delete", "web", "--unassign"])).unwrap();
+        assert_eq!(
+            (r.method, r.path.as_str()),
+            ("DELETE", "/api/v1/inventory/pools/web?unassign=true")
+        );
+        let r = pool_request(&pool_cmd(&["delete", "web"])).unwrap();
+        assert_eq!(r.path, "/api/v1/inventory/pools/web");
+    }
+
+    #[test]
+    fn pool_requests_reject_bad_input() {
+        assert!(pool_request(&pool_cmd(&["show", "Bad/Name"])).is_err());
+        assert!(pool_request(&pool_cmd(&["create", "web", "--max-vms", "0"])).is_err());
+        assert!(pool_request(&pool_cmd(&["assign", "web", "../x"])).is_err());
+    }
+
+    #[tokio::test]
+    async fn pool_delete_sends_delete_and_accepts_an_empty_204() {
+        use axum::{http::StatusCode, routing::delete as del};
+        let seen = Arc::new(Mutex::new(Vec::<String>::new()));
+        let s2 = seen.clone();
+        let app = axum::Router::new().route(
+            "/api/v1/inventory/pools/web",
+            del(move |m: axum::http::Method| async move {
+                s2.lock().unwrap().push(m.to_string());
+                StatusCode::NO_CONTENT
+            }),
+        );
+        let l = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}", l.local_addr().unwrap());
+        tokio::spawn(async move {
+            axum::serve(l, app).await.unwrap();
+        });
+        let v = remote(&url)
+            .send(&pool_request(&pool_cmd(&["delete", "web"])).unwrap(), &[])
+            .await
+            .unwrap();
+        assert_eq!(v["ok"], true);
+        assert_eq!(seen.lock().unwrap().as_slice(), ["DELETE"]);
     }
 }

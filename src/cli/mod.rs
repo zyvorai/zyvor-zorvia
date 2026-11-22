@@ -2192,6 +2192,15 @@ pub enum InventoryCommands {
         folder: String,
     },
 
+    /// Resource pools (named VM sets with advisory limits), via the REST API (Experimental:
+    /// needs ZORVIA_EXPERIMENTAL=1 on the server)
+    Pool {
+        #[command(flatten)]
+        remote: RemoteArgs,
+        #[command(subcommand)]
+        cmd: PoolCommands,
+    },
+
     /// Recent Tasks, Events and Alarms derived from Kubernetes Events
     Activity {
         #[arg(short = 'A', long)]
@@ -3271,6 +3280,76 @@ pub struct RemoteArgs {
     /// Output format (table, yaml, json)
     #[arg(short, long, default_value = "table", global = true)]
     pub output: String,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum PoolCommands {
+    /// List pools with usage and limit status
+    List,
+
+    /// Define a pool with optional limits (evaluated read-only; advisory at VM create)
+    Create {
+        /// Pool name (lowercase letters, digits, '-')
+        name: String,
+        /// Short description
+        #[arg(long)]
+        description: Option<String>,
+        /// Maximum number of VMs
+        #[arg(long)]
+        max_vms: Option<u64>,
+        /// Maximum total vCPUs
+        #[arg(long)]
+        max_vcpus: Option<u64>,
+        /// Maximum total memory in MiB
+        #[arg(long)]
+        max_memory_mib: Option<u64>,
+    },
+
+    /// Show one pool with its member VMs
+    Show {
+        /// Pool name
+        name: String,
+    },
+
+    /// Usage versus limits for one pool (read-only)
+    Report {
+        /// Pool name
+        name: String,
+    },
+
+    /// Datacenter > cluster > folder > pool view
+    Hierarchy,
+
+    /// Add a VM to a pool (sets the pool.zorvia.io/<pool> label)
+    Assign {
+        /// Pool name
+        pool: String,
+        /// VM name
+        vm: String,
+        /// VM namespace (default: the server's)
+        #[arg(long)]
+        namespace: Option<String>,
+    },
+
+    /// Remove a VM from a pool
+    Unassign {
+        /// Pool name
+        pool: String,
+        /// VM name
+        vm: String,
+        /// VM namespace (default: the server's)
+        #[arg(long)]
+        namespace: Option<String>,
+    },
+
+    /// Delete a pool definition (refused while VMs are members unless --unassign)
+    Delete {
+        /// Pool name
+        name: String,
+        /// Also remove the pool label from every member VM
+        #[arg(long)]
+        unassign: bool,
+    },
 }
 
 #[derive(Subcommand, Debug)]

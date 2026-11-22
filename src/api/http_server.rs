@@ -240,6 +240,13 @@ pub mod web {
     mod dr_pair_handlers;
     use dr_pair_handlers::*;
 
+    #[path = "resource_pool_handlers.rs"]
+    mod resource_pool_handlers;
+    use resource_pool_handlers::{
+        assign_pool_handler, create_pool_handler, delete_pool_handler, get_pool_handler,
+        list_pools_handler, pool_hierarchy_handler, pool_report_handler,
+    };
+
     /// Simple sliding-window rate limiter state.
     struct RateLimiterState {
         /// Number of requests in the current window
@@ -1432,6 +1439,23 @@ pub mod web {
                 post(dr_resume_handler),
             )
             .route("/v1/enterprise/dr/alerts", get(dr_alerts_handler))
+            .route(
+                "/v1/inventory/pools",
+                get(list_pools_handler).post(create_pool_handler),
+            )
+            .route("/v1/inventory/pools/hierarchy", get(pool_hierarchy_handler))
+            .route(
+                "/v1/inventory/pools/{name}",
+                get(get_pool_handler).delete(delete_pool_handler),
+            )
+            .route(
+                "/v1/inventory/pools/{name}/report",
+                get(pool_report_handler),
+            )
+            .route(
+                "/v1/inventory/pools/{name}/assign",
+                post(assign_pool_handler),
+            )
             .route(
                 "/v1/enterprise/placement/gpu-numa",
                 post(enterprise_gpu_numa_plan),
