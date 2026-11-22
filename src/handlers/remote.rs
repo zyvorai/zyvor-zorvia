@@ -1131,10 +1131,11 @@ mod tests {
         let req = certs_request(&certs_cmd(&["certs", "list"])).unwrap();
         let v = remote(&url).send(&req, &[]).await.unwrap();
         assert_eq!(v["summary"]["total"], 0);
-        let s = seen.lock().unwrap();
-        assert_eq!(s[0].path, "/api/certificates/inventory");
-        assert_eq!(s[0].auth, "Bearer tok-123");
-        drop(s);
+        {
+            let s = seen.lock().unwrap();
+            assert_eq!(s[0].path, "/api/certificates/inventory");
+            assert_eq!(s[0].auth, "Bearer tok-123");
+        }
         let (url, _) = mock(
             403,
             json!({"success": false, "error": {"code": "EXPERIMENTAL_DISABLED",
