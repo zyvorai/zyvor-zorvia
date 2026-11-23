@@ -32,9 +32,6 @@
 //! assert!(yaml.contains("web-server"));
 //! ```
 
-/// Process-default rustls crypto provider (ring) required by reqwest 0.13.
-#[cfg(any(feature = "web", feature = "backup-agent"))]
-pub mod tls_provider;
 #[cfg(feature = "web")]
 pub mod ai;
 #[cfg(feature = "web")]
@@ -63,6 +60,9 @@ pub mod storage;
 pub mod store;
 pub mod templates;
 pub mod terraform;
+/// Process-default rustls crypto provider (ring) required by reqwest 0.13.
+#[cfg(any(feature = "web", feature = "backup-agent"))]
+pub mod tls_provider;
 pub mod tui;
 pub mod utils;
 #[cfg(feature = "web")]
