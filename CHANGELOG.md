@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The Gateway API front door is now Setura instead of Envoy Gateway: chart `httpRoute.gateway.className` defaults to `setura`, `remote-deploy.sh --bootstrap` installs Setura (`setura gateway install`) and the `setura` GatewayClass, and the chart README documents it. Envoy used as a workload inside example VMs and blueprints is unchanged.
+
 ### Documentation
 - Docs aligned with the 0.8.0 source: `docs/FEATURE_MATURITY.md` (duplicate and stale rows removed, `saml` and `volume-encryption` rows corrected, a note on which rows are not in the `/api/v1/features` registry), `docs/SAML.md` (verification behind the `saml` cargo feature), `docs/UPGRADE.md` (0.7.4 to 0.8.0 notes), `docs/CLI_REMOTE.md` (pool, guest-token and image-upload commands), `docs/roadmap.md`, the docs index and the README. Version strings in `charts/zorvia/values-production.yaml`, `values-openshift.yaml` comment and `docs/social/README.md` now say 0.8.0.
 

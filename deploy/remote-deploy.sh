@@ -16,7 +16,7 @@
 #   ./deploy/remote-deploy.sh 185.165.240.5 sus --image      # no build: pull the public GHCR image
 #   ./deploy/remote-deploy.sh 185.165.240.5 sus --bootstrap --image   # brand-new host, zero to running
 #   ./deploy/remote-deploy.sh 185.165.240.5 sus --image=ghcr.io/zyvorai/zorvia:0.6.0
-#   ./deploy/remote-deploy.sh 185.165.240.5 sus --bootstrap  # also install k3s+Cilium+KubeVirt+CDI+Envoy Gateway
+#   ./deploy/remote-deploy.sh 185.165.240.5 sus --bootstrap  # also install k3s+Cilium+KubeVirt+CDI+Setura
 #
 # Environment variables:
 #   DEPLOY_HOST=185.165.240.5
@@ -55,7 +55,7 @@ for arg in "$@"; do
             echo "  --image[=REF] Deploy a prebuilt image (default ghcr.io/zyvorai/zorvia:latest) instead of"
             echo "               building on the host: no rsync of source, no Rust toolchain, takes ~1 minute."
             echo "  --bootstrap  Install missing cluster prerequisites first: k3s server (no flannel),"
-            echo "               Cilium, KubeVirt, CDI, Envoy Gateway + GatewayClass 'eg'. Refuses to run"
+            echo "               Cilium, KubeVirt, CDI, Setura + GatewayClass 'setura'. Refuses to run"
             echo "               on a host that is a k3s agent (set BOOTSTRAP_FORCE=1 to wipe it)."
             echo ""
             echo "Full mode installs: Rust toolchain, builds from source,"
@@ -158,7 +158,7 @@ fi
 
 # ── Bootstrap cluster prerequisites (opt-in) ──
 if $BOOTSTRAP_MODE; then
-    step "Bootstrap: k3s + Cilium + KubeVirt + CDI + Envoy Gateway"
+    step "Bootstrap: k3s + Cilium + KubeVirt + CDI + Setura"
     _ssh "SUDO='$SUDO' BOOTSTRAP_FORCE='${BOOTSTRAP_FORCE:-}' bash -s" <<'REMOTE' 2>&1
 set -euo pipefail
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
@@ -213,24 +213,32 @@ else
     echo "cdi: $CV applied"
 fi
 
-# 4. Envoy Gateway + GatewayClass 'eg'
-if k get gatewayclass eg >/dev/null 2>&1; then
-    echo "envoy-gateway: GatewayClass eg present (kept)"
-elif command -v helm >/dev/null 2>&1; then
-    EV=$(latest_tag https://github.com/envoyproxy/gateway/releases/latest)
-    $SUDO -E helm upgrade --install eg oci://docker.io/envoyproxy/gateway-helm --version "$EV" \
-        -n envoy-gateway-system --create-namespace --wait --timeout 5m >/dev/null
-    k apply -f - >/dev/null <<EOF
-apiVersion: gateway.networking.k8s.io/v1
-kind: GatewayClass
-metadata:
-  name: eg
-spec:
-  controllerName: gateway.envoyproxy.io/gatewayclass-controller
-EOF
-    echo "envoy-gateway: $EV installed, GatewayClass eg created"
+# 4. Setura (Gateway API controller + proxy) + GatewayClass 'setura'
+if k get gatewayclass setura >/dev/null 2>&1; then
+    echo "setura: GatewayClass setura present (kept)"
 else
-    echo "WARN: helm not found on remote; skipped Envoy Gateway" >&2
+    SETURA_VERSION="${SETURA_VERSION:-0.7.0}"
+    SETURA_IMAGE="${SETURA_IMAGE:-ghcr.io/zyvorai/zyvor-setura-gateway:$SETURA_VERSION}"
+    SETURA_BIN="$(command -v setura || true)"
+    if [ -z "$SETURA_BIN" ]; then
+        case "$(uname -m)" in x86_64|amd64) SA=amd64 ;; aarch64|arm64) SA=arm64 ;; *) SA=amd64 ;; esac
+        STMP=$(mktemp -d)
+        if curl -fsSL "https://github.com/zyvorai/zyvor-setura-gateway/releases/download/v$SETURA_VERSION/setura_${SETURA_VERSION}_linux_${SA}.tar.gz" \
+            | tar -xz -C "$STMP" setura 2>/dev/null; then
+            SETURA_BIN="$STMP/setura"
+        fi
+    fi
+    if [ -n "$SETURA_BIN" ]; then
+        # The Gateway API CRDs are not shipped by Setura (or k3s): apply the standard channel when missing.
+        if ! k get crd gateways.gateway.networking.k8s.io >/dev/null 2>&1; then
+            k apply -f "https://github.com/kubernetes-sigs/gateway-api/releases/download/${GATEWAY_API_VERSION:-v1.4.0}/standard-install.yaml" >/dev/null
+        fi
+        "$SETURA_BIN" gateway install --image "$SETURA_IMAGE" --namespace setura-system | k apply -f - >/dev/null
+        k -n setura-system rollout status deploy/setura-gateway --timeout=180s >/dev/null
+        echo "setura: $SETURA_IMAGE installed, GatewayClass setura created"
+    else
+        echo "WARN: setura CLI not found and could not be downloaded; skipped Setura (see charts/zorvia/README.md)" >&2
+    fi
 fi
 REMOTE
     info "Cluster prerequisites ready"
