@@ -38,20 +38,20 @@ path = "src/lib.rs"
 
 [dependencies]
 anyhow = "1.0"
-clap = { version = "4.5", features = ["derive", "env"] }
-clap_complete = "4.5"
+clap = { version = "4.6", features = ["derive", "env"] }
+clap_complete = "4.6"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
-tokio = { version = "1.0", features = ["full"] }
+tokio = { version = "1.54", features = ["full"] }
 kube = { version = "5.0", features = ["runtime", "derive", "ws"] }
 k8s-openapi = { version = "0.29", features = ["v1_33"] }
 schemars = "1"
 thiserror = "2.0"
 log = "0.4"
 env_logger = "0.11"
-once_cell = "1.19"
-regex = "1.10"
+once_cell = "1.21"
+regex = "1.13"
 chrono = { version = "0.4", features = ["serde"] }
 dialoguer = "0.12"
 indicatif = "0.18"
@@ -61,7 +61,7 @@ rand = "0.10"
 ratatui = "0.30"
 crossterm = "0.29"
 colored = "3.1"
-miette = { version = "7.0", features = ["fancy"] }
+miette = { version = "7.6", features = ["fancy"] }
 toml = "1"
 dirs = "7.0"
 rustyline = "19.0"
@@ -102,7 +102,7 @@ samael = { version = "0.0.22", optional = true }
 rpassword = { version = "7", optional = true }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"], optional = true }
 secrecy = "0.10"
-pty-process = { version = "0.5.3", features = ["async"], optional = true }
+pty-process = { version = "0.5.4", features = ["async"], optional = true }
 
 # Offline guest-disk operations for the `rescue-agent` binary only (Rescue
 # mode). Pinned to a git rev, not a crates.io version: the published
