@@ -69,6 +69,7 @@ rustyline = "19.0"
 # Web dashboard dependencies
 axum = { version = "0.8", optional = true, features = ["ws"] }
 axum-server = { version = "0.9", features = ["tls-rustls-no-provider"], optional = true }
+# reqwest 0.13 (rustls-no-provider) needs a process-default crypto provider: see zorvia::tls_provider.
 rustls = { version = "0.23", default-features = false, features = ["ring", "logging", "std", "tls12"], optional = true }
 tower-http = { version = "0.7", features = ["cors", "timeout", "fs"], optional = true }
 # `oneshot` replays MCP tool calls through the REST router in-process (already in the tree via axum).
@@ -100,7 +101,7 @@ http = "1"
 # pkg-config + libclang (bindgen) at build time; see docs/SAML.md. MIT licensed.
 samael = { version = "0.0.22", optional = true }
 rpassword = { version = "7", optional = true }
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"], optional = true }
+reqwest = { version = "0.13", default-features = false, features = ["json", "query", "form", "rustls-no-provider", "stream"], optional = true }
 secrecy = "0.10"
 pty-process = { version = "0.5.4", features = ["async"], optional = true }
 
@@ -114,7 +115,7 @@ guestkit = { git = "https://github.com/zyvorai/guestkit", rev = "de5ce5e6f74a8c8
 [features]
 default = ["web"]
 web = [
-  "axum", "axum-server", "rustls", "tower-http", "dep:tower",
+  "axum", "axum-server", "dep:rustls", "tower-http", "dep:tower",
   "dep:jsonwebtoken", "dep:bcrypt", "dep:rusqlite", "dep:uuid",
   "dep:totp-rs", "dep:base64", "dep:sha2", "dep:subtle", "dep:urlencoding",
   "dep:futures-util", "dep:tokio-tungstenite", "dep:native-tls", "dep:openssl",
@@ -132,7 +133,7 @@ saml = ["web", "dep:samael"]
 rescue-agent = ["dep:guestkit"]
 # Builds the `backup-agent` binary (off-cluster backup Job entrypoint). Not
 # part of the server build; only the backup-agent image build enables it.
-backup-agent = ["dep:reqwest", "dep:sha2", "dep:base64", "dep:aes-gcm"]
+backup-agent = ["dep:rustls", "dep:reqwest", "dep:sha2", "dep:base64", "dep:aes-gcm"]
 
 [dev-dependencies]
 tempfile = "3.27"
