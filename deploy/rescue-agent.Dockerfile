@@ -8,7 +8,7 @@
 #
 # The binary builds without the server's default `web` feature; the
 # lib's web-only modules are cfg-gated so no server dependencies are pulled in.
-FROM rust:1.99-slim-bookworm@sha256:24707e70a4f1e23d9a7b25202ec43126d28a52294b96aad5c670df1fd1f1d400 AS builder
+FROM rust:1.100-slim-bookworm@sha256:7c7d4eb4d05b7781187a327809466cfddf29753f6defdc3d19a0e291951b7a37 AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -22,7 +22,7 @@ COPY src/ src/
 RUN cargo build --release --locked --no-default-features --features rescue-agent --bin rescue-agent \
     && strip target/release/rescue-agent
 
-FROM debian:bookworm-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3
+FROM debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     qemu-utils \

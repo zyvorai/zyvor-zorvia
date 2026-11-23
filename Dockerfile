@@ -1,7 +1,7 @@
 # Multi-stage build for minimal production image
 
 # Web console: built from web/ so the released image serves the UI (ZORVIA_WEB_DIR below).
-FROM node:26-bookworm-slim@sha256:28147155d47dc31abe0a46e0d12b59b2fb3d0a2dcc5dc65fce76a074180b16fe AS web
+FROM node:26-bookworm-slim@sha256:5df79989ed685e09f0a98019db4cebfb22fb9df1a53c0161664a011f7ff6b0f1 AS web
 WORKDIR /web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --legacy-peer-deps
@@ -11,7 +11,7 @@ RUN npm run build
 # Cargo.lock is lockfile format v4 (has been since 0.3.0), which needs
 # Cargo 1.78+ to even parse -- `cargo build --locked` fails immediately
 # on anything older, independent of the crate's own rust-version MSRV.
-FROM rust:1.99-slim-bookworm@sha256:2c3a22f0a5533ea2dd5a16627bc841228151faa2d4de2644ac9987e4a2f1f2fa AS builder
+FROM rust:1.100-slim-bookworm@sha256:7c7d4eb4d05b7781187a327809466cfddf29753f6defdc3d19a0e291951b7a37 AS builder
 
 # openssl-sys needs pkg-config + the OpenSSL dev headers to find the system
 # OpenSSL, and rusqlite's "bundled" feature compiles SQLite's C amalgamation
@@ -39,7 +39,7 @@ COPY src/ src/
 RUN touch src/main.rs src/lib.rs && cargo build --release --locked && strip target/release/zorvia
 
 # Runtime image
-FROM debian:bookworm-slim@sha256:7ff6ba31527b9e336162fa061746c366c4b2032f4d2cff2078bea43f78efe3f8
+FROM debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates openssh-client \
