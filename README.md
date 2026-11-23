@@ -196,7 +196,7 @@ Production values: `charts/zorvia/values-production.yaml`. Lab remote deploy: [d
 From a checkout, with SSH access (and passwordless `sudo`) to a fresh Linux host:
 
 ```bash
-# brand-new host: installs k3s + Cilium + KubeVirt + CDI + Envoy Gateway, then runs Zorvia
+# brand-new host: installs k3s + Cilium + KubeVirt + CDI + Setura, then runs Zorvia
 ./deploy/remote-deploy.sh <host> <user> --bootstrap --image
 
 # host that already has a KubeVirt cluster: just (re)deploy the published image, ~1 minute

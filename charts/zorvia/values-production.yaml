@@ -18,7 +18,7 @@ service:
 tls:
   inPod: false
 
-# Exposed through Envoy Gateway (Gateway API). Requires the Gateway API CRDs, Envoy Gateway
+# Exposed through Setura (Gateway API). Requires the Gateway API CRDs, Setura
 # and cert-manager with Gateway API support enabled; see README.
 ingress:
   enabled: false
@@ -29,7 +29,7 @@ httpRoute:
     - zorvia.example.com
   gateway:
     create: true
-    className: eg
+    className: setura
     tlsSecretName: zorvia-tls
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-prod

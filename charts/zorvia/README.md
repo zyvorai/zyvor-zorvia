@@ -26,42 +26,37 @@ helm upgrade --install zorvia ./charts/zorvia \
   --set 'httpRoute.hostnames[0]=zorvia.example.com'
 ```
 
-### Envoy Gateway prerequisite
+### Setura prerequisite
 
-Production values expose Zorvia through [Envoy Gateway](https://gateway.envoyproxy.io/) using the
-Gateway API (`HTTPRoute` + `Gateway`):
+Production values expose Zorvia through [Setura](https://github.com/zyvorai/zyvor-setura-gateway) (a Gateway API
+controller with a built-in proxy) using the Gateway API (`HTTPRoute` + `Gateway`):
 
 ```bash
-helm install eg oci://docker.io/envoyproxy/gateway-helm \
-  -n envoy-gateway-system --create-namespace   # also installs the Gateway API CRDs
+# Gateway API CRDs (Setura does not ship them; skip if the cluster already has them)
+kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.0/standard-install.yaml
 
-# The chart's Gateway uses class `eg`; the helm chart does not create it:
-kubectl apply -f - <<'EOF'
-apiVersion: gateway.networking.k8s.io/v1
-kind: GatewayClass
-metadata:
-  name: eg
-spec:
-  controllerName: gateway.envoyproxy.io/gatewayclass-controller
-EOF
+# Controller, ServiceAccount/RBAC and the `setura` GatewayClass (controller zyvor.dev/setura-gateway)
+setura gateway install --image ghcr.io/zyvorai/zyvor-setura-gateway:0.7.0 \
+  --namespace setura-system | kubectl apply -f -
 ```
 
-Without the `eg` GatewayClass the Gateway never becomes Accepted. For lab hosts,
+Without the `setura` GatewayClass the Gateway never becomes Accepted. For lab hosts,
 `deploy/remote-deploy.sh <host> <user> --bootstrap` installs k3s (no flannel), Cilium, KubeVirt, CDI,
-Envoy Gateway and this GatewayClass before deploying.
+Setura and this GatewayClass before deploying. The Gateway listens on 80 and 443, which is what the
+`setura gateway install` Service exposes.
 
-The chart creates a `Gateway` (class `eg`) with an HTTP listener that redirects to HTTPS and an
+The chart creates a `Gateway` (class `setura`) with an HTTP listener that redirects to HTTPS and an
 HTTPS listener using the `zorvia-tls` Secret (cert-manager `gateway-shim` via the
 `cert-manager.io/cluster-issuer` annotation). To attach to an existing Gateway instead, set
 `httpRoute.gateway.create=false` and `httpRoute.parentRefs`. When `networkPolicy.enabled=true`, set
-`networkPolicy.ingressFrom` to allow the `envoy-gateway-system` namespace.
+`networkPolicy.ingressFrom` to allow the `setura-system` namespace.
 
 ## Features
 
 | Value | Lab | Production |
 |-------|-----|------------|
 | replicas | 1 | 2 |
-| TLS | in-pod self-signed | Envoy Gateway + cert-manager |
+| TLS | in-pod self-signed | Setura + cert-manager |
 | Service | NodePort 30152 | ClusterIP |
 | PDB / NetworkPolicy / anti-affinity | off | on |
 | Leader election (Lease) | on | on |

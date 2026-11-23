@@ -66,8 +66,8 @@ ingress:
   #   hosts:
   #     - zorvia.example.com
 
-# Gateway API exposure (Envoy Gateway). Requires the Gateway API CRDs and an Envoy Gateway
-# install; see README. Use instead of `ingress` (keep that for non-Envoy ingress controllers).
+# Gateway API exposure (Setura). Requires the Gateway API CRDs and a Setura install
+# (`setura gateway install`); see README. Use instead of `ingress` (keep that for other ingress controllers).
 httpRoute:
   enabled: false
   annotations: {}
@@ -75,12 +75,12 @@ httpRoute:
     - zorvia.example.com
   # Gateways the route attaches to. Defaults to the Gateway created below when gateway.create=true.
   parentRefs: []
-  # - name: eg
-  #   namespace: envoy-gateway-system
+  # - name: setura
+  #   namespace: setura-system
   gateway:
     # Create a Gateway (HTTP :80 redirect + HTTPS :443) for this release.
     create: false
-    className: eg
+    className: setura
     annotations: {}
     # TLS Secret for the HTTPS listener (e.g. issued by cert-manager's gateway-shim).
     tlsSecretName: zorvia-tls
