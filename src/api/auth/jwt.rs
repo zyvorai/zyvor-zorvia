@@ -99,14 +99,14 @@ impl JwtConfig {
         Ok(encode(
             &Header::default(),
             &claims,
-            &EncodingKey::from_secret(self.secret.as_bytes()),
+            &EncodingKey::from_secret(self.secret.as_bytes())?,
         )?)
     }
 
     pub fn validate(&self, token: &str) -> Result<Claims> {
         let data = decode::<Claims>(
             token,
-            &DecodingKey::from_secret(self.secret.as_bytes()),
+            &DecodingKey::from_secret(self.secret.as_bytes())?,
             &Validation::default(),
         )?;
         Ok(data.claims)

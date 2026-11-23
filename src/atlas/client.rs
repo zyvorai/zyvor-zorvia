@@ -89,6 +89,8 @@ impl Client {
                 "ATLAS_TLS_INSECURE is enabled; Atlas TLS certificates will not be verified"
             );
         }
+        // reqwest 0.13 needs a process-default rustls provider (idempotent).
+        crate::tls_provider::install_default();
         let http = reqwest::Client::builder()
             .timeout(config.timeout)
             .danger_accept_invalid_certs(config.allow_invalid_tls)

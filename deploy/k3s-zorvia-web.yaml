@@ -127,7 +127,7 @@ spec:
         fsGroup: 10001
       initContainers:
         - name: gen-cert
-          image: alpine/openssl:3.5.8
+          image: alpine/openssl:3.5.9
           command: ["/bin/sh", "-c"]
           args:
             - |

@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - The Gateway API front door is now Setura instead of Envoy Gateway: chart `httpRoute.gateway.className` defaults to `setura`, `remote-deploy.sh --bootstrap` installs Setura (`setura gateway install`) and the `setura` GatewayClass, and the chart README documents it. Envoy used as a workload inside example VMs and blueprints is unchanged.
 
+### Dependencies
+- Rust: `cargo update` (all semver-compatible updates incl. kube 5.1) and compatible requirement bumps (clap 4.6, clap_complete 4.6, tokio 1.54, once_cell 1.21, regex 1.13, miette 7.6, pty-process 5.4).
+- Major bumps (Rust): `jsonwebtoken` 11 to 12 (HMAC key constructors are now fallible, so an empty JWT secret is rejected), `rusqlite` 0.41 to 0.43, `reqwest` 0.12 to 0.13 (built with `rustls-no-provider` plus the `query` and `form` features, so aws-lc-rs stays out of the tree; the ring crypto provider is installed at startup by `zorvia::tls_provider`; TLS roots now come from the platform verifier, i.e. the system CA store, which the container image already ships), desktop `rand` 0.9 to 0.10. The `guestkit` git rev was moved to the current HEAD of zyvorai/guestkit.
+- Major bumps (npm): `typescript` 5.9 to 6.0 in `web/`; in-range updates for eslint, vitest, @vitest/coverage-v8, @playwright/test, typescript-eslint, lucide-react, react-router, recharts, `@tauri-apps/cli` and the website tree.
+- Container images: Rust builder 1.99 to 1.100 (all three Dockerfiles), refreshed node 26 and debian bookworm-slim digests, `alpine/openssl` 3.5.8 to 3.5.9.
+- CI: Node 22 to 24, Python 3.12 to 3.14, `upload-sarif` pins aligned to codeql-action v4.39.3. All other action pins were already at the current majors.
+- Held back: `typescript` 7 (typescript-eslint 8.73 declares a `typescript <6.1` peer range); `rust-version`/MSRV stays 1.89 (ci-msrv); base images stay on Debian bookworm (trixie is a distro-level change, not an in-place bump); the desktop (Tauri) crate was not compiled on the Linux build host (no GTK/WebKit), the rand 0.10 call site was verified in a scratch crate only; transitive crates pinned behind their parents semver ranges were left to `Cargo.lock`.
+
 ### Documentation
 - Docs aligned with the 0.8.0 source: `docs/FEATURE_MATURITY.md` (duplicate and stale rows removed, `saml` and `volume-encryption` rows corrected, a note on which rows are not in the `/api/v1/features` registry), `docs/SAML.md` (verification behind the `saml` cargo feature), `docs/UPGRADE.md` (0.7.4 to 0.8.0 notes), `docs/CLI_REMOTE.md` (pool, guest-token and image-upload commands), `docs/roadmap.md`, the docs index and the README. Version strings in `charts/zorvia/values-production.yaml`, `values-openshift.yaml` comment and `docs/social/README.md` now say 0.8.0.
 

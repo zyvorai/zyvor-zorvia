@@ -7,6 +7,8 @@ use zorvia::cli::Cli;
 
 #[tokio::main]
 async fn main() -> ExitCode {
+    #[cfg(feature = "web")]
+    zorvia::tls_provider::install_default();
     let cli = Cli::parse();
     match zorvia::run(cli).await {
         Ok(()) => ExitCode::SUCCESS,

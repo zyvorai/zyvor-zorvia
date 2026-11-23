@@ -77,6 +77,7 @@ async fn verify_key_main() -> ExitCode {
 
 #[tokio::main]
 async fn main() -> ExitCode {
+    zorvia::tls_provider::install_default();
     match std::env::var("BACKUP_MODE").as_deref() {
         Ok("restore") => return restore_main().await,
         Ok("verify-key") => return verify_key_main().await,
