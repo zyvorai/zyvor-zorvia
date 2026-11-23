@@ -110,7 +110,7 @@ pty-process = { version = "0.5.4", features = ["async"], optional = true }
 # `guestkit` crate (0.3.x) is stale, from a different repo, and licensed
 # LGPL-3.0-or-later -- the current zyvorai/guestkit source (this pinned
 # commit) is under the Zyvor Production Licence v2.0. Repin to a real crates.io release once one exists.
-guestkit = { git = "https://github.com/zyvorai/guestkit", rev = "de5ce5e6f74a8c81e26cf9de441cc64e23f40e89", default-features = false, features = ["guest-inspect"], optional = true }
+guestkit = { git = "https://github.com/zyvorai/guestkit", rev = "ede1827b1e1ae0528c439e8710562069f1d9d444", default-features = false, features = ["guest-inspect"], optional = true }
 
 [features]
 default = ["web"]
