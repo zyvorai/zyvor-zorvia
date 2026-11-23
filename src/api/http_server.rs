@@ -165,6 +165,9 @@ pub mod web {
         devices_inventory_handler, devices_permit_handler, devices_preflight_handler,
         devices_unpermit_handler,
     };
+    #[path = "vm_lint_handlers.rs"]
+    mod vm_lint_handlers;
+    use vm_lint_handlers::{vm_lint_handler, vm_lint_rules_handler};
     #[path = "maintenance_handlers.rs"]
     mod maintenance_handlers;
     use maintenance_handlers::maintenance_plan_handler;
@@ -952,6 +955,8 @@ pub mod web {
             .route("/backups/jobs", get(list_backup_jobs_handler))
             .route("/backups/jobs/{id}", get(get_backup_job_handler))
             .route("/v1/maintenance/plan", get(maintenance_plan_handler))
+            .route("/v1/vm-lint", post(vm_lint_handler))
+            .route("/v1/vm-lint/rules", get(vm_lint_rules_handler))
             .route("/v1/devices", get(devices_inventory_handler))
             .route("/v1/devices/preflight", post(devices_preflight_handler))
             .route(

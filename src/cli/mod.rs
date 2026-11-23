@@ -2405,6 +2405,21 @@ pub enum DevCommands {
 
 #[derive(Subcommand, Debug)]
 pub enum ChangeCommands {
+    /// Lint VM manifests for day-2 pitfalls (live-migration blockers, ephemeral disks, secrets in cloud-init)
+    Lint {
+        /// KubeVirt VirtualMachine or Zorvia VMConfig files
+        #[arg(required = true)]
+        files: Vec<String>,
+
+        /// Fail when a finding reaches this severity (none, info, low, medium, high)
+        #[arg(long, default_value = "high")]
+        fail_on: String,
+
+        /// Output format (table, yaml, json)
+        #[arg(short, long, default_value = "table")]
+        output: String,
+    },
+
     /// Detect semantic drift between a desired VM and live or captured state
     Drift {
         /// Desired VM manifest (KubeVirt VirtualMachine or Zorvia VMConfig)

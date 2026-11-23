@@ -200,6 +200,12 @@ pub const FEATURES: &[Feature] = &[
         notes: "Requires ZORVIA_EXPERIMENTAL=1; pool.zorvia.io/<name> VM labels plus limits in the state store; read-only usage report and datacenter > cluster > folder > pool view; limits advisory at create (warning only), never enforced; cluster.admin only; unit-tested with fake VM data, not run against a live cluster; see docs/RESOURCE_POOLS.md",
     },
     Feature {
+        id: "vm-lint",
+        name: "VM manifest lint (live-migration blockers, ephemeral disks, secrets in cloud-init)",
+        maturity: Maturity::Beta,
+        notes: "Offline rule engine over a KubeVirt VirtualMachine: zorvia change lint, POST /api/v1/vm-lint, GET /api/v1/vm-lint/rules; 13 rules with stable IDs, findings never echo secrets, no cluster access; unit-tested incl. hostile input, rules not validated against a live KubeVirt migration - docs/VM_LINT.md",
+    },
+    Feature {
         id: "cert-lifecycle",
         name: "Certificate lifecycle (inventory, expiry alerts, cert-manager renew)",
         maturity: Maturity::Experimental,

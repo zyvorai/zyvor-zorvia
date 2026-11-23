@@ -3,6 +3,7 @@
 
 use crate::config::VMConfig;
 use crate::gitops::drift::{DriftEngine, DriftOptions, DriftReport, DriftSeverity};
+use crate::gitops::lint::{lint_vm, LintReport, LintSeverity};
 use crate::kube::{vm_config_to_kubevirt, KubeClient};
 use crate::tui::colors::cli as color;
 use anyhow::{anyhow, Context, Result};
@@ -424,5 +425,177 @@ mod tests {
         assert_eq!(truncate("abcdef", 10), "abcdef");
         assert_eq!(truncate("abcdef", 4), "abc…");
         assert_eq!(truncate("αβγδε", 4), "αβγ…");
+    }
+}
+
+/// Largest manifest the linter will read from disk.
+const MAX_LINT_FILE_BYTES: u64 = 2 * 1024 * 1024;
+
+/// Lint one or more VM manifests offline (no cluster access).
+pub fn handle_lint(files: Vec<String>, fail_on: String, output: String) -> Result<()> {
+    let threshold = match fail_on.trim().to_ascii_lowercase().as_str() {
+        "none" | "off" | "never" => None,
+        other => Some(LintSeverity::parse(other).ok_or_else(|| {
+            anyhow!(
+                "invalid --fail-on '{}'; expected one of: none, info, low, medium, high",
+                fail_on
+            )
+        })?),
+    };
+    let output = output.to_ascii_lowercase();
+    if !matches!(output.as_str(), "table" | "text" | "json" | "yaml" | "yml") {
+        return Err(anyhow!(
+            "unsupported lint output '{}'; expected table, json, or yaml",
+            output
+        ));
+    }
+
+    let mut reports: Vec<(String, LintReport)> = Vec::new();
+    for file in &files {
+        let path = Path::new(file);
+        let len = std::fs::metadata(path)
+            .with_context(|| format!("failed to read manifest '{file}'"))?
+            .len();
+        if len > MAX_LINT_FILE_BYTES {
+            return Err(anyhow!(
+                "manifest '{file}' is {len} bytes; the lint limit is {MAX_LINT_FILE_BYTES}"
+            ));
+        }
+        let value = load_vm_manifest(path)?;
+        reports.push((file.clone(), lint_vm(&value)));
+    }
+
+    match output.as_str() {
+        "json" => {
+            let v: Vec<Value> = reports
+                .iter()
+                .map(|(f, r)| serde_json::json!({ "file": f, "report": r }))
+                .collect();
+            println!("{}", serde_json::to_string_pretty(&v)?);
+        }
+        "yaml" | "yml" => {
+            let v: Vec<Value> = reports
+                .iter()
+                .map(|(f, r)| serde_json::json!({ "file": f, "report": r }))
+                .collect();
+            println!("{}", serde_yaml::to_string(&v)?);
+        }
+        _ => {
+            for (file, r) in &reports {
+                render_lint_table(file, r);
+            }
+        }
+    }
+
+    if let Some(t) = threshold {
+        if let Some((file, r)) = reports.iter().find(|(_, r)| r.meets_threshold(t)) {
+            return Err(anyhow!(
+                "lint gate failed: '{}' has a finding of severity '{}' (>= --fail-on {})",
+                file,
+                r.highest_severity
+                    .map(|s| s.to_string())
+                    .unwrap_or_default(),
+                t
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn render_lint_table(file: &str, r: &LintReport) {
+    println!("{}", color::header("Zorvia VM lint"));
+    println!("  File:       {file}");
+    println!(
+        "  VM:         {}/{}",
+        r.namespace.as_deref().unwrap_or("-"),
+        r.name.as_deref().unwrap_or("-")
+    );
+    if r.live_migration_possible {
+        println!("  Migration:  {}", color::success("no blockers found"));
+    } else {
+        println!(
+            "  Migration:  {} ({})",
+            color::warning("BLOCKED"),
+            r.live_migration_blockers.join(", ")
+        );
+    }
+    println!();
+    if r.findings.is_empty() {
+        println!("{}", color::success("✓ No findings"));
+        println!();
+        return;
+    }
+    println!("  {:<7} {:<9} {:<52} MESSAGE", "RULE", "SEVERITY", "PATH");
+    println!("  {}", "-".repeat(110));
+    for f in &r.findings {
+        let sev = f.severity.to_string();
+        let shown = match f.severity {
+            LintSeverity::High => color::error(&sev),
+            LintSeverity::Medium => color::warning(&sev),
+            LintSeverity::Low => color::info(&sev),
+            LintSeverity::Info => color::muted(&sev),
+        };
+        println!(
+            "  {:<7} {:<9} {:<52} {}",
+            f.rule, shown, f.pointer, f.message
+        );
+        println!("  {:<7} {:<9} {:<52} fix: {}", "", "", "", f.remedy);
+    }
+    if r.truncated {
+        println!(
+            "  (list truncated at {} findings)",
+            crate::gitops::lint::MAX_FINDINGS
+        );
+    }
+    println!();
+}
+
+#[cfg(test)]
+mod lint_tests {
+    use super::*;
+
+    fn tmp(name: &str, body: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("zorvia-lint-{}-{name}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = dir.join("vm.yaml");
+        std::fs::write(&p, body).unwrap();
+        p
+    }
+
+    const BAD: &str = "kind: VirtualMachine\nmetadata: {name: a, namespace: n}\nspec:\n  template:\n    spec:\n      domain:\n        devices:\n          interfaces: [{name: d, bridge: {}}]\n      networks: [{name: d, pod: {}}]\n";
+
+    #[test]
+    fn gate_fails_on_high_and_passes_with_none() {
+        let p = tmp("gate", BAD);
+        let f = p.to_string_lossy().to_string();
+        let e = handle_lint(vec![f.clone()], "high".into(), "json".into()).unwrap_err();
+        assert!(e.to_string().contains("lint gate failed"), "{e}");
+        handle_lint(vec![f], "none".into(), "json".into()).unwrap();
+    }
+
+    #[test]
+    fn bad_flags_and_missing_files_error() {
+        let p = tmp("flags", BAD).to_string_lossy().to_string();
+        assert!(handle_lint(vec![p.clone()], "bogus".into(), "json".into()).is_err());
+        assert!(handle_lint(vec![p], "none".into(), "xml".into()).is_err());
+        assert!(handle_lint(
+            vec!["/nonexistent/vm.yaml".into()],
+            "none".into(),
+            "json".into()
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn garbage_and_oversize_files_error_without_panic() {
+        let p = tmp("garbage", "\u{0}\u{1}: [unterminated")
+            .to_string_lossy()
+            .to_string();
+        assert!(handle_lint(vec![p], "none".into(), "json".into()).is_err());
+        let big = tmp("big", &"a".repeat(MAX_LINT_FILE_BYTES as usize + 1))
+            .to_string_lossy()
+            .to_string();
+        let e = handle_lint(vec![big], "none".into(), "json".into()).unwrap_err();
+        assert!(e.to_string().contains("lint limit"));
     }
 }

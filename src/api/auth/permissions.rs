@@ -250,6 +250,11 @@ pub fn required_permission(method: &str, path: &str) -> Option<ApiPermission> {
     if path == "/v1/devices/preflight" {
         return Some(ApiPermission::VmCreate);
     }
+    // The VM linter is pure computation on the request body (no cluster access); anyone who
+    // may create VMs may lint one.
+    if path == "/v1/vm-lint" {
+        return Some(ApiPermission::VmCreate);
+    }
     // Changing which hardware VMs may take is a cluster setting.
     if path == "/v1/devices/permitted" {
         return Some(ApiPermission::ClusterAdmin);
@@ -461,6 +466,8 @@ mod tests {
             required_permission("POST", "/v1/devices/preflight"),
             Some(VmCreate)
         );
+        assert_eq!(required_permission("POST", "/v1/vm-lint"), Some(VmCreate));
+        assert_eq!(required_permission("GET", "/v1/vm-lint/rules"), None);
         assert_eq!(required_permission("GET", "/vms"), None);
     }
 

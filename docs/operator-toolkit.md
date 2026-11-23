@@ -8,6 +8,7 @@ Commands operators reach for once the fleet is already running — drift,
 change plans, guest insight, golden images, Terraform, placement:
 
 ```bash
+zorvia change lint vm.yaml
 zorvia change drift desired.yaml
 zorvia change drift desired.yaml --actual live.yaml --fail-on high -o json
 zorvia change plan desired.yaml --vm payments-01 --fail-on-downtime
@@ -22,6 +23,7 @@ zorvia placement placement-advisor --cpu 2 --memory-gib 4
 
 | Topic | Doc |
 |-------|-----|
+| Lint | [docs/VM_LINT.md](VM_LINT.md) |
 | Drift | [docs/DRIFT_GUARD.md](DRIFT_GUARD.md) |
 | Change plans | [docs/CHANGE_PLANNER.md](CHANGE_PLANNER.md) |
 | Guest insight | [docs/GUEST_INSIGHT.md](GUEST_INSIGHT.md) |
