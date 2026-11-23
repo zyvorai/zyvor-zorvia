@@ -142,7 +142,7 @@ pub fn builtin_blueprints() -> HashMap<String, Blueprint> {
                     ]),
                 },
                 VMSpec {
-                    name: "envoy-lb".to_string(),
+                    name: "setura-lb".to_string(),
                     template: "debian".to_string(),
                     profile: Some("web".to_string()),
                     cpu: Some(2),

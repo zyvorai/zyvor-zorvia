@@ -162,13 +162,13 @@ mod tests {
             "web-app",
             Runtime::Container,
             "1.0.0",
-            "envoyproxy/envoy:v1.32-latest",
+            "ghcr.io/zyvorai/zyvor-setura-gateway:0.7.0",
         );
 
         assert_eq!(app.name, "web-app");
         assert_eq!(app.runtime, Runtime::Container);
         assert_eq!(app.version, "1.0.0");
-        assert_eq!(app.image, "envoyproxy/envoy:v1.32-latest");
+        assert_eq!(app.image, "ghcr.io/zyvorai/zyvor-setura-gateway:0.7.0");
         assert!(!app.auto_scale);
     }
 
@@ -178,7 +178,7 @@ mod tests {
             "web",
             Runtime::Container,
             "1.0.0",
-            "envoyproxy/envoy:v1.32-latest",
+            "ghcr.io/zyvorai/zyvor-setura-gateway:0.7.0",
         )
         .enable_auto_scale(2, 5);
 
@@ -193,7 +193,7 @@ mod tests {
             "web",
             Runtime::Container,
             "1.0.0",
-            "envoyproxy/envoy:v1.32-latest",
+            "ghcr.io/zyvorai/zyvor-setura-gateway:0.7.0",
         );
 
         app.set_replicas(3);
@@ -206,7 +206,7 @@ mod tests {
             "web",
             Runtime::Container,
             "1.0.0",
-            "envoyproxy/envoy:v1.32-latest",
+            "ghcr.io/zyvorai/zyvor-setura-gateway:0.7.0",
         );
         app.set_replicas(2);
         app.replicas_running = 2;
@@ -220,7 +220,7 @@ mod tests {
             "web",
             Runtime::Container,
             "1.0.0",
-            "envoyproxy/envoy:v1.32-latest",
+            "ghcr.io/zyvorai/zyvor-setura-gateway:0.7.0",
         );
         app.set_replicas(3);
         app.replicas_running = 1;
@@ -235,7 +235,7 @@ mod tests {
             "web",
             Runtime::Container,
             "1.0.0",
-            "envoyproxy/envoy:v1.32-latest",
+            "ghcr.io/zyvorai/zyvor-setura-gateway:0.7.0",
         );
         app.replicas_running = 0;
 
@@ -250,7 +250,7 @@ mod tests {
             "web",
             Runtime::Container,
             "1.0.0",
-            "envoyproxy/envoy:v1.32-latest",
+            "ghcr.io/zyvorai/zyvor-setura-gateway:0.7.0",
         );
         let id = manager.add_application(app);
 

@@ -16,7 +16,7 @@ fn main() -> anyhow::Result<()> {
         .memory("8Gi")
         .add_blank_disk("rootdisk", "40Gi", 1)
         .add_pod_network("default")
-        .label("app", "envoy")
+        .label("app", "setura")
         .label("tier", "frontend")
         .cloud_init(
             r#"#cloud-config
@@ -28,12 +28,11 @@ packages:
   - curl
   - certbot
 runcmd:
-  - mkdir -p /etc/apt/keyrings
-  - curl -fsSL https://apt.envoyproxy.io/signing.key | gpg --dearmor -o /etc/apt/keyrings/envoy-keyring.gpg
-  - echo "deb [signed-by=/etc/apt/keyrings/envoy-keyring.gpg] https://apt.envoyproxy.io $(lsb_release -cs) main" > /etc/apt/sources.list.d/envoy.list
-  - apt-get update && apt-get install -y envoy
-  - systemctl enable envoy
-  - systemctl start envoy
+  - curl -fsSL -o /tmp/setura.deb https://github.com/zyvorai/zyvor-setura-gateway/releases/download/v0.7.0/setura_0.7.0_amd64.deb
+  - dpkg -i /tmp/setura.deb
+  - cp /usr/share/doc/setura/examples/systemd/system/setura-gateway.service /etc/systemd/system/
+  - systemctl daemon-reload
+  # Put a snapshot at /etc/setura/gateway.json, then: systemctl enable --now setura-gateway
 "#,
         )
         .build();
