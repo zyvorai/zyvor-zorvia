@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- VM manifest lint (Beta): `zorvia change lint FILE...`, `POST /api/v1/vm-lint` and `GET /api/v1/vm-lint/rules`. An offline rule engine (13 rules, stable IDs ZL001-ZL013) flags live-migration blockers (bridge binding on the pod network, explicit ports 49152/49153, host devices, host-passthrough, dedicated CPUs), ephemeral disks, missing memory/evictionStrategy, dangling disk/volume/network references, deprecated `spec.running` and credentials in inline cloud-init (located, never echoed), and reports why a node drain would stop the VM. `--fail-on` gates CI. Unit-tested incl. hostile input; no cluster access. See docs/VM_LINT.md and docs/RESEARCH-VM-PLATFORM-2026.md.
+
 ### Changed
 - The Gateway API front door is now Setura instead of Envoy Gateway: chart `httpRoute.gateway.className` defaults to `setura`, `remote-deploy.sh --bootstrap` installs Setura (`setura gateway install`) and the `setura` GatewayClass, and the chart README documents it. Envoy used as a workload inside example VMs and blueprints is unchanged.
 

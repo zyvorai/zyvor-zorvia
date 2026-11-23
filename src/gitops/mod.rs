@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 pub mod drift;
+pub mod lint;
 pub mod manifests;
 pub mod reconciliation;
 pub mod repository;

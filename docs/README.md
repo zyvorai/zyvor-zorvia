@@ -82,6 +82,8 @@ Start here: root [README.md](../README.md) (hero, gallery, quick start) · live 
 
 | Doc | Topic |
 |-----|--------|
+| [VM_LINT.md](VM_LINT.md) | Offline VM manifest lint: live-migration blockers, ephemeral disks, secrets in cloud-init (`zorvia change lint`) |
+| [RESEARCH-VM-PLATFORM-2026.md](RESEARCH-VM-PLATFORM-2026.md) | Competitive research and ranked idea table (late 2026) |
 | [DRIFT_GUARD.md](DRIFT_GUARD.md) | Semantic desired-vs-live drift (`zorvia change drift`) |
 | [CHANGE_PLANNER.md](CHANGE_PLANNER.md) | Operational change plan (`zorvia change plan`) |
 | [VCENTER_FEATURE_MATRIX.md](VCENTER_FEATURE_MATRIX.md) | Inventory, activity, maintenance, placement |

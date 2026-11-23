@@ -1328,6 +1328,11 @@ pub async fn run(mut cli: Cli) -> Result<()> {
         },
 
         Commands::Change(cmd) => match cmd {
+            ChangeCommands::Lint {
+                files,
+                fail_on,
+                output,
+            } => handlers::gitops::handle_lint(files, fail_on, output)?,
             ChangeCommands::Drift {
                 desired,
                 actual,
@@ -1915,7 +1920,7 @@ pub async fn run(mut cli: Cli) -> Result<()> {
                 (
                     "Drift detection and change planning",
                     "change",
-                    vec!["drift", "plan"],
+                    vec!["drift", "plan", "lint"],
                 ),
                 (
                     "Guest agent insight and image readiness",
