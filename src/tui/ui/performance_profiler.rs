@@ -106,7 +106,7 @@ pub fn render(f: &mut Frame, area: Rect) {
         .height(1);
 
     let processes = [
-        ("envoy", "12.4", "8.2", "16", "Running"),
+        ("setura", "12.4", "8.2", "16", "Running"),
         ("postgres", "18.6", "32.1", "24", "Running"),
         ("node-exporter", "2.1", "1.8", "4", "Running"),
         ("qemu-system", "8.3", "15.4", "8", "Running"),

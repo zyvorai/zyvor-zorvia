@@ -44,14 +44,11 @@ cloud_init:
     runcmd:
       - systemctl enable qemu-guest-agent
       - systemctl start qemu-guest-agent
-      - mkdir -p /etc/apt/keyrings
-      - |
-        curl -fsSL https://apt.envoyproxy.io/signing.key | gpg --dearmor -o /etc/apt/keyrings/envoy-keyring.gpg
-      - |
-        echo "deb [signed-by=/etc/apt/keyrings/envoy-keyring.gpg] https://apt.envoyproxy.io $(lsb_release -cs) main" > /etc/apt/sources.list.d/envoy.list
-      - apt-get update && apt-get install -y envoy
-      - systemctl enable envoy
-      - systemctl start envoy
+      - curl -fsSL -o /tmp/setura.deb https://github.com/zyvorai/zyvor-setura-gateway/releases/download/v0.7.0/setura_0.7.0_amd64.deb
+      - dpkg -i /tmp/setura.deb
+      - cp /usr/share/doc/setura/examples/systemd/system/setura-gateway.service /etc/systemd/system/
+      - systemctl daemon-reload
+      # Put a snapshot at /etc/setura/gateway.json, then: systemctl enable --now setura-gateway
 labels:
   os: ubuntu
   version: "22.04"

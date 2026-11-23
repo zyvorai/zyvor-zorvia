@@ -310,7 +310,7 @@ vms:
         #cloud-config
         hostname: web-server-1
         packages:
-          - envoy
+          - curl
     labels:
       app: web
       tier: frontend
